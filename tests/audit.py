@@ -114,6 +114,26 @@ with sync_playwright() as p:
     ev("openDocModal('venta', docsCache.find(d=>(d.productos||[]).some(p=>p.desc==='blusa 500 efectivo')))"); wait(100)
     ok('editar CC: sigue solo texto y conserva descripcion', ev("getComputedStyle(document.querySelector('.prod-row .prod-row-line2')).display")=='none' and ev("document.querySelector('.pd-desc').value")=='blusa 500 efectivo')
     ev("closeModal('modal-doc')")
+    # Edicion de filas desde la planilla (admin): saldo / pago libre y orden preservado
+    if role=='admin':
+        ev("openClienteDetail('c1')"); wait()
+        ev("openPagoModal()"); pg.select_option('#pago-doc-select','__libre__'); pg.select_option('#pago-metodo-select','TRBF'); pg.fill('#pago-monto-input','7000'); pg.fill('#pago-fecha-input','2026-09-10'); ev("savePago()"); wait(300)
+        ev("openClienteDetail('c2')"); wait()   # la ficha abierta es otra: se edita igual desde la planilla
+        ev("ventaMonth=new Date(2026,8,1); openVentasSheet()"); wait(400)
+        ok('planilla: saldo tiene lapiz para admin', ev("document.querySelectorAll('#venta-sheet-body .sheet-pencil').length")>=2)
+        sid=ev("(ventaSheetDocsRaw.find(d=>d.esSaldoMovimiento&&d.pagos[0].monto===7000)||{}).id")
+        ev(f"editSaldoFromSheet('c1','{sid}')"); wait(500)
+        ok('editar saldo desde planilla abre el formulario', ev("!document.getElementById('modal-pago').classList.contains('hidden')") and ev("document.getElementById('pago-monto-input').value")=='7.000')
+        pg.fill('#pago-monto-input','9000'); ev("savePago()"); wait(500)
+        ok('saldo editado se ve en la planilla', '9.000' in txt('#venta-sheet-body'))
+        # editar una venta desde la planilla no cambia su posicion
+        orden=ev("[...document.querySelectorAll('#venta-sheet-body tr')].map(r=>r.innerText.replace(/\\s+/g,' ').slice(0,30))")
+        vv=ev("ventaSheetDocsRaw.find(d=>!d.esSaldoMovimiento && d.codigo && d.codigo!=='-')")
+        if vv:
+            ev(f"editSheetDoc('{vv['clienteId']}','{vv['id']}','venta')"); wait(400)
+            ev("saveDoc()"); wait(500); ev("closeModal('modal-preview')")
+            orden2=ev("[...document.querySelectorAll('#venta-sheet-body tr')].map(r=>r.innerText.replace(/\\s+/g,' ').slice(0,30))")
+            ok('editar desde planilla conserva el orden', orden==orden2)
     # XSS: nombre con HTML no debe inyectar elementos
     ev("openClientaModal()"); wait(100)
     pg.fill('#clienta-nombre','<img src=x id=xss1>'); pg.fill('#clienta-apellido','Q"><b id=xss2>'); pg.fill('#clienta-telefono','1'); pg.fill('#clienta-dni','123')

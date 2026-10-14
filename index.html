@@ -189,7 +189,7 @@ table.sheet-table td.notes-cell{white-space:normal}
 table.sheet-table tbody td.prod-cell{white-space:normal;overflow-wrap:anywhere;line-height:1.15;padding-top:3px;padding-bottom:3px;font-size:11px;max-height:2.4em}
 table.sheet-table tbody tr.group-first td{border-top:1px solid #e3ddd0}
 table.sheet-table td.vmid{vertical-align:middle;text-align:center}
-table.sheet-table td.notes-cell{color:#9a9285;font-style:italic;font-size:10.5px;text-align:left;padding-left:10px}
+table.sheet-table td.notes-cell{color:#9a9285;font-style:italic;font-size:10.5px;text-align:center}
 table.sheet-table .sheet-empty{text-align:center;color:#a49c8c;padding:40px 10px}
 table.sheet-table td.plus-cell{text-align:center;vertical-align:middle;padding:3px}
 .sheet-plus{color:#a8823f;width:20px;height:20px;border-radius:4px;border:1px solid #c9a86a;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;background:#faf6ee;cursor:pointer;user-select:none;transition:background .1s,transform .1s}
@@ -1013,6 +1013,7 @@ function openDocModal(tipo, existing){
   }
   editingDocTipo = tipo;
   editingExistingCodigo = existing? (existing.codigo!==undefined? existing.codigo : null) : null;
+  editingExistingCreatedAt = existing? (existing.createdAt||null) : null;
   editingExistingSaldarPagos = existing? (existing.pagos||[]).filter(p=>p.pagoDocId) : [];
   document.getElementById('doc-id').value = existing? existing.id : '';
   document.getElementById('doc-tipo').value = tipo;
@@ -1346,7 +1347,7 @@ function saveDoc(){
       refreshClienteDeudaFast(currentClienteId);
     }
     const prevDoc = id? docsCache.find(x=>x.id===id) : null;
-    const createdAtDoc = (prevDoc && prevDoc.createdAt) || Date.now(); // al editar se conserva el orden de carga original
+    const createdAtDoc = (prevDoc && prevDoc.createdAt) || (id && editingExistingCreatedAt) || Date.now(); // al editar se conserva el orden de carga original
     const wb = db.batch();
     if(id) wb.update(ref.doc(id), data); else wb.set(ref.doc(savedId), {...data, createdAt: createdAtDoc});
     wb.set(db.collection(tipo==='presupuesto'?'presupuestos':'ventas').doc(savedId), {...data, id: savedId, createdAt: createdAtDoc, clienteId: currentClienteId, docId: savedId});
@@ -1382,6 +1383,7 @@ function saveDoc(){
   }
 }
 let editingExistingCodigo = null;
+let editingExistingCreatedAt = null; // conserva el orden de carga al editar (también cuando se edita desde la planilla)
 let editingExistingSaldarPagos = []; // pagos que saldan deuda (con pagoDocId) de la venta que se está editando; no se tocan acá
 function existingDocHasCodigo(id){ return !!id && editingExistingCodigo!=null; }
 function deleteDoc(){
@@ -2244,7 +2246,9 @@ function renderVentaSheet(docs){
       html += `<tr class="${i===0?'group-first':''}">`;
       if(i===0){
         html += `<td class="vmid edit-cell" rowspan="${rowspan}">
-          ${d.esSaldoMovimiento? '' : `<span class="sheet-pencil" onclick="editSheetDoc('${d.clienteId}','${d.id}','venta')"><i class="fa-solid fa-pen"></i></span>`}
+          ${d.esSaldoMovimiento
+            ? (currentUserRole==='admin'? `<span class="sheet-pencil" onclick="editSaldoFromSheet('${d.clienteId}','${d.id}')"><i class="fa-solid fa-pen"></i></span>` : '')
+            : `<span class="sheet-pencil" onclick="editSheetDoc('${d.clienteId}','${d.id}','venta')"><i class="fa-solid fa-pen"></i></span>`}
         </td>`;
         html += `<td class="vmid" rowspan="${rowspan}">${esc(d.codigo||'-')}</td>`;
         html += `<td class="vmid" rowspan="${rowspan}"><b class="sheet-client-link" onclick="goToClienteFromSheet('${d.clienteId}')">${esc(d.clienteNombre)} ${esc(d.clienteApellido)}</b></td>`;
@@ -2290,6 +2294,28 @@ function updateFacturaInline(el){
   fb.update(db.collection('ventas').doc(ventaId), {factura});
   fb.commit().catch(err=>{ console.error(err); alert('No se pudo guardar la factura. Revisá la consola.'); });
   markSaving();
+}
+// Editar desde la planilla un movimiento "Salda c/c" / saldo (solo administrador): abre el mismo formulario de pago que la ficha.
+function editSaldoFromSheet(clienteId, pagoId){
+  if(currentUserRole!=='admin') return;
+  const abrir = ()=>{
+    if(!docsCache.some(x=>x.id===pagoId)){ alert('No se encontró el pago.'); return; }
+    openPagoModal(pagoId);
+  };
+  const setCliente = (c)=>{
+    currentClienteId = clienteId;
+    currentClienteData = c;
+    if(docsCacheClienteId===clienteId){ abrir(); return; }
+    db.collection('clientas').doc(clienteId).collection('documentos').get().then(snap=>{
+      docsCache = snap.docs.map(d=>({id:d.id, ...d.data()}))
+        .sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+      docsCacheClienteId = clienteId;
+      abrir();
+    }).catch(err=>{ console.error(err); alert('No se pudo abrir el pago. Revisá la consola.'); });
+  };
+  const cached = clientasCache.find(c=>c.id===clienteId);
+  if(cached) setCliente(cached);
+  else db.collection('clientas').doc(clienteId).get().then(doc=>setCliente({id:doc.id, ...doc.data()}));
 }
 function editSheetDoc(clienteId, docId, tipo){
   const cachedCliente = clientasCache.find(c=>c.id===clienteId);
