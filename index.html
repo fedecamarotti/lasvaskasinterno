@@ -1113,6 +1113,8 @@ function attachDescInput(row){
   t.addEventListener('keydown', e=>{ if(e.key==='Enter') e.preventDefault(); });
   requestAnimationFrame(()=> autoGrow(t));
 }
+// Si se deja la cantidad en blanco y hay precio, se toma 1 (es lo que sugiere el casillero)
+function cantDe(v, precio){ const c = num(v)||0; return c>0? c : (precio>0? 1 : 0); }
 function monedaSelectHTML(cls, p){
   return `<select class="${cls}"><option value="ARS" ${p.moneda==='USD'?'':'selected'}>$</option><option value="USD" ${p.moneda==='USD'?'selected':''}>usd</option></select>`;
 }
@@ -1149,9 +1151,10 @@ function addProductoRow(p){
     const cantInput = row.querySelector('.pd-cant'), vuInput = row.querySelector('.pd-valorunit'), totalInput = row.querySelector('.pd-total');
     attachMoneyInput(vuInput);
     function recalcTotal(){
-      const c = num(cantInput.value)||0, vu = num(vuInput.value)||0;
+      const vu = num(vuInput.value)||0, c = cantDe(cantInput.value, vu);
       totalInput.value = (c*vu)? Math.round(c*vu).toLocaleString('es-AR') : '';
     }
+    recalcTotal();
     cantInput.addEventListener('input', ()=>{ recalcTotal(); recalcLiveTotal(); recalcDeudaLive(); });
     vuInput.addEventListener('input', ()=>{ recalcTotal(); recalcLiveTotal(); recalcDeudaLive(); });
     row.querySelector('.pd-moneda').addEventListener('change', ()=>{ recalcLiveTotal(); recalcDeudaLive(); });
@@ -1185,7 +1188,7 @@ function recalcLiveTotal(){
     const moneda = row.classList.contains('arreglo-row')? row.querySelector('.ar-moneda').value : row.querySelector('.pd-moneda').value;
     let total;
     if(row.classList.contains('arreglo-row')){ total = num(row.querySelector('.ar-valor').value)||0; }
-    else { const c=num(row.querySelector('.pd-cant').value)||0, vu=num(row.querySelector('.pd-valorunit').value)||0; total=c*vu; }
+    else { const vu=num(row.querySelector('.pd-valorunit').value)||0, c=cantDe(row.querySelector('.pd-cant').value, vu); total=c*vu; }
     if(moneda==='ARS') totalARS+=total; else totalUSD+=total;
   });
   const parts=[];
@@ -1242,7 +1245,7 @@ function recalcDeudaLive(){
     const moneda = row.classList.contains('arreglo-row')? row.querySelector('.ar-moneda').value : row.querySelector('.pd-moneda').value;
     let total;
     if(row.classList.contains('arreglo-row')){ total = num(row.querySelector('.ar-valor').value)||0; }
-    else { const c=num(row.querySelector('.pd-cant').value)||0, vu=num(row.querySelector('.pd-valorunit').value)||0; total=c*vu; }
+    else { const vu=num(row.querySelector('.pd-valorunit').value)||0, c=cantDe(row.querySelector('.pd-cant').value, vu); total=c*vu; }
     if(moneda==='ARS') totalARS+=total; else totalUSD+=total;
   });
   let pagadoARS=0, pagadoUSD=0;
@@ -1342,8 +1345,8 @@ function saveDoc(){
       if(moneda==='ARS'){ totalEfvoARS += efvo; totalTarjARS += tarj; }
       else { totalEfvoUSD += efvo; totalTarjUSD += tarj; }
     } else {
-      const cant = num(row.querySelector('.pd-cant').value)||0;
       const valorUnit = num(row.querySelector('.pd-valorunit').value)||0;
+      const cant = cantDe(row.querySelector('.pd-cant').value, valorUnit);
       const total = cant*valorUnit;
       productos.push({desc, moneda, cant, valorUnit, total, puntoVenta: currentPV});
       if(currentPV && !pvsUsadas.includes(currentPV)) pvsUsadas.push(currentPV);

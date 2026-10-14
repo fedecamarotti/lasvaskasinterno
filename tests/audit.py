@@ -174,6 +174,16 @@ with sync_playwright() as p:
     ok('sin DNI avisa y permite continuar', any('sin DNI' in x for x in m) and ev("clientasCache.some(c=>c.apellido==='Dnii')"))
     m=crear('Unica','Persona','31313131','31313131')
     ok('clienta nueva sin repetidos no avisa', not any(('cargado' in x) or ('sin DNI' in x) for x in m))
+    # Venta CC vieja (guardada sin cantidad): al editarla, cantidad en blanco = 1 y el total se calcula
+    ev("""(()=>{const s=window.__store; const base={tipo:'venta',fecha:'2026-10-14',clienteNombre:'Lola',clienteApellido:'Arana',codigo:'-',puntoVenta:'CC',productos:[{desc:'chapon bronce',texto:true,valorUnit:38000,puntoVenta:'CC'}],pagos:[],totalARS:0,totalUSD:0,aPagarARS:0,aPagarUSD:0,createdAt:99};
+      s['clientas/c1/documentos/cc1']=base; s['ventas/cc1']={...base,clienteId:'c1',docId:'cc1'};})()""")
+    ev("openClienteDetail('c1')"); wait()
+    ev("openDocModal('venta', docsCache.find(d=>d.id==='cc1'))"); wait(150)
+    ok('CC vieja: total en vivo 38.000', '38.000' in ev("document.getElementById('doc-live-total').innerText"))
+    ok('CC vieja: columna total muestra 38.000', ev("document.querySelector('.pd-total').value")=='38.000')
+    ev("saveDoc()"); wait(500); ev("closeModal('modal-preview')")
+    c=ev("docsCache.find(d=>d.id==='cc1')")
+    ok('CC vieja guardada con total 38.000 y cant 1', c['totalARS']==38000 and c['productos'][0]['cant']==1 and c['aPagarARS']==38000)
     # XSS: nombre con HTML no debe inyectar elementos
     ev("openClientaModal()"); wait(100)
     pg.fill('#clienta-nombre','<img src=x id=xss1>'); pg.fill('#clienta-apellido','Q"><b id=xss2>'); pg.fill('#clienta-telefono','1'); pg.fill('#clienta-dni','123')
