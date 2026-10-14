@@ -121,7 +121,9 @@ label{font-size:12px;color:#9a9285;display:block;margin-bottom:4px;letter-spacin
 .row2{display:flex;gap:10px}
 .row2>.field{flex:1}
 
-.pago-row{display:flex;gap:8px;margin-bottom:8px;align-items:flex-end}
+.pago-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;align-items:flex-end}
+.pago-row .pg-hint{flex:0 0 100%;font-size:11.5px;color:#8f6c2a;margin-top:-2px}
+.pago-row .pg-cot-wrap{flex:.75}
 .pago-row .field{margin-bottom:0}
 .rm-row{color:#c1685c;font-size:18px;width:34px;height:38px;flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer}
 .add-row-btn{color:#a8823f;font-size:13px;font-weight:600;margin:4px 0 16px;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
@@ -239,8 +241,9 @@ body.role-limited #venta-table colgroup col:nth-child(8){display:none}
 .prod-row input,.prod-row select,.prod-row textarea{padding:8px 6px;font-size:13px;height:36px}
 .prod-row textarea{resize:none;overflow:hidden;line-height:1.25;min-height:36px;display:block;font-family:inherit}
 .prod-row .c-tot input[readonly]{height:36px}
-.prod-row .c-cant input,.prod-row .c-v input,.prod-row .c-tot input{text-align:right}
-.prod-row .c-mon select{padding:8px 2px}
+.prod-row .c-v input,.prod-row .c-tot input{text-align:right}
+.prod-row .c-cant input{text-align:center;padding-left:2px;padding-right:2px}
+.prod-row .c-mon select{-webkit-appearance:none;-moz-appearance:none;appearance:none;background-image:none;text-align:center;text-align-last:center;padding:8px 2px;font-weight:600;color:#8f6c2a;background-color:#faf5e8;border-color:#eadfc6;cursor:pointer}
 .prod-row input[readonly]{border-color:transparent;background:transparent;font-weight:600;color:#3a352c;opacity:1;padding-right:6px}
 @media(max-width:560px){
   .prod-head{display:none}
@@ -250,10 +253,8 @@ body.role-limited #venta-table colgroup col:nth-child(8){display:none}
 }
 /* botones "+ Producto" / "+ Arreglos/otros" */
 .add-pills{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px}
-.add-pill{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:20px;border:none;font-size:13px;font-weight:600;cursor:pointer}
+.add-pill{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:16px;border:none;font-size:12px;font-weight:600;cursor:pointer;background:#f4ecd9;color:#8f6c2a}
 .add-pill.hidden{display:none}
-.add-pill.pill-prod{background:#f4ecd9;color:#8f6c2a}
-.add-pill.pill-arr{background:#e4ecf8;color:#3d5f96}
 .pv-divider{display:flex;align-items:center;gap:8px;margin:12px 0 8px;padding-top:10px;border-top:1px dashed #ddd3ba}
 .pv-divider label{margin:0;flex-shrink:0}
 .pv-divider select{flex:1}
@@ -859,6 +860,9 @@ function openClientaModal(existing){
   document.getElementById('clienta-delete-row').classList.toggle('hidden', !existing);
   openModal('modal-clienta');
 }
+function onlyDigits(v){ return String(v||'').replace(/\D/g,''); }
+// Para comparar celulares ignorando prefijos (+54, 9, 0, 15, espacios): se usan los últimos 10 dígitos
+function phoneKey(v){ const d = onlyDigits(v); return d.length>=8? d.slice(-10) : d; }
 function saveClienta(){
   const id = document.getElementById('clienta-id').value;
   const data = {
@@ -870,6 +874,19 @@ function saveClienta(){
   };
   if(!data.nombre || !data.apellido){ alert('Nombre y apellido son obligatorios'); return; }
   if(!data.telefono && currentUserRole!=='admin'){ alert('El teléfono es obligatorio'); return; }
+  // Avisos (no bloquean): DNI o celular repetidos y clienta sin DNI. Se puede seguir tocando "Aceptar".
+  const otras = clientasCache.filter(c=>c.id!==id);
+  const dniKey = onlyDigits(data.dni), telKey = phoneKey(data.telefono);
+  const prev = id? clientasCache.find(c=>c.id===id) : null;
+  if(dniKey && !(prev && onlyDigits(prev.dni)===dniKey)){
+    const dup = otras.find(c=>onlyDigits(c.dni)===dniKey);
+    if(dup && !confirm(`Ya hay una clienta con este DNI cargado (${dup.nombre} ${dup.apellido}). ¿Desea cargarla de todas maneras?`)) return;
+  }
+  if(telKey && !(prev && phoneKey(prev.telefono)===telKey)){
+    const dup = otras.find(c=>phoneKey(c.telefono)===telKey);
+    if(dup && !confirm(`Ya hay una clienta con este celular cargado (${dup.nombre} ${dup.apellido}). ¿Desea cargarla de todas maneras?`)) return;
+  }
+  if(!id && !dniKey && !confirm('Está a punto de crear una clienta sin DNI. ¿Desea continuar?')) return;
   closeModal('modal-clienta');
   if(id){
     // Optimista: actualizamos en memoria y en pantalla al instante; Firestore se escribe en segundo plano.
@@ -1025,8 +1042,8 @@ function renderDocsList(){
 /* =================== DOC MODAL (crear/editar) =================== */
 function openDocModal(tipo, existing){
   if(tipo==='venta' && !existing && !(currentClienteData.dni||'').trim()){
-    alert('Falta cargar DNI en ficha de clienta');
-    return;
+    if(currentUserRole!=='admin'){ alert('Falta cargar DNI en ficha de clienta'); return; }
+    if(!confirm('Esta clienta no tiene DNI cargado. ¿Desea continuar de todas maneras?')) return;
   }
   editingDocTipo = tipo;
   editingExistingCodigo = existing? (existing.codigo!==undefined? existing.codigo : null) : null;
@@ -1185,14 +1202,36 @@ function addPagoRow(p){
     Object.keys(METODOS).map(k=>`<option value="${k}" ${p.metodo===k?'selected':''}>${METODOS[k].label}</option>`).join('');
   row.innerHTML = `
     <div class="field" style="flex:1.3"><select class="pg-metodo">${opts}</select></div>
-    <div class="field" style="flex:1"><input class="pg-monto" placeholder="Monto" value="${fmtMoney(p.monto)}"></div>
-    <div class="rm-row" onclick="this.parentElement.remove()">✕</div>`;
+    <div class="field" style="flex:1"><input class="pg-monto" placeholder="Monto" inputmode="numeric" value="${fmtMoney(p.monto)}"></div>
+    <div class="field pg-cot-wrap hidden"><input class="pg-cot" placeholder="Cotización" inputmode="numeric" value="${p.cotizacion? fmtMoney(p.cotizacion) : ''}"></div>
+    <div class="rm-row" onclick="this.parentElement.remove()">✕</div>
+    <div class="pg-hint hidden"></div>`;
   cont.appendChild(row);
   attachMoneyInput(row.querySelector('.pg-monto'));
+  attachMoneyInput(row.querySelector('.pg-cot'));
   row.querySelector('.pg-metodo').addEventListener('change', recalcDeudaLive);
   row.querySelector('.pg-monto').addEventListener('input', recalcDeudaLive);
+  row.querySelector('.pg-cot').addEventListener('input', recalcDeudaLive);
   row.querySelector('.rm-row').addEventListener('click', recalcDeudaLive);
   recalcDeudaLive();
+}
+// Efecto de cada pago sobre la deuda de la venta, en el orden en que se cargan. Si se paga en una moneda distinta a la de la deuda
+// hace falta la cotización: se convierte el pago a la moneda de la deuda, que siempre queda en la moneda del producto.
+function calcVentaPagos(totalARS, totalUSD, lista, extraAddARS, extraAddUSD){
+  let remARS = totalARS - (extraAddARS||0), remUSD = totalUSD - (extraAddUSD||0);
+  return lista.map(p=>{
+    const mon = METODOS[p.metodo].moneda;
+    let addARS=0, addUSD=0, needsCot=false;
+    if(mon==='ARS'){
+      if(remARS>0 || remUSD<=0) addARS = p.monto;
+      else { needsCot = true; if(p.cotizacion>0) addUSD = Math.round(p.monto / p.cotizacion); }
+    } else {
+      if(remUSD>0 || remARS<=0) addUSD = p.monto;
+      else { needsCot = true; if(p.cotizacion>0) addARS = Math.round(p.monto * p.cotizacion); }
+    }
+    remARS -= addARS; remUSD -= addUSD;
+    return {...p, addARS, addUSD, needsCot, mon};
+  });
 }
 // Deuda = total de la venta menos lo que se va pagando; se recalcula en vivo mientras se carga
 function recalcDeudaLive(){
@@ -1207,11 +1246,29 @@ function recalcDeudaLive(){
     if(moneda==='ARS') totalARS+=total; else totalUSD+=total;
   });
   let pagadoARS=0, pagadoUSD=0;
+  editingExistingSaldarPagos.forEach(p=>{ pagadoARS += p.addARS||0; pagadoUSD += p.addUSD||0; });
+  const filas = [];
   document.querySelectorAll('#pagos-container .pago-row').forEach(row=>{
     const metodo = row.querySelector('.pg-metodo').value;
     const monto = num(row.querySelector('.pg-monto').value);
-    if(!metodo || monto<=0) return;
-    if(METODOS[metodo].moneda==='ARS') pagadoARS+=monto; else pagadoUSD+=monto;
+    if(!metodo || monto<=0){ filas.push({row, p:null}); return; }
+    filas.push({row, p:{metodo, monto, cotizacion: num(row.querySelector('.pg-cot').value)||0}});
+  });
+  const calc = calcVentaPagos(totalARS, totalUSD, filas.filter(f=>f.p).map(f=>f.p), pagadoARS, pagadoUSD);
+  let ci = 0;
+  filas.forEach(f=>{
+    const cotWrap = f.row.querySelector('.pg-cot-wrap'), hint = f.row.querySelector('.pg-hint');
+    if(!f.p){ cotWrap.classList.add('hidden'); hint.classList.add('hidden'); return; }
+    const c = calc[ci++];
+    cotWrap.classList.toggle('hidden', !c.needsCot);
+    if(c.needsCot && f.p.cotizacion>0){
+      hint.textContent = 'Equivale a '+(c.mon==='ARS'? fmtUSD(c.addUSD) : fmtARS(c.addARS))+' de la deuda';
+      hint.classList.remove('hidden');
+    } else if(c.needsCot){
+      hint.textContent = 'La deuda está en '+(c.mon==='ARS'?'dólares':'pesos')+': ingresá la cotización usada.';
+      hint.classList.remove('hidden');
+    } else hint.classList.add('hidden');
+    pagadoARS += c.addARS; pagadoUSD += c.addUSD;
   });
   const deudaARS = Math.max(0, totalARS-pagadoARS), deudaUSD = Math.max(0, totalUSD-pagadoUSD);
   const parts=[];
@@ -1309,19 +1366,25 @@ function saveDoc(){
   } else {
     data.puntoVenta = pvsUsadas.length? pvsUsadas.join(' + ') : document.getElementById('doc-puntoventa').value;
     let pagos=[], pagadoARS=0, pagadoUSD=0, pagoError=false;
+    const lista = [];
     document.querySelectorAll('#pagos-container .pago-row').forEach(row=>{
       const metodo = row.querySelector('.pg-metodo').value;
       const monto = num(row.querySelector('.pg-monto').value);
       if(monto<=0) return;
       if(!metodo){ pagoError=true; return; }
-      // Sin cotización disponible acá (eso solo se pide en el flujo de "Pago" para saldar deuda):
-      // el monto se aplica directo a la moneda del método elegido, igual que hacía la app antes.
-      const addARS = METODOS[metodo].moneda==='ARS'? monto : 0;
-      const addUSD = METODOS[metodo].moneda==='USD'? monto : 0;
-      pagos.push({metodo, monto, addARS, addUSD});
-      pagadoARS += addARS; pagadoUSD += addUSD;
+      lista.push({metodo, monto, cotizacion: num(row.querySelector('.pg-cot').value)||0});
     });
     if(pagoError){ alert('Falta método de pago'); return; }
+    // Los pagos que saldaron deuda por separado (con pagoDocId) ya descontaron lo suyo: se tienen en cuenta antes de aplicar estos.
+    let previoARS = 0, previoUSD = 0;
+    editingExistingSaldarPagos.forEach(p=>{ previoARS += p.addARS||0; previoUSD += p.addUSD||0; });
+    const calc = calcVentaPagos(totalARS, totalUSD, lista, previoARS, previoUSD);
+    const sinCot = calc.find(c=>c.needsCot && !(c.cotizacion>0));
+    if(sinCot){ alert('La deuda está en '+(sinCot.mon==='ARS'?'dólares':'pesos')+' y el pago es en '+(sinCot.mon==='ARS'?'pesos':'dólares')+': ingresá la cotización usada en ese pago.'); return; }
+    calc.forEach(c=>{
+      pagos.push({metodo:c.metodo, monto:c.monto, ...(c.cotizacion>0?{cotizacion:c.cotizacion}:{}), addARS:c.addARS, addUSD:c.addUSD});
+      pagadoARS += c.addARS; pagadoUSD += c.addUSD;
+    });
     // Los pagos que saldaron deuda por separado (con pagoDocId) no se editan desde acá: se conservan tal cual.
     pagos = [...editingExistingSaldarPagos, ...pagos];
     editingExistingSaldarPagos.forEach(p=>{ pagadoARS += p.addARS||0; pagadoUSD += p.addUSD||0; });
@@ -1788,7 +1851,7 @@ function buildPaperHTML(d, c, includeNotes){
     if(d.totalUSD>0) rows += `<tr class="totalrow"><td class="lbl" colspan="2">Total</td><td class="num">${fmtUSD(d.totalUSD)}</td></tr>`;
     (d.pagos||[]).forEach(p=>{
       const m = METODOS[p.metodo];
-      rows += `<tr class="payrow"><td class="lbl" colspan="2"><b>Pago</b><span class="paren">(${m.paren})</span></td><td class="num">${m.moneda==='ARS'?fmtARS(p.monto):fmtUSD(p.monto)}</td></tr>`;
+      rows += `<tr class="payrow"><td class="lbl" colspan="2"><b>Pago</b><span class="paren">(${m.paren}${p.cotizacion? ', cot. '+fmtMoney(p.cotizacion) : ''})</span></td><td class="num">${m.moneda==='ARS'?fmtARS(p.monto):fmtUSD(p.monto)}</td></tr>`;
     });
     if(d.saldado && d.aPagarARS<=0 && d.aPagarUSD<=0){
       const f = d.saldadoMoneda==='USD'?fmtUSD:fmtARS;
