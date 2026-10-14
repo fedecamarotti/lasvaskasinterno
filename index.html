@@ -1124,8 +1124,9 @@ function recalcDeudaLive(){
   el.textContent = parts.length? parts.join(' + ') : '$0';
   document.getElementById('doc-fechapago').closest('.field').style.display = (deudaARS>0||deudaUSD>0)? '' : 'none';
 }
-function nextCodigo(){
-  const mm = String(new Date().getMonth()+1).padStart(2,'0');
+function nextCodigo(fechaISO){
+  // El mes del código sale de la fecha de la venta (no del día de hoy): si cargás una venta de septiembre, el código empieza con 09.
+  const mm = (fechaISO && /^\d{4}-\d{2}/.test(fechaISO))? fechaISO.slice(5,7) : String(new Date().getMonth()+1).padStart(2,'0');
   const counterRef = db.collection('meta').doc('codigos');
   return db.runTransaction(tx=>{
     return tx.get(counterRef).then(doc=>{
@@ -1260,9 +1261,12 @@ function saveDoc(){
     if(!document.getElementById('screen-venta-sheet').classList.contains('hidden')) openVentasSheet();
     if(!document.getElementById('screen-presu-sheet').classList.contains('hidden')) openPresupuestosSheet();
   };
-  if(tipo==='venta' && !id){
-    if(pvsUsadas.includes('Belgrano') || pvsUsadas.includes('Venta por señar')){
-      nextCodigo().then(proceed);
+  const codigoViejo = (id && editingExistingCodigo!=null)? String(editingExistingCodigo) : null;
+  // Si al editar la fecha cambia a otro mes distinto del que tiene el código (ej: 1001 en una venta de septiembre), se genera uno nuevo del mes correcto.
+  const codigoDeOtroMes = !!codigoViejo && /^\d{4}$/.test(codigoViejo) && codigoViejo.slice(0,2)!==fecha.slice(5,7);
+  if(tipo==='venta' && (!id || codigoDeOtroMes)){
+    if(codigoDeOtroMes || pvsUsadas.includes('Belgrano') || pvsUsadas.includes('Venta por señar')){
+      nextCodigo(fecha).then(proceed);
     } else {
       proceed('-');
     }
