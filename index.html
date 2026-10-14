@@ -268,6 +268,8 @@ body.role-limited #venta-table colgroup col:nth-child(8){display:none}
 .card.deuda-vencida .name{color:#a13f38}
 
 /* ---------- notas ---------- */
+.doctype-btns button.pago{display:none}
+body.role-admin .doctype-btns button.pago{display:block}
 .doctype-btns button.nota{border-color:#b9c6da;color:#5f7597}
 .tag-mini.nota{background:transparent;border:1px solid #b9c6da;color:#5f7597}
 .nota-card .nota-texto{font-size:13.5px;color:#3a352c;white-space:pre-wrap;margin-top:4px}
@@ -322,7 +324,7 @@ body.role-limited #venta-table colgroup col:nth-child(8){display:none}
     <div class="doctype-btns">
       <button class="presu" onclick="openDocModal('presupuesto')"><i class="fa-solid fa-file-lines"></i><br>Presupuesto</button>
       <button class="venta" onclick="openDocModal('venta')"><i class="fa-solid fa-receipt"></i><br>Venta</button>
-      <button class="pago" onclick="openPagoModal()"><i class="fa-solid fa-hand-holding-dollar"></i><br>Pago</button>
+      <button class="pago" id="btn-pago-ficha" onclick="openPagoModal()"><i class="fa-solid fa-hand-holding-dollar"></i><br>Pago</button>
       <button class="nota" onclick="openNotaModal()"><i class="fa-solid fa-note-sticky"></i><br>Notas</button>
     </div>
     <div id="docs-list"></div>
@@ -510,6 +512,7 @@ body.role-limited #venta-table colgroup col:nth-child(8){display:none}
     <h2 id="pago-modal-title">Registrar pago</h2>
     <input type="hidden" id="pago-editing-id">
     <div class="field" id="pago-doc-select-field"><label>Saldar deuda del</label><select id="pago-doc-select"></select></div>
+    <div class="field hidden" id="pago-fecha-field"><label>Fecha del pago</label><input type="date" id="pago-fecha-input"></div>
     <div class="field"><label>Método de pago</label><select id="pago-metodo-select"></select></div>
     <div class="field"><label>Monto</label><input id="pago-monto-input" placeholder="Monto"></div>
     <div class="field"><label>Cotización (solo si pagás en una moneda distinta a la de la deuda)</label><input id="pago-cotizacion-input" placeholder="ej: 1350"></div>
@@ -653,12 +656,13 @@ auth.onAuthStateChanged(user=>{
       currentUserRole = doc.exists? (doc.data().rol||'full') : 'full';
       currentUserNombre = doc.exists? (doc.data().nombre||user.email||'') : (user.email||'');
       document.body.classList.toggle('role-limited', currentUserRole==='limitado');
+      document.body.classList.toggle('role-admin', currentUserRole==='admin');
       showScreen('clientas');
       loadClientas();
     }).catch(()=>{
       currentUserRole = 'full';
       currentUserNombre = user.email||'';
-      document.body.classList.remove('role-limited');
+      document.body.classList.remove('role-limited','role-admin');
       showScreen('clientas');
       loadClientas();
     });
@@ -1273,7 +1277,25 @@ function editCurrentDoc(){
 }
 
 /* =================== PAGO (saldar deuda) =================== */
+const PAGO_LIBRE = '__libre__';
+function syncPagoFecha(){
+  const libre = document.getElementById('pago-doc-select').value===PAGO_LIBRE;
+  document.getElementById('pago-fecha-field').classList.toggle('hidden', !libre);
+}
+function buildPagoLibreMovimiento(metodo, monto, fecha){
+  return {
+    tipo:'venta', esSaldoMovimiento:true, fecha,
+    clienteId: currentClienteId,
+    clienteNombre: currentClienteData.nombre, clienteApellido: currentClienteData.apellido,
+    clienteTelefono: currentClienteData.telefono||'', clienteDni: currentClienteData.dni||'',
+    codigo:'-', puntoVenta:'Salda c/c', fechaEvento:'-',
+    productos:[{desc:'Saldo / pago a cuenta', cant:'-', valorUnit:'-', total:'-'}],
+    pagos:[{metodo, monto}], aPagarARS:0, aPagarUSD:0,
+    createdAt: Date.now()
+  };
+}
 function openPagoModal(editPagoId){
+  if(currentUserRole!=='admin'){ return; }
   const isEdit = !!editPagoId;
   document.getElementById('pago-editing-id').value = editPagoId||'';
   document.getElementById('pago-modal-title').textContent = isEdit? 'Editar pago' : 'Registrar pago';
@@ -1286,6 +1308,9 @@ function openPagoModal(editPagoId){
     const p = docsCache.find(x=>x.id===editPagoId);
     if(!p){ alert('No se encontró el pago.'); return; }
     document.getElementById('pago-doc-select-field').classList.add('hidden');
+    const libre = !p.refVentaId;
+    document.getElementById('pago-fecha-field').classList.toggle('hidden', !libre);
+    if(libre) document.getElementById('pago-fecha-input').value = p.fecha||todayISO();
     document.getElementById('pago-metodo-select').value = p.metodo;
     document.getElementById('pago-monto-input').value = fmtMoney(p.monto);
     document.getElementById('pago-cotizacion-input').value = fmtMoney(p.cotizacion||0);
@@ -1296,13 +1321,16 @@ function openPagoModal(editPagoId){
   const pendientes = docsCache.filter(d=> d.tipo==='venta' && ((d.aPagarARS>0)||(d.aPagarUSD>0)));
   const esAdmin = currentUserRole==='admin';
   // Fede (admin) puede cargar un pago aunque la clienta no tenga deuda pendiente; el resto de los usuarios no.
-  const candidatos = pendientes.length? pendientes : (esAdmin? docsCache.filter(d=>d.tipo==='venta') : []);
-  if(!candidatos.length){ alert('Esta clienta no tiene deudas pendientes.'); return; }
+  if(!esAdmin){ alert('Solo el administrador puede registrar pagos.'); return; }
+  const candidatos = pendientes;
   document.getElementById('pago-doc-select-field').classList.remove('hidden');
-  document.getElementById('pago-doc-select').innerHTML = candidatos.map(d=>{
-    const tieneDeuda = (d.aPagarARS>0)||(d.aPagarUSD>0);
-    return `<option value="${d.id}">${tieneDeuda? `Saldar deuda del ${fmtDate(d.fecha)} — Debe ${fmtDebtObj({ars:d.aPagarARS||0, usd:d.aPagarUSD||0})}` : `Venta del ${fmtDate(d.fecha)} (sin deuda)`}</option>`;
-  }).join('');
+  document.getElementById('pago-doc-select').innerHTML = candidatos.map(d=>
+    `<option value="${d.id}">Saldar deuda del ${fmtDate(d.fecha)} — Debe ${fmtDebtObj({ars:d.aPagarARS||0, usd:d.aPagarUSD||0})}</option>`
+  ).join('') + `<option value="${PAGO_LIBRE}">Saldo / pago a cuenta (sin venta asociada)</option>`;
+  document.getElementById('pago-doc-select').onchange = syncPagoFecha;
+  document.getElementById('pago-doc-select').value = candidatos.length? candidatos[0].id : PAGO_LIBRE;
+  document.getElementById('pago-fecha-input').value = todayISO();
+  syncPagoFecha();
   document.getElementById('pago-monto-input').value = '';
   document.getElementById('pago-cotizacion-input').value = '';
   openModal('modal-pago');
@@ -1379,6 +1407,23 @@ function savePago(){
   if(editPagoId){
     const pagoDoc = docsCache.find(x=>x.id===editPagoId);
     if(!pagoDoc) return;
+    if(!pagoDoc.refVentaId){
+      const f = document.getElementById('pago-fecha-input').value || pagoDoc.fecha;
+      const upd = {metodo, monto, fecha:f};
+      const mov = buildPagoLibreMovimiento(metodo, monto, f);
+      const prev = {...pagoDoc};
+      closeModal('modal-pago');
+      upsertDocInCache({...pagoDoc, ...upd});
+      upsertSaldoMovimientoInSheet(editPagoId, mov);
+      db.collection('clientas').doc(currentClienteId).collection('documentos').doc(editPagoId).update(upd).then(()=>{
+        db.collection('ventas').doc(editPagoId).set(mov).catch(()=>{});
+      }).catch(err=>{
+        console.error(err);
+        alert('No se pudo guardar el cambio. Revisá la consola.');
+        upsertDocInCache(prev);
+      });
+      return;
+    }
     // La venta ya está en docsCache (se cargó al entrar a la ficha): no hace falta releerla de Firestore.
     const d = docsCache.find(x=>x.id===pagoDoc.refVentaId);
     if(!d){
@@ -1420,6 +1465,28 @@ function savePago(){
   }
 
   const docId = document.getElementById('pago-doc-select').value;
+  if(docId===PAGO_LIBRE){
+    const f = document.getElementById('pago-fecha-input').value || fecha;
+    const ref = db.collection('clientas').doc(currentClienteId).collection('documentos').doc();
+    const pdata = {
+      tipo:'pago', fecha:f, metodo, monto, refVentaId:null, libre:true,
+      clienteNombre: currentClienteData.nombre, clienteApellido: currentClienteData.apellido,
+      clienteTelefono: currentClienteData.telefono||'', createdAt: Date.now(),
+      creadoPor: auth.currentUser? auth.currentUser.email : '', creadoPorNombre: currentUserNombre
+    };
+    const mov = buildPagoLibreMovimiento(metodo, monto, f);
+    closeModal('modal-pago');
+    upsertDocInCache({id:ref.id, ...pdata});
+    upsertSaldoMovimientoInSheet(ref.id, mov);
+    ref.set(pdata).then(()=>{
+      db.collection('ventas').doc(ref.id).set(mov).catch(()=>{});
+    }).catch(err=>{
+      console.error(err);
+      alert('No se pudo guardar el pago. Revisá la consola.');
+      removeDocFromCache(ref.id); removeSaldoMovimientoFromSheet(ref.id);
+    });
+    return;
+  }
   const d = docsCache.find(x=>x.id===docId);
   const eff = computePagoEffect(d, metodo, monto, cotizacion);
   if(eff.error){ alert(eff.error); return; }
@@ -1465,10 +1532,10 @@ function savePago(){
 }
 function deletePago(){
   const pagoId = document.getElementById('pago-editing-id').value;
-  if(!pagoId || !confirm('¿Eliminar este pago? La deuda de la venta se actualizará.')) return;
+  if(!pagoId || !confirm('¿Eliminar este pago?')) return;
   const pagoDoc = docsCache.find(x=>x.id===pagoId);
   if(!pagoDoc) return;
-  const d = docsCache.find(x=>x.id===pagoDoc.refVentaId);
+  const d = pagoDoc.refVentaId? docsCache.find(x=>x.id===pagoDoc.refVentaId) : null;
   let updateData = null, ventaData = null;
   if(d){
     const pagos = (d.pagos||[]).filter(p=>p.pagoDocId!==pagoId);
@@ -1485,10 +1552,10 @@ function deletePago(){
 
   const clienteDocs = db.collection('clientas').doc(currentClienteId).collection('documentos');
   const batch = db.batch();
-  if(updateData) batch.update(clienteDocs.doc(pagoDoc.refVentaId), updateData);
+  if(updateData && pagoDoc.refVentaId) batch.update(clienteDocs.doc(pagoDoc.refVentaId), updateData);
   batch.delete(clienteDocs.doc(pagoId));
   batch.commit().then(()=>{
-    if(updateData) db.collection('ventas').doc(pagoDoc.refVentaId).update(updateData).catch(()=>{});
+    if(updateData && pagoDoc.refVentaId) db.collection('ventas').doc(pagoDoc.refVentaId).update(updateData).catch(()=>{});
     db.collection('ventas').doc(pagoId).delete().catch(()=>{}); // borra el movimiento "Salda c/c" asociado
   }).catch(err=>{
     console.error(err);
