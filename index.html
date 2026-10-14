@@ -495,7 +495,7 @@ body.role-admin .doctype-btns button.pago{display:block}
       <div class="add-row-btn" onclick="addPagoRow()"><i class="fa-solid fa-plus"></i> Agregar pago</div>
       <div class="deuda-row">
         <div class="field"><label>Deuda</label><div id="doc-deuda-display">$0</div></div>
-        <div class="field"><label>Fecha de pago</label><input id="doc-fechapago" type="date"></div>
+        <div class="field"><label>Fecha para saldar deuda</label><input id="doc-fechapago" type="date"></div>
       </div>
     </div>
     <button class="btn btn-primary" id="doc-save-btn" style="width:100%;margin-top:10px" onclick="saveDoc()">Guardar</button>
@@ -1228,9 +1228,11 @@ function saveDoc(){
     }
     if(!document.getElementById('screen-venta-sheet').classList.contains('hidden')) openVentasSheet();
     if(!document.getElementById('screen-presu-sheet').classList.contains('hidden')) openPresupuestosSheet();
-    const p = id ? ref.doc(id).update(data) : ref.doc(savedId).set({...data, createdAt: Date.now()});
+    const prevDoc = id? docsCache.find(x=>x.id===id) : null;
+    const createdAtDoc = (prevDoc && prevDoc.createdAt) || Date.now(); // al editar se conserva el orden de carga original
+    const p = id ? ref.doc(id).update(data) : ref.doc(savedId).set({...data, createdAt: createdAtDoc});
     p.then(()=>{
-      syncGlobalDoc(tipo, savedId, {...data, id: savedId, createdAt: Date.now()});
+      syncGlobalDoc(tipo, savedId, {...data, id: savedId, createdAt: createdAtDoc});
     }).catch(err=>{
       console.error(err);
       alert('No se pudo guardar. Revisá la consola.');
@@ -1410,7 +1412,7 @@ function savePago(){
     if(!pagoDoc.refVentaId){
       const f = document.getElementById('pago-fecha-input').value || pagoDoc.fecha;
       const upd = {metodo, monto, fecha:f};
-      const mov = buildPagoLibreMovimiento(metodo, monto, f);
+      const mov = {...buildPagoLibreMovimiento(metodo, monto, f), createdAt: pagoDoc.createdAt||Date.now()};
       const prev = {...pagoDoc};
       closeModal('modal-pago');
       upsertDocInCache({...pagoDoc, ...upd});
@@ -1441,7 +1443,7 @@ function savePago(){
     if(totals.fullySettled){ updateData.saldado=true; updateData.saldadoFecha=pagoDoc.fecha; updateData.saldadoMonto=monto; updateData.saldadoMoneda=eff.payMoneda; updateData.saldadoMetodo=metodo; }
     else { updateData.saldado=false; }
     const pagoUpdate = {metodo, monto, ...(cotizacion?{cotizacion}: {cotizacion: firebase.firestore.FieldValue.delete()})};
-    const saldoData = buildSaldoMovimientoData(d, metodo, monto, pagoDoc.fecha);
+    const saldoData = {...buildSaldoMovimientoData(d, metodo, monto, pagoDoc.fecha), createdAt: pagoDoc.createdAt||Date.now()};
 
     // Optimista: reflejamos todo al instante; Firestore se escribe en segundo plano.
     closeModal('modal-pago');
@@ -1775,7 +1777,7 @@ function renderDeudasList(items){
       <div>
         <div class="name">${it.clienteNombre} ${it.clienteApellido}</div>
         <div class="meta">${it.clienteTelefono}</div>
-        ${it.fechaPago? `<div class="deudora-fechapago">Fecha de pago: ${fmtDate(it.fechaPago)}</div>` : ''}
+        ${it.fechaPago? `<div class="deudora-fechapago">Fecha para saldar deuda: ${fmtDate(it.fechaPago)}</div>` : ''}
       </div>
       <div style="display:flex;align-items:center;gap:10px">
         <span style="color:#3a352c;font-weight:400;font-size:13px">${fmtDateShort(it.fecha)}</span>
@@ -1942,7 +1944,14 @@ function ventaColText(d, col){
   }
   return '';
 }
+// Orden de las planillas: por fecha y, dentro de la misma fecha, en el orden en que se fueron cargando (los más nuevos abajo)
+function sheetOrderCmp(a,b){
+  const fa=a.fecha||'', fb=b.fecha||'';
+  if(fa!==fb) return fa<fb? -1 : 1;
+  return (a.createdAt||0)-(b.createdAt||0);
+}
 function applySheetFilters(which){
+  if(which==='presu') presuSheetDocsRaw.sort(sheetOrderCmp); else ventaSheetDocsRaw.sort(sheetOrderCmp);
   if(which==='presu'){
     const filtered = presuSheetDocsRaw.filter(d=>
       PRESU_COLS.every(col=>{
