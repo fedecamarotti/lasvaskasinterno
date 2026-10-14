@@ -569,6 +569,15 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
+// Caché local persistente (IndexedDB): los datos ya vistos quedan disponibles al instante, incluso después de recargar la página.
+db.enablePersistence({synchronizeTabs:true}).catch(()=>{});
+// "Caché primero, servidor después": muestra al instante lo que ya está guardado en el dispositivo y, cuando llega
+// la respuesta del servidor, actualiza la pantalla. Evita esperar la ida y vuelta a Firestore en cada pantalla.
+function getSWR(q, cb){
+  let serverDone = false;
+  q.get({source:'cache'}).then(s=>{ if(!serverDone && !s.empty) cb(s); }).catch(()=>{});
+  return q.get().then(s=>{ serverDone = true; cb(s); });
+}
 
 const BIZ = {
   nombre:"LASVASKAS", direccion:"Zapata 406", telefono:"+54 9 11 5499-4480",
@@ -674,7 +683,7 @@ auth.onAuthStateChanged(user=>{
 
 /* =================== CLIENTAS =================== */
 function loadClientas(){
-  db.collection('clientas').orderBy('apellido').get().then(snap=>{
+  getSWR(db.collection('clientas').orderBy('apellido'), snap=>{
     clientasCache = snap.docs.map(d=>({id:d.id, ...d.data()}));
     renderClientasList();
     updateDeudasBadge();
@@ -847,11 +856,14 @@ function openClienteDetail(id){
     showScreen('cliente');
     loadDocs();
   }
-  db.collection('clientas').doc(id).get().then(doc=>{
-    currentClienteData = {id: doc.id, ...doc.data()};
-    renderClientHeader();
-    if(!cached){ showScreen('cliente'); loadDocs(); }
-  });
+  if(!cached){
+    db.collection('clientas').doc(id).get().then(doc=>{
+      if(currentClienteId!==id) return;
+      currentClienteData = {id: doc.id, ...doc.data()};
+      renderClientHeader();
+      showScreen('cliente'); loadDocs();
+    });
+  }
 }
 function renderClientHeader(){
   const c = currentClienteData;
@@ -872,7 +884,9 @@ function renderClientHeader(){
     </div>`;
 }
 function loadDocs(){
-  return db.collection('clientas').doc(currentClienteId).collection('documentos').orderBy('createdAt','desc').get().then(snap=>{
+  const cid = currentClienteId;
+  return getSWR(db.collection('clientas').doc(cid).collection('documentos').orderBy('createdAt','desc'), snap=>{
+    if(cid!==currentClienteId) return;
     docsCache = snap.docs.map(d=>({id:d.id, ...d.data()}));
     docsCacheClienteId = currentClienteId;
     renderDocsList();
@@ -1748,10 +1762,9 @@ function openDeudas(){
   document.getElementById('deudas-list').innerHTML = '<div class="empty">Cargando...</div>';
   // Antes se hacía una consulta por cada clienta con deuda (podían ser muchas). Ahora son solo 2 consultas
   // a la colección global "ventas" (una por ARS y otra por USD), sin importar cuántas deudoras haya.
-  Promise.all([
-    db.collection('ventas').where('aPagarARS','>',0).get(),
-    db.collection('ventas').where('aPagarUSD','>',0).get()
-  ]).then(([snapARS, snapUSD])=>{
+  const qARS = db.collection('ventas').where('aPagarARS','>',0);
+  const qUSD = db.collection('ventas').where('aPagarUSD','>',0);
+  const pintarDeudas = ([snapARS, snapUSD])=>{
     const map = new Map();
     [...snapARS.docs, ...snapUSD.docs].forEach(doc=>{
       if(map.has(doc.id)) return;
@@ -1761,7 +1774,12 @@ function openDeudas(){
     });
     const flat = Array.from(map.values()).sort((a,b)=> (a.fecha||'') < (b.fecha||'') ? -1 : (a.fecha||'') > (b.fecha||'') ? 1 : 0);
     renderDeudasList(flat);
-  }).catch(err=>{
+  };
+  let deudasServer = false;
+  Promise.all([qARS.get({source:'cache'}), qUSD.get({source:'cache'})]).then(r=>{
+    if(!deudasServer && (!r[0].empty || !r[1].empty)) pintarDeudas(r);
+  }).catch(()=>{});
+  Promise.all([qARS.get(), qUSD.get()]).then(r=>{ deudasServer = true; pintarDeudas(r); }).catch(err=>{
     console.error(err);
     document.getElementById('deudas-list').innerHTML = '<div class="empty">No se pudieron cargar las deudoras. Revisá la consola.</div>';
   });
@@ -1994,7 +2012,8 @@ function openPresupuestosSheet(){
   const {start,end} = monthRange(presuMonth);
   const body = document.getElementById('presu-sheet-body');
   body.innerHTML = '<tr><td colspan="8" class="sheet-empty">Cargando...</td></tr>';
-  db.collection('presupuestos').where('fecha','>=',start).where('fecha','<=',end).orderBy('fecha').get().then(snap=>{
+  getSWR(db.collection('presupuestos').where('fecha','>=',start).where('fecha','<=',end).orderBy('fecha'), snap=>{
+    if(monthRange(presuMonth).start!==start) return;
     presuSheetDocsRaw = snap.docs.map(d=>({id:d.id,...d.data()}));
     applySheetFilters('presu');
   }).catch(err=>{
@@ -2040,7 +2059,8 @@ function openVentasSheet(){
   const {start,end} = monthRange(ventaMonth);
   const body = document.getElementById('venta-sheet-body');
   body.innerHTML = '<tr><td colspan="15" class="sheet-empty">Cargando...</td></tr>';
-  db.collection('ventas').where('fecha','>=',start).where('fecha','<=',end).orderBy('fecha').get().then(snap=>{
+  getSWR(db.collection('ventas').where('fecha','>=',start).where('fecha','<=',end).orderBy('fecha'), snap=>{
+    if(monthRange(ventaMonth).start!==start) return;
     ventaSheetDocsRaw = snap.docs.map(d=>({id:d.id,...d.data()}));
     applySheetFilters('venta');
   }).catch(err=>{
