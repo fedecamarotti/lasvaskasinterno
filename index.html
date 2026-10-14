@@ -202,6 +202,12 @@ td.edit-cell{width:26px}
 .live-total{font-family:'Montserrat',sans-serif;font-size:16px;font-weight:700;margin:4px 0 14px;color:#a8823f}
 .metodo-chip{display:block;padding:1px 6px;border-radius:8px;font-size:9.5px;font-weight:600;white-space:nowrap;margin:1px auto;width:fit-content}
 .metodo-efvo{background:#e3f3e9;color:#3f7a56}
+.pv-chip{display:block;padding:1px 8px;border-radius:8px;font-size:10px;font-weight:600;white-space:nowrap;margin:1px auto;width:fit-content}
+.pvc-belgrano{background:#e3f3e9;color:#3f7a56}
+.pvc-saldacc{background:#fbf0c9;color:#8a6a1f}
+.pvc-cc{background:#dbe6fb;color:#3d5f96}
+.pvc-senar{background:#fbe4e1;color:#a13f38}
+.pvc-prestamo{background:#fbe3c7;color:#8a5a1f}
 .metodo-naranja{background:#fbe3c7;color:#8a5a1f}
 .metodo-transf{background:#dbe6fb;color:#3d5f96}
 .metodo-debe{background:#fbe4e1;color:#a13f38}
@@ -2195,6 +2201,12 @@ function openVentasSheet(){
 const METODO_SHEET_LABEL = {EFVO_ARS:'Efectivo $', EFVO_USD:'Efectivo usd', TRBF:'Transf. BF', TRVF:'Transf. VF', TARJ:'Tarjeta'};
 // Monto pagado "de origen" (cargado junto con la venta), sin contar los pagos posteriores que saldan deuda
 // (esos se muestran como su propio movimiento "Salda c/c" en la planilla).
+// Punto de venta como "pastilla" de color (si la venta tiene varios puntos de venta, una por cada uno)
+const PV_CLASES = {'Belgrano':'pvc-belgrano','Salda c/c':'pvc-saldacc','CC':'pvc-cc','Venta por señar':'pvc-senar','Préstamo':'pvc-prestamo'};
+function pvChipsHTML(pv){
+  return String(pv||'').split(' + ').map(x=>x.trim()).filter(Boolean)
+    .map(x=>`<span class="pv-chip ${PV_CLASES[x]||''}">${esc(x)}</span>`).join('');
+}
 function ventaMetodoCellHTML(d){
   const classes = {EFVO_ARS:'metodo-efvo',EFVO_USD:'metodo-efvo',TRBF:'metodo-transf',TRVF:'metodo-naranja',TARJ:'metodo-naranja'};
   const sums = {};
@@ -2237,7 +2249,7 @@ function renderVentaSheet(docs){
         html += `<td class="vmid" rowspan="${rowspan}">${esc(d.codigo||'-')}</td>`;
         html += `<td class="vmid" rowspan="${rowspan}"><b class="sheet-client-link" onclick="goToClienteFromSheet('${d.clienteId}')">${esc(d.clienteNombre)} ${esc(d.clienteApellido)}</b></td>`;
         html += `<td class="vmid" rowspan="${rowspan}">${fmtDateSheet(d.fecha)}</td>`;
-        html += `<td class="vmid" rowspan="${rowspan}">${esc(d.puntoVenta||'')}</td>`;
+        html += `<td class="vmid" rowspan="${rowspan}">${pvChipsHTML(d.puntoVenta)}</td>`;
         html += `<td class="vmid" rowspan="${rowspan}">${esc(d.fechaEvento||'')}</td>`;
       }
       html += `<td class="prod-cell">${esc(p.desc)}</td>`;
