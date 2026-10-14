@@ -275,7 +275,10 @@ body.role-limited #venta-table colgroup col:nth-child(8){display:none}
 }
 
 /* ---------- clienta cliqueable en planillas ---------- */
+/* Nombre de la clienta: centrado en su columna; si no entra en una línea, el apellido pasa abajo (sin agrandar casi la fila) */
+table.sheet-table tbody td.cli-cell{white-space:normal;line-height:1.15;padding-left:4px;padding-right:4px;overflow-wrap:break-word;text-align:center}
 .sheet-client-link{cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px}
+table.sheet-table tbody td.tot-cell{font-weight:700}
 .sheet-client-link:hover{color:#a8823f}
 
 /* ---------- factura color por método ---------- */
@@ -2240,7 +2243,7 @@ function renderPresuSheet(docs){
         html += `<td class="vmid edit-cell" rowspan="${rowspan}">
           <span class="sheet-pencil" onclick="editSheetDoc('${d.clienteId}','${d.id}','presupuesto')"><i class="fa-solid fa-pen"></i></span>
         </td>`;
-        html += `<td class="vmid" rowspan="${rowspan}"><b class="sheet-client-link" onclick="goToClienteFromSheet('${d.clienteId}')">${esc(d.clienteNombre)} ${esc(d.clienteApellido)}</b></td>`;
+        html += `<td class="vmid cli-cell" rowspan="${rowspan}"><b class="sheet-client-link" onclick="goToClienteFromSheet('${d.clienteId}')">${esc(d.clienteNombre)} ${esc(d.clienteApellido)}</b></td>`;
         html += `<td class="vmid" rowspan="${rowspan}">${fmtDateSheet(d.fecha)}</td>`;
         html += `<td class="vmid" rowspan="${rowspan}">${esc(d.fechaEvento||'')}</td>`;
         html += `<td class="vmid" rowspan="${rowspan}">${esc(d.clienteTelefono||'')}</td>`;
@@ -2319,7 +2322,7 @@ function renderVentaSheet(docs){
             : `<span class="sheet-pencil" onclick="editSheetDoc('${d.clienteId}','${d.id}','venta')"><i class="fa-solid fa-pen"></i></span>`}
         </td>`;
         html += `<td class="vmid" rowspan="${rowspan}">${esc(d.codigo||'-')}</td>`;
-        html += `<td class="vmid" rowspan="${rowspan}"><b class="sheet-client-link" onclick="goToClienteFromSheet('${d.clienteId}')">${esc(d.clienteNombre)} ${esc(d.clienteApellido)}</b></td>`;
+        html += `<td class="vmid cli-cell" rowspan="${rowspan}"><b class="sheet-client-link" onclick="goToClienteFromSheet('${d.clienteId}')">${esc(d.clienteNombre)} ${esc(d.clienteApellido)}</b></td>`;
         html += `<td class="vmid" rowspan="${rowspan}">${fmtDateSheet(d.fecha)}</td>`;
         html += `<td class="vmid" rowspan="${rowspan}">${pvChipsHTML(d.puntoVenta)}</td>`;
         html += `<td class="vmid" rowspan="${rowspan}">${esc(d.fechaEvento||'')}</td>`;
@@ -2335,7 +2338,7 @@ function renderVentaSheet(docs){
         else {
           html += `<td>${p.esArreglo?'-':(p.cant||'')}</td>`;
           html += `<td>${p.esArreglo?'-':f(p.valorUnit||0)}</td>`;
-          html += `<td>${f(p.total||0)}</td>`;
+          html += `<td class="tot-cell">${f(p.total||0)}</td>`;
         }
       }
       if(i===0){
