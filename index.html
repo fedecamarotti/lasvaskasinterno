@@ -4,9 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>LASVASKAS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Jost:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Jost:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
 body{
@@ -557,7 +561,7 @@ body.role-admin .doctype-btns button.pago{display:block}
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 /* =================== CONFIG =================== */
 // TODO Fede: reemplazar con las claves reales de tu proyecto "lasvaskasbvf"
@@ -581,6 +585,37 @@ function getSWR(q, cb){
   q.get({source:'cache'}).then(s=>{ if(!serverDone && !s.empty) cb(s); }).catch(()=>{});
   return q.get().then(s=>{ serverDone = true; cb(s); });
 }
+
+/* =================== ESTADO DE GUARDADO / CONEXIÓN =================== */
+// Aviso visible mientras haya cambios que todavía no llegaron al servidor, y advertencia si se intenta cerrar la página en ese momento.
+let syncSeq = 0, syncPending = false;
+function setSyncPill(texto, tipo){
+  let el = document.getElementById('sync-pill');
+  if(!el){
+    el = document.createElement('div'); el.id = 'sync-pill';
+    el.style.cssText = 'position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:9999;padding:7px 14px;border-radius:20px;font:600 12px Montserrat,sans-serif;box-shadow:0 2px 10px rgba(0,0,0,.18);display:none;max-width:90vw;text-align:center';
+    document.body.appendChild(el);
+  }
+  if(!texto){ el.style.display='none'; return; }
+  el.textContent = texto;
+  el.style.background = tipo==='warn'? '#b3443a' : '#a8823f';
+  el.style.color = '#fff';
+  el.style.display = 'block';
+}
+function markSaving(){
+  const my = ++syncSeq;
+  syncPending = true;
+  if(navigator.onLine!==false) setSyncPill('Guardando…');
+  // Esperamos un instante a que se encolen todas las escrituras de esta acción y recién ahí pedimos que avise cuando terminen.
+  setTimeout(()=>{
+    db.waitForPendingWrites().then(()=>{
+      if(my===syncSeq){ syncPending = false; setSyncPill(navigator.onLine===false? 'Sin conexión: los cambios se enviarán al reconectar' : null, 'warn'); }
+    }).catch(()=>{});
+  }, 80);
+}
+window.addEventListener('beforeunload', e=>{ if(syncPending){ e.preventDefault(); e.returnValue=''; return ''; } });
+window.addEventListener('offline', ()=> setSyncPill('Sin conexión: los cambios se guardan en este dispositivo y se envían al reconectar','warn'));
+window.addEventListener('online', ()=>{ if(syncPending) markSaving(); else setSyncPill(null); });
 
 const BIZ = {
   nombre:"LASVASKAS", direccion:"Zapata 406", telefono:"+54 9 11 5499-4480",
@@ -607,6 +642,8 @@ let currentUserUid = null;
 let currentUserNombre = '';
 
 /* =================== HELPERS =================== */
+// Escapa texto cargado por usuarios antes de meterlo en HTML (evita que un nombre o descripción con < > " rompa la pantalla o inyecte código)
+function esc(v){ return String(v==null?'':v).replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
 function num(v){ const digits = String(v||'').replace(/[^\d]/g,''); return digits? parseInt(digits,10) : 0; }
 // numDec: igual que num() pero respeta decimales, aceptando coma o punto como separador (ej: "2,5" o "2.5" -> 2.5)
 function numDec(v){
@@ -779,8 +816,8 @@ function renderClientasList(){
     return `
     <div class="card">
       <div class="card-main" onclick="openClienteDetail('${c.id}')">
-        <div class="name">${c.nombre} ${c.apellido}</div>
-        <div class="meta">${c.telefono||''}</div>
+        <div class="name">${esc(c.nombre)} ${esc(c.apellido)}</div>
+        <div class="meta">${esc(c.telefono||'')}</div>
       </div>
       ${debt? `<div class="card-debt" onclick="openClienteDetail('${c.id}')"><div class="debt-label">Debe</div><div class="debt-amount">${fmtDebtObj(debt)}</div></div>` : ''}
       ${c.telefono? `<a class="wa-link" href="${waLink(c.telefono)}" target="_blank" onclick="event.stopPropagation()"><i class="fa-brands fa-whatsapp"></i></a>` : ''}
@@ -817,6 +854,7 @@ function saveClienta(){
     if(idx>-1) clientasCache[idx] = {...clientasCache[idx], ...data};
     if(currentClienteId===id){ currentClienteData = {...currentClienteData, ...data}; renderClientHeader(); }
     renderClientasList();
+    markSaving();
     db.collection('clientas').doc(id).update(data).catch(err=>{
       console.error(err);
       alert('No se pudo guardar la clienta. Revisá la consola.');
@@ -828,6 +866,7 @@ function saveClienta(){
     clientasCache.push({id: ref.id, ...fullData});
     clientasCache.sort((a,b)=> (a.apellido||'').localeCompare(b.apellido||''));
     renderClientasList();
+    markSaving();
     ref.set(fullData).catch(err=>{
       console.error(err);
       alert('No se pudo guardar la clienta. Revisá la consola.');
@@ -851,7 +890,7 @@ function deleteClienta(){
     const batch = db.batch();
     snap.docs.forEach(d=>batch.delete(d.ref));
     batch.delete(db.collection('clientas').doc(id));
-    return batch.commit();
+    const pr = batch.commit(); markSaving(); return pr;
   }).catch(err=>{
     console.error(err);
     alert('No se pudo eliminar la clienta. Revisá la consola.');
@@ -886,13 +925,13 @@ function renderClientHeader(){
   document.getElementById('client-header-box').innerHTML = `
     <div class="client-header">
       <div class="ch-top">
-        <div class="cname">${c.nombre} ${c.apellido}</div>
+        <div class="cname">${esc(c.nombre)} ${esc(c.apellido)}</div>
         ${c.telefono? `<a class="ch-wa" href="${waLink(c.telefono)}" target="_blank"><i class="fa-brands fa-whatsapp"></i></a>` : ''}
       </div>
       <div class="cinfo">
-        ${c.telefono? `<div>${c.telefono}</div>`:''}
-        ${c.dni? `<div>DNI: ${c.dni}</div>`:''}
-        ${c.direccion? `<div>${c.direccion}</div>`:''}
+        ${c.telefono? `<div>${esc(c.telefono)}</div>`:''}
+        ${c.dni? `<div>DNI: ${esc(c.dni)}</div>`:''}
+        ${c.direccion? `<div>${esc(c.direccion)}</div>`:''}
       </div>
       <div class="cactions">
         <button class="btn btn-outline btn-sm" onclick="openClientaModal(currentClienteData)">Editar</button>
@@ -934,8 +973,8 @@ function renderDocsList(){
           <span class="tag-mini nota">Nota</span>
           <span class="fecha">${fh}</span>
         </div>
-        <div class="nota-texto">${(d.texto||'').replace(/</g,'&lt;')}</div>
-        <div class="nota-autor">Creada por ${d.creadoPorNombre||d.creadoPor||'—'}</div>
+        <div class="nota-texto">${esc(d.texto||'')}</div>
+        <div class="nota-autor">Creada por ${esc(d.creadoPorNombre||d.creadoPor||'—')}</div>
       </div>`;
     }
     let totales = '';
@@ -1027,7 +1066,7 @@ function addProductoRow(p){
   if(editingDocTipo==='presupuesto'){
     row.innerHTML = `
       <div class="prod-row-lines">
-        <div class="field"><input class="pd-desc" placeholder="Descripción" value="${p.desc||''}"></div>
+        <div class="field"><input class="pd-desc" placeholder="Descripción" value="${esc(p.desc||'')}"></div>
         <div class="prod-row-line2">
           <div class="field pd-moneda-wrap"><select class="pd-moneda"><option value="ARS" ${p.moneda==='USD'?'':'selected'}>$</option><option value="USD" ${p.moneda==='USD'?'selected':''}>usd</option></select></div>
           <div class="field pd-vu-wrap"><input class="pd-efvo" placeholder="Efectivo" value="${fmtMoney(p.efvo)}"></div>
@@ -1045,7 +1084,7 @@ function addProductoRow(p){
   } else {
     row.innerHTML = `
       <div class="prod-row-lines">
-        <div class="field"><input class="pd-desc" placeholder="Descripción" value="${p.desc||''}"></div>
+        <div class="field"><input class="pd-desc" placeholder="Descripción" value="${esc(p.desc||'')}"></div>
         <div class="prod-row-line2">
           <div class="field pd-moneda-wrap"><select class="pd-moneda"><option value="ARS" ${p.moneda==='USD'?'':'selected'}>$</option><option value="USD" ${p.moneda==='USD'?'selected':''}>usd</option></select></div>
           <div class="field pd-cant-wrap"><input class="pd-cant" placeholder="Cant." value="${p.cant||''}"></div>
@@ -1074,7 +1113,7 @@ function addArregloRow(p){
   row.className='prod-row arreglo-row';
   row.innerHTML = `
     <div class="prod-row-lines">
-      <div class="field"><input class="ar-desc" placeholder="Arreglo / otro" value="${p.desc||''}"></div>
+      <div class="field"><input class="ar-desc" placeholder="Arreglo / otro" value="${esc(p.desc||'')}"></div>
       <div class="prod-row-line2">
         <div class="field pd-moneda-wrap"><select class="ar-moneda"><option value="ARS" ${p.moneda==='USD'?'':'selected'}>$</option><option value="USD" ${p.moneda==='USD'?'selected':''}>usd</option></select></div>
         <div class="field pd-vu-wrap"><input class="ar-valor" placeholder="Valor" value="${fmtMoney(p.total)}"></div>
@@ -1175,7 +1214,9 @@ function deleteGlobalDoc(tipo, docId){
   const coll = tipo==='presupuesto' ? 'presupuestos' : 'ventas';
   return db.collection(coll).doc(docId).delete().catch(()=>{});
 }
+let savingDoc = false; // evita guardar dos veces si se toca Guardar de nuevo mientras se pide el código correlativo
 function saveDoc(){
+  if(savingDoc) return;
   const tipo = document.getElementById('doc-tipo').value;
   const id = document.getElementById('doc-id').value;
   const fecha = document.getElementById('doc-fecha').value || todayISO();
@@ -1261,6 +1302,7 @@ function saveDoc(){
 
   const ref = db.collection('clientas').doc(currentClienteId).collection('documentos');
   const proceed = (codigo)=>{
+    savingDoc = false;
     if(tipo==='venta' && codigo!==undefined) data.codigo = codigo;
     const savedId = id || ref.doc().id; // id generado en el cliente: no hace falta esperar al servidor para mostrar el resultado
     const savedDoc = {id: savedId, ...data};
@@ -1276,6 +1318,7 @@ function saveDoc(){
     const wb = db.batch();
     if(id) wb.update(ref.doc(id), data); else wb.set(ref.doc(savedId), {...data, createdAt: createdAtDoc});
     wb.set(db.collection(tipo==='presupuesto'?'presupuestos':'ventas').doc(savedId), {...data, id: savedId, createdAt: createdAtDoc, clienteId: currentClienteId, docId: savedId});
+    markSaving();
     wb.commit().catch(err=>{
       console.error(err);
       alert('No se pudo guardar. Revisá la consola.');
@@ -1293,7 +1336,12 @@ function saveDoc(){
     proceed(codigoManual); // el administrador corrigió el código a mano
   } else if(tipo==='venta' && (!id || (codigoDeOtroMes && !codigoManual))){
     if(codigoDeOtroMes || pvsUsadas.includes('Belgrano') || pvsUsadas.includes('Venta por señar')){
-      nextCodigo(fecha).then(proceed);
+      savingDoc = true;
+      nextCodigo(fecha).then(proceed).catch(err=>{
+        savingDoc = false;
+        console.error(err);
+        alert('No se pudo obtener el código de la venta (¿sin conexión?). No se guardó nada: probá de nuevo.');
+      });
     } else {
       proceed('-');
     }
@@ -1318,7 +1366,7 @@ function deleteDoc(){
   const db_ = db.batch();
   db_.delete(db.collection('clientas').doc(currentClienteId).collection('documentos').doc(id));
   db_.delete(db.collection(tipo==='presupuesto'?'presupuestos':'ventas').doc(id));
-  const rec = db_.commit();
+  const rec = db_.commit(); markSaving();
   if(!document.getElementById('screen-venta-sheet').classList.contains('hidden')) openVentasSheet();
   if(!document.getElementById('screen-presu-sheet').classList.contains('hidden')) openPresupuestosSheet();
   rec.catch(err=>{
@@ -1474,6 +1522,7 @@ function savePago(){
       const lb = db.batch();
       lb.update(db.collection('clientas').doc(currentClienteId).collection('documentos').doc(editPagoId), upd);
       lb.set(db.collection('ventas').doc(editPagoId), mov);
+      markSaving();
       lb.commit().catch(err=>{
         console.error(err);
         alert('No se pudo guardar el cambio. Revisá la consola.');
@@ -1513,6 +1562,7 @@ function savePago(){
     batch.update(db.collection('clientas').doc(currentClienteId).collection('documentos').doc(editPagoId), pagoUpdate);
     batchSetVentaGlobal(batch, pagoDoc.refVentaId, d, updateData);
     batch.set(db.collection('ventas').doc(editPagoId), saldoData);
+    markSaving();
     batch.commit().catch(err=>{
       console.error(err);
       alert('No se pudo guardar el cambio. Revisá la consola.');
@@ -1537,6 +1587,7 @@ function savePago(){
     const nb = db.batch();
     nb.set(ref, pdata);
     nb.set(db.collection('ventas').doc(ref.id), mov);
+    markSaving();
     nb.commit().catch(err=>{
       console.error(err);
       alert('No se pudo guardar el pago. Revisá la consola.');
@@ -1581,6 +1632,7 @@ function savePago(){
   batch.set(pagoRef, pagoData);
   batchSetVentaGlobal(batch, docId, d, updateData);
   batch.set(db.collection('ventas').doc(pagoRef.id), saldoData);
+  markSaving();
   batch.commit().catch(err=>{
     console.error(err);
     alert('No se pudo guardar el pago. Revisá la consola.');
@@ -1612,6 +1664,7 @@ function deletePago(){
   batch.delete(clienteDocs.doc(pagoId));
   if(updateData && pagoDoc.refVentaId) batchSetVentaGlobal(batch, pagoDoc.refVentaId, d, updateData);
   batch.delete(db.collection('ventas').doc(pagoId)); // borra el movimiento "Salda c/c" asociado
+  markSaving();
   batch.commit().catch(err=>{
     console.error(err);
     alert('No se pudo eliminar el pago. Revisá la consola.');
@@ -1640,6 +1693,7 @@ function saveNota(){
     closeModal('modal-nota');
     upsertDocInCache({...(existing||{id:editingId, tipo:'nota'}), texto});
     ref.doc(editingId).update({texto}).catch(err=>{ console.error(err); alert('No se pudo guardar la nota. Revisá la consola.'); });
+    markSaving();
     return;
   }
   const notaRef = ref.doc();
@@ -1647,6 +1701,7 @@ function saveNota(){
     creadoPor: auth.currentUser? auth.currentUser.email : '', creadoPorNombre: currentUserNombre};
   closeModal('modal-nota');
   upsertDocInCache({id: notaRef.id, ...notaData});
+  markSaving();
   notaRef.set(notaData).catch(err=>{
     console.error(err); alert('No se pudo guardar la nota. Revisá la consola.');
     removeDocFromCache(notaRef.id);
@@ -1662,6 +1717,7 @@ function deleteNota(){
     console.error(err); alert('No se pudo eliminar la nota. Revisá la consola.');
     if(removed) upsertDocInCache(removed);
   });
+  markSaving();
 }
 
 /* =================== PREVIEW / PDF =================== */
@@ -1684,7 +1740,7 @@ function buildPaperHTML(d, c, includeNotes){
     theadCols = `<th>Detalle</th><th class="num">Efectivo</th><th class="num">Tarjeta</th>`;
     rowsHTML = d.productos.map(p=>{
       const f = p.moneda==='USD'?fmtUSD:fmtARS;
-      return `<tr><td>${p.desc}</td><td class="num">${f(p.efvo)}</td><td class="num">${f(p.tarj)}</td></tr>`;
+      return `<tr><td>${esc(p.desc)}</td><td class="num">${f(p.efvo)}</td><td class="num">${f(p.tarj)}</td></tr>`;
     }).join('');
     let rows = `<tr class="rule"><td colspan="3"></td></tr>`;
     if(d.totalEfvoARS||d.totalTarjARS) rows += `<tr class="totalrow"><td>Total</td><td class="num">${fmtARS(d.totalEfvoARS||0)}</td><td class="num">${fmtARS(d.totalTarjARS||0)}</td></tr>`;
@@ -1692,7 +1748,7 @@ function buildPaperHTML(d, c, includeNotes){
     totalsHTML = rows;
   } else {
     theadCols = `<th>Detalle</th><th></th><th class="num">Valor</th>`;
-    rowsHTML = d.productos.map(p=>`<tr><td>${p.desc}</td><td></td><td class="num">${p.moneda==='USD'?fmtUSD(p.total):fmtARS(p.total)}</td></tr>`).join('');
+    rowsHTML = d.productos.map(p=>`<tr><td>${esc(p.desc)}</td><td></td><td class="num">${p.moneda==='USD'?fmtUSD(p.total):fmtARS(p.total)}</td></tr>`).join('');
     let rows = `<tr class="rule"><td colspan="3"></td></tr>`;
     if(d.totalARS>0) rows += `<tr class="totalrow"><td class="lbl" colspan="2">Total</td><td class="num">${fmtARS(d.totalARS)}</td></tr>`;
     if(d.totalUSD>0) rows += `<tr class="totalrow"><td class="lbl" colspan="2">Total</td><td class="num">${fmtUSD(d.totalUSD)}</td></tr>`;
@@ -1711,7 +1767,7 @@ function buildPaperHTML(d, c, includeNotes){
     totalsHTML = rows;
   }
 
-  const notesHTML = (includeNotes && d.notas)? `<tr class="notesrow"><td colspan="3"><b>Notas:</b> ${d.notas}</td></tr>` : '';
+  const notesHTML = (includeNotes && d.notas)? `<tr class="notesrow"><td colspan="3"><b>Notas:</b> ${esc(d.notas)}</td></tr>` : '';
 
   const termsHTML = isPresu ? `
     <div class="b">Efectivo 20% de descuento (2 cuotas dentro de los 30 días)</div>
@@ -1735,16 +1791,16 @@ function buildPaperHTML(d, c, includeNotes){
       <div class="p-bizinfo">${BIZ.direccion}<br>${BIZ.telefono}<br>${BIZ.insta}<br>${BIZ.web}</div>
       <div class="p-meta">
         <div class="row">Fecha: <span class="line">${fmtDate(d.fecha)}</span></div>
-        <div class="row">Fecha evento: <span class="line">${d.fechaEvento||'-'}</span></div>
+        <div class="row">Fecha evento: <span class="line">${esc(d.fechaEvento||'-')}</span></div>
       </div>
     </div>
     <div class="p-clientrow">
-      <div><label>Nombre:</label><span class="line">${c.nombre} ${c.apellido}</span></div>
-      <div><label>Celular:</label><span class="line">${c.telefono||''}</span></div>
+      <div><label>Nombre:</label><span class="line">${esc(c.nombre)} ${esc(c.apellido)}</span></div>
+      <div><label>Celular:</label><span class="line">${esc(c.telefono||'')}</span></div>
     </div>
     <div class="p-clientrow">
-      <div><label>Dirección:</label><span class="line">${c.direccion||''}</span></div>
-      <div><label>DNI:</label><span class="line">${c.dni||''}</span></div>
+      <div><label>Dirección:</label><span class="line">${esc(c.direccion||'')}</span></div>
+      <div><label>DNI:</label><span class="line">${esc(c.dni||'')}</span></div>
     </div>
     <table class="p-detail">
       <colgroup><col><col class="c2"><col class="c3"></colgroup>
@@ -1762,7 +1818,7 @@ function renderPreview(d){
 }
 function docFilename(ext, suffix){
   const d = currentDocForPreview, c = currentClienteData;
-  return `${d.tipo}-${c.apellido}-${d.fecha}${suffix?'-'+suffix:''}.${ext}`.replace(/\s+/g,'_');
+  return `${d.tipo}-${esc(c.apellido)}-${d.fecha}${suffix?'-'+suffix:''}.${ext}`.replace(/\s+/g,'_');
 }
 function renderToCanvas(cb){
   html2canvas(document.getElementById('paper-render'), {scale:2, backgroundColor:'#ffffff'}).then(cb);
@@ -1780,7 +1836,7 @@ function downloadImage(){
 function textoRemitoWhatsapp(d){
   const c = currentClienteData;
   const tipoTxt = d.tipo==='presupuesto'? 'Presupuesto' : 'Venta';
-  return `${tipoTxt} ${c.nombre} ${c.apellido} ${fmtDateCortoAnio(todayISO())}`;
+  return `${tipoTxt} ${esc(c.nombre)} ${esc(c.apellido)} ${fmtDateCortoAnio(todayISO())}`;
 }
 function enviarAClienta(){
   const d = currentDocForPreview;
@@ -1832,8 +1888,8 @@ function renderDeudasList(items){
     const vencida = it.fechaPago && it.fechaPago < hoy;
     return `<div class="card ${vencida?'deuda-vencida':''}" onclick="openClienteDetail('${it.clienteId}')">
       <div>
-        <div class="name">${it.clienteNombre} ${it.clienteApellido}</div>
-        <div class="meta">${it.clienteTelefono}</div>
+        <div class="name">${esc(it.clienteNombre)} ${esc(it.clienteApellido)}</div>
+        <div class="meta">${esc(it.clienteTelefono)}</div>
         ${it.fechaPago? `<div class="deudora-fechapago">Fecha para saldar deuda: ${fmtDate(it.fechaPago)}</div>` : ''}
       </div>
       <div style="display:flex;align-items:center;gap:10px">
@@ -1859,8 +1915,8 @@ function addCostoRow(c){
       <option value="Rufina nuevo" ${c.tipo==='Rufina nuevo'?'selected':''}>Rufina nuevo</option>
       <option value="Rufina arreglos" ${c.tipo==='Rufina arreglos'?'selected':''}>Rufina arreglos</option>
     </select></div>
-    <div class="field co-detalle-wrap"><input class="co-detalle" placeholder="Detalle" value="${c.detalle||''}"></div>
-    <div class="field co-cant-wrap"><input class="co-cant" placeholder="Cant." value="${c.cant||''}"></div>
+    <div class="field co-detalle-wrap"><input class="co-detalle" placeholder="Detalle" value="${esc(c.detalle||'')}"></div>
+    <div class="field co-cant-wrap"><input class="co-cant" placeholder="Cant." value="${esc(c.cant||'')}"></div>
     <div class="field co-valor-wrap co-valor-field"><input class="co-valor" placeholder="$" value="${fmtMoney(c.valor)}"></div>
     <div class="rm-row">✕</div>`;
   cont.appendChild(row);
@@ -1937,12 +1993,14 @@ function saveCostos(){
       const existing = docsCache.find(x=>x.id===ventaId);
       if(existing) upsertDocInCache({...existing, productos});
     }
-    ventaRef.update({productos}).then(()=>{
-      db.collection('ventas').doc(ventaId).update({productos}).catch(()=>{});
-    }).catch(err=>{
+    const cb = db.batch();
+    cb.update(ventaRef, {productos});
+    cb.update(db.collection('ventas').doc(ventaId), {productos});
+    cb.commit().catch(err=>{
       console.error(err);
       alert('No se pudieron guardar los costos. Revisá la consola.');
     });
+    markSaving();
   };
 
   // La venta ya está en memoria (viene de la planilla que se está mostrando): no hace falta releerla de Firestore.
@@ -1968,7 +2026,7 @@ const PRESU_COLS = ['clienta','fecha','fechaEvento','celular','producto','valorE
 const VENTA_COLS = ['codigo','clienta','fecha','pventa','fevento','producto','cant','valorunit','total','metodo','dni','factura','celular'];
 function presuColText(d, col){
   switch(col){
-    case 'clienta': return `${d.clienteNombre} ${d.clienteApellido}`;
+    case 'clienta': return `${esc(d.clienteNombre)} ${esc(d.clienteApellido)}`;
     case 'fecha': return `${fmtDateSheet(d.fecha)} ${fmtDate(d.fecha)}`;
     case 'fechaEvento': return d.fechaEvento||'';
     case 'celular': return d.clienteTelefono||'';
@@ -1981,7 +2039,7 @@ function presuColText(d, col){
 function ventaColText(d, col){
   switch(col){
     case 'codigo': return d.codigo||'';
-    case 'clienta': return `${d.clienteNombre} ${d.clienteApellido}`;
+    case 'clienta': return `${esc(d.clienteNombre)} ${esc(d.clienteApellido)}`;
     case 'fecha': return `${fmtDateSheet(d.fecha)} ${fmtDate(d.fecha)}`;
     case 'pventa': return d.puntoVenta||'';
     case 'fevento': return d.fechaEvento||'';
@@ -2081,14 +2139,14 @@ function renderPresuSheet(docs){
         html += `<td class="vmid edit-cell" rowspan="${rowspan}">
           <span class="sheet-pencil" onclick="editSheetDoc('${d.clienteId}','${d.id}','presupuesto')"><i class="fa-solid fa-pen"></i></span>
         </td>`;
-        html += `<td class="vmid" rowspan="${rowspan}"><b class="sheet-client-link" onclick="goToClienteFromSheet('${d.clienteId}')">${d.clienteNombre} ${d.clienteApellido}</b></td>`;
+        html += `<td class="vmid" rowspan="${rowspan}"><b class="sheet-client-link" onclick="goToClienteFromSheet('${d.clienteId}')">${esc(d.clienteNombre)} ${esc(d.clienteApellido)}</b></td>`;
         html += `<td class="vmid" rowspan="${rowspan}">${fmtDateSheet(d.fecha)}</td>`;
-        html += `<td class="vmid" rowspan="${rowspan}">${d.fechaEvento||''}</td>`;
-        html += `<td class="vmid" rowspan="${rowspan}">${d.clienteTelefono||''}</td>`;
+        html += `<td class="vmid" rowspan="${rowspan}">${esc(d.fechaEvento||'')}</td>`;
+        html += `<td class="vmid" rowspan="${rowspan}">${esc(d.clienteTelefono||'')}</td>`;
       }
-      html += `<td class="prod-cell">${p.desc}</td><td>${f(p.efvo)}</td><td>${f(p.tarj)}</td></tr>`;
+      html += `<td class="prod-cell">${esc(p.desc)}</td><td>${f(p.efvo)}</td><td>${f(p.tarj)}</td></tr>`;
     });
-    if(d.notas) html += `<tr><td colspan="3" class="notes-cell">${d.notas}</td></tr>`;
+    if(d.notas) html += `<tr><td colspan="3" class="notes-cell">${esc(d.notas)}</td></tr>`;
   });
   body.innerHTML = html;
 }
@@ -2150,13 +2208,13 @@ function renderVentaSheet(docs){
         html += `<td class="vmid edit-cell" rowspan="${rowspan}">
           ${d.esSaldoMovimiento? '' : `<span class="sheet-pencil" onclick="editSheetDoc('${d.clienteId}','${d.id}','venta')"><i class="fa-solid fa-pen"></i></span>`}
         </td>`;
-        html += `<td class="vmid" rowspan="${rowspan}">${d.codigo||'-'}</td>`;
-        html += `<td class="vmid" rowspan="${rowspan}"><b class="sheet-client-link" onclick="goToClienteFromSheet('${d.clienteId}')">${d.clienteNombre} ${d.clienteApellido}</b></td>`;
+        html += `<td class="vmid" rowspan="${rowspan}">${esc(d.codigo||'-')}</td>`;
+        html += `<td class="vmid" rowspan="${rowspan}"><b class="sheet-client-link" onclick="goToClienteFromSheet('${d.clienteId}')">${esc(d.clienteNombre)} ${esc(d.clienteApellido)}</b></td>`;
         html += `<td class="vmid" rowspan="${rowspan}">${fmtDateSheet(d.fecha)}</td>`;
-        html += `<td class="vmid" rowspan="${rowspan}">${d.puntoVenta||''}</td>`;
-        html += `<td class="vmid" rowspan="${rowspan}">${d.fechaEvento||''}</td>`;
+        html += `<td class="vmid" rowspan="${rowspan}">${esc(d.puntoVenta||'')}</td>`;
+        html += `<td class="vmid" rowspan="${rowspan}">${esc(d.fechaEvento||'')}</td>`;
       }
-      html += `<td class="prod-cell">${p.desc}</td>`;
+      html += `<td class="prod-cell">${esc(p.desc)}</td>`;
       if(d.esSaldoMovimiento){
         html += `<td class="vmid">-</td><td>-</td><td>-</td><td>-</td>`;
       } else {
@@ -2169,21 +2227,28 @@ function renderVentaSheet(docs){
       }
       if(i===0){
         html += `<td class="vmid" rowspan="${rowspan}">${ventaMetodoCellHTML(d)}</td>`;
-        html += `<td class="vmid" rowspan="${rowspan}">${d.clienteDni||''}</td>`;
-        html += `<td class="vmid" rowspan="${rowspan}">${facturaColorClass(d)? `<input class="sheet-inline-input ${facturaColorClass(d)}" value="${d.factura||''}" data-cliente-id="${d.clienteId}" data-venta-id="${d.id}" onchange="updateFacturaInline(this)">` : ''}</td>`;
-        html += `<td class="vmid" rowspan="${rowspan}">${d.clienteTelefono||''}</td>`;
+        html += `<td class="vmid" rowspan="${rowspan}">${esc(d.clienteDni||'')}</td>`;
+        html += `<td class="vmid" rowspan="${rowspan}">${facturaColorClass(d)? `<input class="sheet-inline-input ${facturaColorClass(d)}" value="${esc(d.factura||'')}" data-cliente-id="${d.clienteId}" data-venta-id="${d.id}" onchange="updateFacturaInline(this)">` : ''}</td>`;
+        html += `<td class="vmid" rowspan="${rowspan}">${esc(d.clienteTelefono||'')}</td>`;
       }
       html += `</tr>`;
     });
-    if(d.notas) html += `<tr><td colspan="4" class="notes-cell">${d.notas}</td></tr>`;
+    if(d.notas) html += `<tr><td colspan="4" class="notes-cell">${esc(d.notas)}</td></tr>`;
   });
   body.innerHTML = html;
 }
 function updateFacturaInline(el){
   const clienteId = el.dataset.clienteId, ventaId = el.dataset.ventaId, factura = el.value.trim();
-  db.collection('clientas').doc(clienteId).collection('documentos').doc(ventaId).update({factura}).then(()=>{
-    db.collection('ventas').doc(ventaId).update({factura}).catch(()=>{});
-  }).catch(err=>{ console.error(err); alert('No se pudo guardar la factura. Revisá la consola.'); });
+  // Reflejamos el cambio en memoria para que la planilla no vuelva a mostrar el valor viejo si se vuelve a dibujar.
+  const idxF = ventaSheetDocsRaw.findIndex(x=>x.id===ventaId);
+  if(idxF>-1) ventaSheetDocsRaw[idxF] = {...ventaSheetDocsRaw[idxF], factura};
+  const docF = docsCache.find(x=>x.id===ventaId);
+  if(docF && docsCacheClienteId===clienteId) upsertDocInCache({...docF, factura});
+  const fb = db.batch();
+  fb.update(db.collection('clientas').doc(clienteId).collection('documentos').doc(ventaId), {factura});
+  fb.update(db.collection('ventas').doc(ventaId), {factura});
+  fb.commit().catch(err=>{ console.error(err); alert('No se pudo guardar la factura. Revisá la consola.'); });
+  markSaving();
 }
 function editSheetDoc(clienteId, docId, tipo){
   const cachedCliente = clientasCache.find(c=>c.id===clienteId);

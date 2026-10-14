@@ -1,0 +1,43 @@
+rules_version = '2';
+// Reglas de seguridad para LASVASKAS (proyecto Firebase "internovaskas").
+// Solo pueden leer/escribir los usuarios autenticados que además tengan su documento en usuarios/{uid}.
+// Se pegan en Firebase Console > Firestore Database > Reglas. Probar primero en un proyecto de prueba.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function esUsuarioDelSistema() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid));
+    }
+
+    // Cada persona puede leer su propio rol; nadie puede cambiarlo desde la web (se edita solo desde la consola).
+    match /usuarios/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    match /meta/{doc} {
+      allow read, write: if esUsuarioDelSistema();
+    }
+
+    match /clientas/{clientaId} {
+      allow read, write: if esUsuarioDelSistema();
+      match /documentos/{docId} {
+        allow read, write: if esUsuarioDelSistema();
+      }
+    }
+
+    match /presupuestos/{id} {
+      allow read, write: if esUsuarioDelSistema();
+    }
+
+    match /ventas/{id} {
+      allow read, write: if esUsuarioDelSistema();
+    }
+
+    // Todo lo demás, cerrado.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
