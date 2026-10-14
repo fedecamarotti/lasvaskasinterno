@@ -230,6 +230,7 @@ body.role-limited #venta-table colgroup col:nth-child(8){display:none}
 }
 .pd-cant-wrap input,.pd-vu-wrap input,.pd-total-wrap input{padding:9px 6px;text-align:right}
 .pd-moneda-wrap select{padding:9px 4px}
+.prod-row.pv-cc .prod-row-line2{display:none}
 .pv-divider{display:flex;align-items:center;gap:8px;margin:12px 0 8px;padding-top:10px;border-top:1px dashed #ddd3ba}
 .pv-divider label{margin:0;flex-shrink:0}
 .pv-divider select{flex:1}
@@ -1045,18 +1046,37 @@ function openDocModal(tipo, existing){
     const pagos = existing? (existing.pagos||[]).filter(p=>!p.pagoDocId) : [];
     pagos.forEach(p=>addPagoRow(p));
   }
+  applyPVModes();
   recalcLiveTotal();
   recalcDeudaLive();
   document.getElementById('doc-delete-row').classList.toggle('hidden', !existing);
   openModal('modal-doc');
 }
+// En punto de venta "CC" los productos son solo texto: se oculta moneda/cantidad/valor/total y todo va escrito en el detalle.
+function applyPVModes(){
+  if(editingDocTipo!=='venta') return;
+  let pv = document.getElementById('doc-puntoventa').value;
+  Array.from(document.getElementById('productos-container').children).forEach(row=>{
+    if(row.classList.contains('pv-divider')){ pv = row.querySelector('.pv-select').value; return; }
+    if(!row.classList.contains('prod-row')) return;
+    const cc = pv==='CC';
+    row.classList.toggle('pv-cc', cc);
+    const inp = row.querySelector('.pd-desc, .ar-desc');
+    if(inp) inp.placeholder = cc? 'Detalle (ej: blusa $500 efectivo)' : (row.classList.contains('arreglo-row')? 'Arreglo / otro' : 'Descripción');
+  });
+  recalcLiveTotal(); recalcDeudaLive();
+}
+document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('doc-puntoventa'); if(b) b.addEventListener('change', applyPVModes); });
 function addPVDivider(preset){
   const cont = document.getElementById('productos-container');
   const row = document.createElement('div');
   row.className='pv-divider';
   const opts = ['Belgrano','CC','Préstamo','Venta por señar'].map(v=>`<option value="${v}" ${preset===v?'selected':''}>${v}</option>`).join('');
-  row.innerHTML = `<label>Punto de venta:</label><select class="pv-select">${opts}</select><div class="rm-row" onclick="this.parentElement.remove()">✕</div>`;
+  row.innerHTML = `<label>Punto de venta:</label><select class="pv-select">${opts}</select><div class="rm-row">✕</div>`;
   cont.appendChild(row);
+  row.querySelector('.pv-select').addEventListener('change', applyPVModes);
+  row.querySelector('.rm-row').addEventListener('click', ()=>{ row.remove(); applyPVModes(); });
+  applyPVModes();
 }
 function addProductoRow(p){
   p = p||{};
@@ -1104,6 +1124,7 @@ function addProductoRow(p){
     vuInput.addEventListener('input', ()=>{ recalcTotal(); recalcLiveTotal(); recalcDeudaLive(); });
     row.querySelector('.rm-row').addEventListener('click', ()=>{ row.remove(); recalcLiveTotal(); recalcDeudaLive(); });
   }
+  applyPVModes();
   recalcLiveTotal();
 }
 function addArregloRow(p){
@@ -1125,6 +1146,7 @@ function addArregloRow(p){
   attachMoneyInput(valorInput);
   valorInput.addEventListener('input', ()=>{ recalcLiveTotal(); recalcDeudaLive(); });
   row.querySelector('.rm-row').addEventListener('click', ()=>{ row.remove(); recalcLiveTotal(); recalcDeudaLive(); });
+  applyPVModes();
   recalcLiveTotal();
 }
 function recalcLiveTotal(){
@@ -1132,6 +1154,7 @@ function recalcLiveTotal(){
   if(!el || editingDocTipo!=='venta') return;
   let totalARS=0, totalUSD=0;
   document.querySelectorAll('#productos-container .prod-row').forEach(row=>{
+    if(row.classList.contains('pv-cc')) return; // CC: solo texto, no suma
     const moneda = row.classList.contains('arreglo-row')? row.querySelector('.ar-moneda').value : row.querySelector('.pd-moneda').value;
     let total;
     if(row.classList.contains('arreglo-row')){ total = num(row.querySelector('.ar-valor').value)||0; }
@@ -1167,6 +1190,7 @@ function recalcDeudaLive(){
   if(!el || editingDocTipo!=='venta') return;
   let totalARS=0, totalUSD=0;
   document.querySelectorAll('#productos-container .prod-row').forEach(row=>{
+    if(row.classList.contains('pv-cc')) return; // CC: solo texto, no suma
     const moneda = row.classList.contains('arreglo-row')? row.querySelector('.ar-moneda').value : row.querySelector('.pd-moneda').value;
     let total;
     if(row.classList.contains('arreglo-row')){ total = num(row.querySelector('.ar-valor').value)||0; }
@@ -1235,6 +1259,7 @@ function saveDoc(){
     if(tipo==='venta' && row.classList.contains('arreglo-row')){
       const desc = row.querySelector('.ar-desc').value.trim();
       if(!desc) return;
+      if(currentPV==='CC'){ productos.push({desc, texto:true, puntoVenta:'CC'}); if(!pvsUsadas.includes('CC')) pvsUsadas.push('CC'); return; }
       const moneda = row.querySelector('.ar-moneda').value;
       const total = num(row.querySelector('.ar-valor').value)||0;
       productos.push({desc, moneda, esArreglo:true, total, puntoVenta: currentPV});
@@ -1244,6 +1269,7 @@ function saveDoc(){
     }
     const desc = row.querySelector('.pd-desc').value.trim();
     if(!desc) return;
+    if(tipo==='venta' && currentPV==='CC'){ productos.push({desc, texto:true, puntoVenta:'CC'}); if(!pvsUsadas.includes('CC')) pvsUsadas.push('CC'); return; }
     const moneda = row.querySelector('.pd-moneda').value;
     if(tipo==='presupuesto'){
       const efvo = num(row.querySelector('.pd-efvo').value);
@@ -1748,7 +1774,7 @@ function buildPaperHTML(d, c, includeNotes){
     totalsHTML = rows;
   } else {
     theadCols = `<th>Detalle</th><th></th><th class="num">Valor</th>`;
-    rowsHTML = d.productos.map(p=>`<tr><td>${esc(p.desc)}</td><td></td><td class="num">${p.moneda==='USD'?fmtUSD(p.total):fmtARS(p.total)}</td></tr>`).join('');
+    rowsHTML = d.productos.map(p=> p.texto? `<tr><td colspan="3">${esc(p.desc)}</td></tr>` : `<tr><td>${esc(p.desc)}</td><td></td><td class="num">${p.moneda==='USD'?fmtUSD(p.total):fmtARS(p.total)}</td></tr>`).join('');
     let rows = `<tr class="rule"><td colspan="3"></td></tr>`;
     if(d.totalARS>0) rows += `<tr class="totalrow"><td class="lbl" colspan="2">Total</td><td class="num">${fmtARS(d.totalARS)}</td></tr>`;
     if(d.totalUSD>0) rows += `<tr class="totalrow"><td class="lbl" colspan="2">Total</td><td class="num">${fmtUSD(d.totalUSD)}</td></tr>`;
@@ -2221,9 +2247,12 @@ function renderVentaSheet(docs){
         const estadoClass = p.estadoCostos==='falta'?'estado-falta':(p.estadoCostos==='completo'?'estado-completo':'');
         html += `<td class="vmid plus-cell"><span class="sheet-plus ${estadoClass}" onclick="openCostosModal('${d.clienteId}','${d.id}', ${i}, ${JSON.stringify(p.costos||[]).replace(/"/g,'&quot;')}, '${p.estadoCostos||''}')">+</span></td>`;
         const f = p.moneda==='USD'?fmtUSD:fmtARS;
-        html += `<td>${p.esArreglo?'-':(p.cant||'')}</td>`;
-        html += `<td>${p.esArreglo?'-':f(p.valorUnit||0)}</td>`;
-        html += `<td>${f(p.total||0)}</td>`;
+        if(p.texto){ html += `<td>-</td><td>-</td><td>-</td>`; }
+        else {
+          html += `<td>${p.esArreglo?'-':(p.cant||'')}</td>`;
+          html += `<td>${p.esArreglo?'-':f(p.valorUnit||0)}</td>`;
+          html += `<td>${f(p.total||0)}</td>`;
+        }
       }
       if(i===0){
         html += `<td class="vmid" rowspan="${rowspan}">${ventaMetodoCellHTML(d)}</td>`;
