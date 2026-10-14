@@ -677,17 +677,28 @@ auth.onAuthStateChanged(user=>{
     });
   } else {
     currentUserRole = null; currentUserUid = null;
+    if(unsubClientas){ unsubClientas(); unsubClientas=null; }
+    if(unsubDocs){ unsubDocs(); unsubDocs=null; }
+    clientasCache = []; docsCache = []; docsCacheClienteId = null;
     showScreen('login');
   }
 });
 
 /* =================== CLIENTAS =================== */
+let unsubClientas = null, unsubDocs = null;
 function loadClientas(){
-  getSWR(db.collection('clientas').orderBy('apellido'), snap=>{
+  // Listener en tiempo real: refleja al instante lo que se guarda en este dispositivo (sin esperar al servidor)
+  // y también lo que cargan los demás usuarios, y evita que una respuesta tardía pise lo recién cargado.
+  if(unsubClientas) unsubClientas();
+  unsubClientas = db.collection('clientas').orderBy('apellido').onSnapshot(snap=>{
     clientasCache = snap.docs.map(d=>({id:d.id, ...d.data()}));
     renderClientasList();
     updateDeudasBadge();
-  }).catch(err=>{
+    if(currentClienteId && !document.getElementById('screen-cliente').classList.contains('hidden')){
+      const c = clientasCache.find(x=>x.id===currentClienteId);
+      if(c){ currentClienteData = c; renderClientHeader(); }
+    }
+  }, err=>{
     console.error('Error cargando clientas:', err);
     document.getElementById('clientas-list').innerHTML = '<div class="empty">No se pudieron cargar las clientas. Revisá la consola.</div>';
   });
@@ -885,11 +896,16 @@ function renderClientHeader(){
 }
 function loadDocs(){
   const cid = currentClienteId;
-  return getSWR(db.collection('clientas').doc(cid).collection('documentos').orderBy('createdAt','desc'), snap=>{
+  if(unsubDocs) unsubDocs();
+  // Listener en tiempo real sobre los documentos de la clienta abierta: lo que se guarda aparece al instante.
+  unsubDocs = db.collection('clientas').doc(cid).collection('documentos').orderBy('createdAt','desc').onSnapshot(snap=>{
     if(cid!==currentClienteId) return;
     docsCache = snap.docs.map(d=>({id:d.id, ...d.data()}));
-    docsCacheClienteId = currentClienteId;
+    docsCacheClienteId = cid;
     renderDocsList();
+  }, err=>{
+    console.error('Error cargando documentos:', err);
+    document.getElementById('docs-list').innerHTML = '<div class="empty">No se pudieron cargar los documentos. Revisá la consola.</div>';
   });
 }
 function renderDocsList(){
