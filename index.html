@@ -831,7 +831,9 @@ function saveClienta(){
       alert('No se pudo guardar la clienta. Revisá la consola.');
       clientasCache = clientasCache.filter(c=>c.id!==ref.id);
       renderClientasList();
+      if(currentClienteId===ref.id) goBackToClientas();
     });
+    openClienteDetail(ref.id); // al crear una clienta nueva se va directo a su ficha
   }
 }
 function deleteClienta(){
