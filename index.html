@@ -188,6 +188,7 @@ table.sheet-table td.notes-cell{white-space:normal}
 /* Producto: si no entra en una línea pasa a dos, con letra y interlineado compactos para casi no agrandar la fila */
 table.sheet-table tbody td.prod-cell{white-space:normal;overflow-wrap:anywhere;line-height:1.15;padding-top:3px;padding-bottom:3px;font-size:11px;max-height:2.4em}
 table.sheet-table tbody tr.group-first td{border-top:1px solid #e3ddd0}
+table.sheet-table tbody tr.zebra td{background:#f6f5f2}
 table.sheet-table td.vmid{vertical-align:middle;text-align:center}
 table.sheet-table td.notes-cell{color:#9a9285;font-style:italic;font-size:10.5px;text-align:center}
 table.sheet-table .sheet-empty{text-align:center;color:#a49c8c;padding:40px 10px}
@@ -2164,11 +2165,12 @@ function renderPresuSheet(docs){
   const body = document.getElementById('presu-sheet-body');
   if(!docs.length){ body.innerHTML = '<tr><td colspan="8" class="sheet-empty">Sin presupuestos este mes.</td></tr>'; return; }
   let html = '';
-  docs.forEach(d=>{
+  docs.forEach((d, gi)=>{
+    const zebra = gi%2===1? ' zebra' : '';
     const rowspan = Math.max((d.productos||[]).length + (d.notas?1:0), 1);
     (d.productos||[]).forEach((p,i)=>{
       const f = p.moneda==='USD'?fmtUSD:fmtARS;
-      html += `<tr class="${i===0?'group-first':''}">`;
+      html += `<tr class="${i===0?'group-first':''}${zebra}">`;
       if(i===0){
         html += `<td class="vmid edit-cell" rowspan="${rowspan}">
           <span class="sheet-pencil" onclick="editSheetDoc('${d.clienteId}','${d.id}','presupuesto')"><i class="fa-solid fa-pen"></i></span>
@@ -2180,7 +2182,7 @@ function renderPresuSheet(docs){
       }
       html += `<td class="prod-cell">${esc(p.desc)}</td><td>${f(p.efvo)}</td><td>${f(p.tarj)}</td></tr>`;
     });
-    if(d.notas) html += `<tr><td colspan="3" class="notes-cell">${esc(d.notas)}</td></tr>`;
+    if(d.notas) html += `<tr class="${zebra.trim()}"><td class="notes-cell">${esc(d.notas)}</td><td colspan="2"></td></tr>`;
   });
   body.innerHTML = html;
 }
@@ -2240,10 +2242,11 @@ function renderVentaSheet(docs){
   const body = document.getElementById('venta-sheet-body');
   if(!docs.length){ body.innerHTML = '<tr><td colspan="15" class="sheet-empty">Sin ventas este mes.</td></tr>'; return; }
   let html = '';
-  docs.forEach(d=>{
+  docs.forEach((d, gi)=>{
+    const zebra = gi%2===1? ' zebra' : ''; // filas alternas entre movimientos: la 1ª blanca, la 2ª apenas gris, etc.
     const rowspan = Math.max((d.productos||[]).length + (d.notas?1:0), 1);
     (d.productos||[]).forEach((p,i)=>{
-      html += `<tr class="${i===0?'group-first':''}">`;
+      html += `<tr class="${i===0?'group-first':''}${zebra}">`;
       if(i===0){
         html += `<td class="vmid edit-cell" rowspan="${rowspan}">
           ${d.esSaldoMovimiento
@@ -2278,7 +2281,7 @@ function renderVentaSheet(docs){
       }
       html += `</tr>`;
     });
-    if(d.notas) html += `<tr><td colspan="4" class="notes-cell">${esc(d.notas)}</td></tr>`;
+    if(d.notas) html += `<tr class="${zebra.trim()}"><td class="notes-cell">${esc(d.notas)}</td><td colspan="4"></td></tr>`;
   });
   body.innerHTML = html;
 }
