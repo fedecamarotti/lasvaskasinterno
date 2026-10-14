@@ -1136,6 +1136,12 @@ function nextCodigo(){
     });
   });
 }
+// Todas las escrituras (ficha + copia global que usan las planillas) viajan en UN solo lote: se encolan juntas al instante,
+// así la planilla ya las ve aunque el servidor todavía no haya respondido, y si una falla no queda nada a medias.
+function batchSetVentaGlobal(batch, docId, d, upd){
+  const {id, ...rest} = {...d, ...upd};
+  batch.set(db.collection('ventas').doc(docId), {...rest, clienteId: currentClienteId, docId});
+}
 function syncGlobalDoc(tipo, docId, data){
   const coll = tipo==='presupuesto' ? 'presupuestos' : 'ventas';
   return db.collection(coll).doc(docId).set({...data, clienteId: currentClienteId, docId}, {merge:false});
@@ -1240,18 +1246,19 @@ function saveDoc(){
     if(tipo==='venta'){
       refreshClienteDeudaFast(currentClienteId);
     }
-    if(!document.getElementById('screen-venta-sheet').classList.contains('hidden')) openVentasSheet();
-    if(!document.getElementById('screen-presu-sheet').classList.contains('hidden')) openPresupuestosSheet();
     const prevDoc = id? docsCache.find(x=>x.id===id) : null;
     const createdAtDoc = (prevDoc && prevDoc.createdAt) || Date.now(); // al editar se conserva el orden de carga original
-    const p = id ? ref.doc(id).update(data) : ref.doc(savedId).set({...data, createdAt: createdAtDoc});
-    p.then(()=>{
-      syncGlobalDoc(tipo, savedId, {...data, id: savedId, createdAt: createdAtDoc});
-    }).catch(err=>{
+    const wb = db.batch();
+    if(id) wb.update(ref.doc(id), data); else wb.set(ref.doc(savedId), {...data, createdAt: createdAtDoc});
+    wb.set(db.collection(tipo==='presupuesto'?'presupuestos':'ventas').doc(savedId), {...data, id: savedId, createdAt: createdAtDoc, clienteId: currentClienteId, docId: savedId});
+    wb.commit().catch(err=>{
       console.error(err);
       alert('No se pudo guardar. Revisá la consola.');
       if(!id) removeDocFromCache(savedId);
     });
+    // Recién ahora se refresca la planilla (si está abierta): el lote ya está encolado, así que la planilla incluye lo recién guardado.
+    if(!document.getElementById('screen-venta-sheet').classList.contains('hidden')) openVentasSheet();
+    if(!document.getElementById('screen-presu-sheet').classList.contains('hidden')) openPresupuestosSheet();
   };
   if(tipo==='venta' && !id){
     if(pvsUsadas.includes('Belgrano') || pvsUsadas.includes('Venta por señar')){
@@ -1277,11 +1284,13 @@ function deleteDoc(){
   if(tipo==='venta'){
     refreshClienteDeudaFast(currentClienteId);
   }
+  const db_ = db.batch();
+  db_.delete(db.collection('clientas').doc(currentClienteId).collection('documentos').doc(id));
+  db_.delete(db.collection(tipo==='presupuesto'?'presupuestos':'ventas').doc(id));
+  const rec = db_.commit();
   if(!document.getElementById('screen-venta-sheet').classList.contains('hidden')) openVentasSheet();
   if(!document.getElementById('screen-presu-sheet').classList.contains('hidden')) openPresupuestosSheet();
-  db.collection('clientas').doc(currentClienteId).collection('documentos').doc(id).delete().then(()=>{
-    deleteGlobalDoc(tipo, id);
-  }).catch(err=>{
+  rec.catch(err=>{
     console.error(err);
     alert('No se pudo eliminar. Revisá la consola.');
     if(removed){ upsertDocInCache(removed); if(tipo==='venta') refreshClienteDeudaFast(currentClienteId); }
@@ -1431,9 +1440,10 @@ function savePago(){
       closeModal('modal-pago');
       upsertDocInCache({...pagoDoc, ...upd});
       upsertSaldoMovimientoInSheet(editPagoId, mov);
-      db.collection('clientas').doc(currentClienteId).collection('documentos').doc(editPagoId).update(upd).then(()=>{
-        db.collection('ventas').doc(editPagoId).set(mov).catch(()=>{});
-      }).catch(err=>{
+      const lb = db.batch();
+      lb.update(db.collection('clientas').doc(currentClienteId).collection('documentos').doc(editPagoId), upd);
+      lb.set(db.collection('ventas').doc(editPagoId), mov);
+      lb.commit().catch(err=>{
         console.error(err);
         alert('No se pudo guardar el cambio. Revisá la consola.');
         upsertDocInCache(prev);
@@ -1470,10 +1480,9 @@ function savePago(){
     const batch = db.batch();
     batch.update(ventaRef, updateData);
     batch.update(db.collection('clientas').doc(currentClienteId).collection('documentos').doc(editPagoId), pagoUpdate);
-    batch.commit().then(()=>{
-      db.collection('ventas').doc(pagoDoc.refVentaId).update(updateData).catch(()=>{});
-      db.collection('ventas').doc(editPagoId).set(saldoData).catch(()=>{});
-    }).catch(err=>{
+    batchSetVentaGlobal(batch, pagoDoc.refVentaId, d, updateData);
+    batch.set(db.collection('ventas').doc(editPagoId), saldoData);
+    batch.commit().catch(err=>{
       console.error(err);
       alert('No se pudo guardar el cambio. Revisá la consola.');
     });
@@ -1494,9 +1503,10 @@ function savePago(){
     closeModal('modal-pago');
     upsertDocInCache({id:ref.id, ...pdata});
     upsertSaldoMovimientoInSheet(ref.id, mov);
-    ref.set(pdata).then(()=>{
-      db.collection('ventas').doc(ref.id).set(mov).catch(()=>{});
-    }).catch(err=>{
+    const nb = db.batch();
+    nb.set(ref, pdata);
+    nb.set(db.collection('ventas').doc(ref.id), mov);
+    nb.commit().catch(err=>{
       console.error(err);
       alert('No se pudo guardar el pago. Revisá la consola.');
       removeDocFromCache(ref.id); removeSaldoMovimientoFromSheet(ref.id);
@@ -1538,10 +1548,9 @@ function savePago(){
   const batch = db.batch();
   batch.update(ventaRef, updateData);
   batch.set(pagoRef, pagoData);
-  batch.commit().then(()=>{
-    db.collection('ventas').doc(docId).update(updateData).catch(()=>{});
-    db.collection('ventas').doc(pagoRef.id).set(saldoData).catch(()=>{});
-  }).catch(err=>{
+  batchSetVentaGlobal(batch, docId, d, updateData);
+  batch.set(db.collection('ventas').doc(pagoRef.id), saldoData);
+  batch.commit().catch(err=>{
     console.error(err);
     alert('No se pudo guardar el pago. Revisá la consola.');
   });
@@ -1570,10 +1579,9 @@ function deletePago(){
   const batch = db.batch();
   if(updateData && pagoDoc.refVentaId) batch.update(clienteDocs.doc(pagoDoc.refVentaId), updateData);
   batch.delete(clienteDocs.doc(pagoId));
-  batch.commit().then(()=>{
-    if(updateData && pagoDoc.refVentaId) db.collection('ventas').doc(pagoDoc.refVentaId).update(updateData).catch(()=>{});
-    db.collection('ventas').doc(pagoId).delete().catch(()=>{}); // borra el movimiento "Salda c/c" asociado
-  }).catch(err=>{
+  if(updateData && pagoDoc.refVentaId) batchSetVentaGlobal(batch, pagoDoc.refVentaId, d, updateData);
+  batch.delete(db.collection('ventas').doc(pagoId)); // borra el movimiento "Salda c/c" asociado
+  batch.commit().catch(err=>{
     console.error(err);
     alert('No se pudo eliminar el pago. Revisá la consola.');
   });
