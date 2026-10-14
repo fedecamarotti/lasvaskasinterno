@@ -121,8 +121,8 @@ label{font-size:12px;color:#9a9285;display:block;margin-bottom:4px;letter-spacin
 .row2{display:flex;gap:10px}
 .row2>.field{flex:1}
 
-.prod-row,.pago-row{display:flex;gap:8px;margin-bottom:8px;align-items:flex-end}
-.prod-row .field,.pago-row .field{margin-bottom:0}
+.pago-row{display:flex;gap:8px;margin-bottom:8px;align-items:flex-end}
+.pago-row .field{margin-bottom:0}
 .rm-row{color:#c1685c;font-size:18px;width:34px;height:38px;flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer}
 .add-row-btn{color:#a8823f;font-size:13px;font-weight:600;margin:4px 0 16px;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
 .section-label{font-size:13px;font-weight:600;color:#a8823f;margin:18px 0 8px;letter-spacing:.02em}
@@ -223,21 +223,37 @@ body.role-limited #venta-table colgroup col:nth-child(8){display:none}
   .sheet-filter{font-size:8px;letter-spacing:0}
 }
 
-/* ---------- fila única producto/venta ---------- */
-.prod-row-lines{flex:1;display:flex;flex-direction:column;gap:6px;min-width:0}
-.prod-row-line2{display:flex;gap:6px;align-items:flex-end}
-.prod-row-line2 .field{margin-bottom:0}
-.pd-moneda-wrap{flex:0 0 52px}
-.pd-cant-wrap{flex:0 0 54px}
-.pd-vu-wrap{flex:0 0 92px}
-.pd-total-wrap{flex:0 0 92px}
-@media(max-width:380px){
-  .pd-vu-wrap{flex:0 0 80px}
-  .pd-total-wrap{flex:0 0 80px}
+/* ---------- fila única producto/venta: todo en una línea, con encabezado de columnas ---------- */
+.prod-head,.prod-row{display:grid;column-gap:6px;align-items:center}
+.prod-head{grid-template-columns:minmax(0,1fr) 52px 42px 84px 84px 24px;font-size:10.5px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:#a49c8c;margin:0 0 4px}
+.prod-head span:nth-child(n+2){text-align:center}
+.prod-head span:nth-child(4),.prod-head span:nth-child(5){text-align:right;padding-right:6px}
+.prod-head.presu{grid-template-columns:minmax(0,1fr) 52px 92px 92px 24px}
+.prod-head.presu span:nth-child(3),.prod-head.presu span:nth-child(4){text-align:right;padding-right:6px}
+.prod-row{align-items:start;grid-template-columns:minmax(0,1fr) 52px 42px 84px 84px 24px;grid-template-areas:"d m c v t x";margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #f0ebde}
+.prod-row.pr-presu{grid-template-columns:minmax(0,1fr) 52px 92px 92px 24px;grid-template-areas:"d m v t x"}
+.prod-row.arreglo-row{grid-template-areas:"d m . . t x"}
+.prod-row .field{margin-bottom:0;min-width:0}
+.prod-row .c-desc{grid-area:d}.prod-row .c-mon{grid-area:m}.prod-row .c-cant{grid-area:c}.prod-row .c-v{grid-area:v}.prod-row .c-tot{grid-area:t}
+.prod-row .rm-row{grid-area:x;width:24px;height:36px;font-size:16px}
+.prod-row input,.prod-row select,.prod-row textarea{padding:8px 6px;font-size:13px;height:36px}
+.prod-row textarea{resize:none;overflow:hidden;line-height:1.25;min-height:36px;display:block;font-family:inherit}
+.prod-row .c-tot input[readonly]{height:36px}
+.prod-row .c-cant input,.prod-row .c-v input,.prod-row .c-tot input{text-align:right}
+.prod-row .c-mon select{padding:8px 2px}
+.prod-row input[readonly]{border-color:transparent;background:transparent;font-weight:600;color:#3a352c;opacity:1;padding-right:6px}
+@media(max-width:560px){
+  .prod-head{display:none}
+  .prod-row{grid-template-columns:52px 42px minmax(0,1fr) 84px 24px;grid-template-areas:"d d d d x" "m c v t ."}
+  .prod-row.pr-presu{grid-template-columns:52px minmax(0,1fr) 92px 24px;grid-template-areas:"d d d x" "m v t ."}
+  .prod-row.arreglo-row{grid-template-areas:"d d d d x" "m . . t ."}
 }
-.pd-cant-wrap input,.pd-vu-wrap input,.pd-total-wrap input{padding:9px 6px;text-align:right}
-.pd-moneda-wrap select{padding:9px 4px}
-.prod-row.pv-cc .prod-row-line2{display:none}
+/* botones "+ Producto" / "+ Arreglos/otros" */
+.add-pills{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px}
+.add-pill{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:20px;border:none;font-size:13px;font-weight:600;cursor:pointer}
+.add-pill.hidden{display:none}
+.add-pill.pill-prod{background:#f4ecd9;color:#8f6c2a}
+.add-pill.pill-arr{background:#e4ecf8;color:#3d5f96}
 .pv-divider{display:flex;align-items:center;gap:8px;margin:12px 0 8px;padding-top:10px;border-top:1px dashed #ddd3ba}
 .pv-divider label{margin:0;flex-shrink:0}
 .pv-divider select{flex:1}
@@ -496,11 +512,11 @@ body.role-admin .doctype-btns button.pago{display:block}
       </div>
     </div>
     <div class="section-label">Productos</div>
+    <div id="prod-head" class="prod-head"></div>
     <div id="productos-container"></div>
-    <div style="display:flex;gap:16px;margin-bottom:10px;flex-wrap:wrap">
-      <div class="add-row-btn" style="margin:0" onclick="addProductoRow()"><i class="fa-solid fa-plus"></i> Producto</div>
-      <div id="add-arreglo-btn" class="add-row-btn hidden" style="margin:0" onclick="addArregloRow()"><i class="fa-solid fa-plus"></i> Arreglos/otros</div>
-      <div id="add-pv-btn" class="add-row-btn hidden" style="margin:0" onclick="addPVDivider()"><i class="fa-solid fa-plus"></i> Punto de venta</div>
+    <div class="add-pills">
+      <button type="button" class="add-pill pill-prod" onclick="addProductoRow()"><i class="fa-solid fa-plus"></i> Producto</button>
+      <button type="button" id="add-arreglo-btn" class="add-pill pill-arr hidden" onclick="addArregloRow()"><i class="fa-solid fa-plus"></i> Arreglos/otros</button>
     </div>
     <div id="doc-live-total" class="live-total hidden"></div>
     <div class="field"><label>Notas</label><textarea id="doc-notas" rows="2"></textarea></div>
@@ -1028,7 +1044,9 @@ function openDocModal(tipo, existing){
   document.getElementById('pagos-section').classList.toggle('hidden', tipo!=='venta');
   document.getElementById('pventa-section').classList.toggle('hidden', tipo!=='venta');
   document.getElementById('add-arreglo-btn').classList.toggle('hidden', tipo!=='venta');
-  document.getElementById('add-pv-btn').classList.toggle('hidden', tipo!=='venta');
+  const hd = document.getElementById('prod-head');
+  hd.className = 'prod-head' + (tipo==='presupuesto'? ' presu' : '');
+  hd.innerHTML = tipo==='presupuesto'? '<span>Producto</span><span>$</span><span>Efectivo</span><span>Tarjeta</span><span></span>' : '<span>Producto</span><span>$</span><span>Cant.</span><span>Precio</span><span>Total</span><span></span>';
   document.getElementById('doc-live-total').classList.toggle('hidden', tipo!=='venta');
   document.getElementById('doc-fechapago').value = existing? (existing.fechaPago||'') : '';
 
@@ -1054,27 +1072,12 @@ function openDocModal(tipo, existing){
     const pagos = existing? (existing.pagos||[]).filter(p=>!p.pagoDocId) : [];
     pagos.forEach(p=>addPagoRow(p));
   }
-  applyPVModes();
   recalcLiveTotal();
   recalcDeudaLive();
   document.getElementById('doc-delete-row').classList.toggle('hidden', !existing);
   openModal('modal-doc');
+  document.querySelectorAll('#productos-container textarea').forEach(autoGrow);
 }
-// En punto de venta "CC" los productos son solo texto: se oculta moneda/cantidad/valor/total y todo va escrito en el detalle.
-function applyPVModes(){
-  if(editingDocTipo!=='venta') return;
-  let pv = document.getElementById('doc-puntoventa').value;
-  Array.from(document.getElementById('productos-container').children).forEach(row=>{
-    if(row.classList.contains('pv-divider')){ pv = row.querySelector('.pv-select').value; return; }
-    if(!row.classList.contains('prod-row')) return;
-    const cc = pv==='CC';
-    row.classList.toggle('pv-cc', cc);
-    const inp = row.querySelector('.pd-desc, .ar-desc');
-    if(inp) inp.placeholder = cc? 'Detalle (ej: blusa $500 efectivo)' : (row.classList.contains('arreglo-row')? 'Arreglo / otro' : 'Descripción');
-  });
-  recalcLiveTotal(); recalcDeudaLive();
-}
-document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('doc-puntoventa'); if(b) b.addEventListener('change', applyPVModes); });
 function addPVDivider(preset){
   const cont = document.getElementById('productos-container');
   const row = document.createElement('div');
@@ -1082,46 +1085,50 @@ function addPVDivider(preset){
   const opts = ['Belgrano','CC','Préstamo','Venta por señar'].map(v=>`<option value="${v}" ${preset===v?'selected':''}>${v}</option>`).join('');
   row.innerHTML = `<label>Punto de venta:</label><select class="pv-select">${opts}</select><div class="rm-row">✕</div>`;
   cont.appendChild(row);
-  row.querySelector('.pv-select').addEventListener('change', applyPVModes);
-  row.querySelector('.rm-row').addEventListener('click', ()=>{ row.remove(); applyPVModes(); });
-  applyPVModes();
+  row.querySelector('.rm-row').addEventListener('click', ()=> row.remove());
+}
+// El detalle es una sola línea y solo crece (a 2 o más líneas) si el texto no entra; Enter no agrega saltos de línea.
+function autoGrow(el){ el.style.height='auto'; el.style.height = Math.max(36, el.scrollHeight)+'px'; }
+function attachDescInput(row){
+  const t = row.querySelector('textarea');
+  if(!t) return;
+  t.addEventListener('input', ()=> autoGrow(t));
+  t.addEventListener('keydown', e=>{ if(e.key==='Enter') e.preventDefault(); });
+  requestAnimationFrame(()=> autoGrow(t));
+}
+function monedaSelectHTML(cls, p){
+  return `<select class="${cls}"><option value="ARS" ${p.moneda==='USD'?'':'selected'}>$</option><option value="USD" ${p.moneda==='USD'?'selected':''}>usd</option></select>`;
 }
 function addProductoRow(p){
   p = p||{};
   const cont = document.getElementById('productos-container');
   const row = document.createElement('div');
-  row.className='prod-row';
   if(editingDocTipo==='presupuesto'){
+    row.className='prod-row pr-presu';
     row.innerHTML = `
-      <div class="prod-row-lines">
-        <div class="field"><input class="pd-desc" placeholder="Descripción" value="${esc(p.desc||'')}"></div>
-        <div class="prod-row-line2">
-          <div class="field pd-moneda-wrap"><select class="pd-moneda"><option value="ARS" ${p.moneda==='USD'?'':'selected'}>$</option><option value="USD" ${p.moneda==='USD'?'selected':''}>usd</option></select></div>
-          <div class="field pd-vu-wrap"><input class="pd-efvo" placeholder="Efectivo" value="${fmtMoney(p.efvo)}"></div>
-          <div class="field pd-vu-wrap"><input class="pd-tarj" placeholder="Tarjeta" value="${fmtMoney(p.tarj)}" readonly style="opacity:.65"></div>
-        </div>
-      </div>
-      <div class="rm-row" onclick="this.parentElement.remove()">✕</div>`;
-    cont.appendChild(row);
+      <div class="field c-desc"><textarea class="pd-desc" rows="1" placeholder="Producto">${esc(p.desc||'')}</textarea></div>
+      <div class="field c-mon">${monedaSelectHTML('pd-moneda', p)}</div>
+      <div class="field c-v"><input class="pd-efvo" placeholder="Efectivo" inputmode="numeric" value="${fmtMoney(p.efvo)}"></div>
+      <div class="field c-tot"><input class="pd-tarj" placeholder="Tarjeta" value="${fmtMoney(p.tarj)}" readonly tabindex="-1"></div>
+      <div class="rm-row">✕</div>`;
+    cont.appendChild(row); attachDescInput(row);
     const efvoInput = row.querySelector('.pd-efvo'), tarjInput = row.querySelector('.pd-tarj');
     attachMoneyInput(efvoInput);
     efvoInput.addEventListener('input', ()=>{
       const v = num(efvoInput.value);
       tarjInput.value = v? Math.round(v*1.25).toLocaleString('es-AR') : '';
     });
+    row.querySelector('.rm-row').addEventListener('click', ()=> row.remove());
   } else {
+    row.className='prod-row pr-venta';
     row.innerHTML = `
-      <div class="prod-row-lines">
-        <div class="field"><input class="pd-desc" placeholder="Descripción" value="${esc(p.desc||'')}"></div>
-        <div class="prod-row-line2">
-          <div class="field pd-moneda-wrap"><select class="pd-moneda"><option value="ARS" ${p.moneda==='USD'?'':'selected'}>$</option><option value="USD" ${p.moneda==='USD'?'selected':''}>usd</option></select></div>
-          <div class="field pd-cant-wrap"><input class="pd-cant" placeholder="Cant." value="${p.cant||''}"></div>
-          <div class="field pd-vu-wrap"><input class="pd-valorunit" placeholder="V. unit." value="${fmtMoney(p.valorUnit)}"></div>
-          <div class="field pd-total-wrap"><input class="pd-total" placeholder="Total" value="${fmtMoney(p.total)}" readonly style="opacity:.65"></div>
-        </div>
-      </div>
-      <div class="rm-row" onclick="this.parentElement.remove()">✕</div>`;
-    cont.appendChild(row);
+      <div class="field c-desc"><textarea class="pd-desc" rows="1" placeholder="Producto">${esc(p.desc||'')}</textarea></div>
+      <div class="field c-mon">${monedaSelectHTML('pd-moneda', p)}</div>
+      <div class="field c-cant"><input class="pd-cant" placeholder="1" inputmode="numeric" value="${esc(p.cant||'')}"></div>
+      <div class="field c-v"><input class="pd-valorunit" placeholder="Precio" inputmode="numeric" value="${fmtMoney(p.valorUnit)}"></div>
+      <div class="field c-tot"><input class="pd-total" placeholder="Total" value="${fmtMoney(p.total)}" readonly tabindex="-1"></div>
+      <div class="rm-row">✕</div>`;
+    cont.appendChild(row); attachDescInput(row);
     const cantInput = row.querySelector('.pd-cant'), vuInput = row.querySelector('.pd-valorunit'), totalInput = row.querySelector('.pd-total');
     attachMoneyInput(vuInput);
     function recalcTotal(){
@@ -1130,9 +1137,9 @@ function addProductoRow(p){
     }
     cantInput.addEventListener('input', ()=>{ recalcTotal(); recalcLiveTotal(); recalcDeudaLive(); });
     vuInput.addEventListener('input', ()=>{ recalcTotal(); recalcLiveTotal(); recalcDeudaLive(); });
+    row.querySelector('.pd-moneda').addEventListener('change', ()=>{ recalcLiveTotal(); recalcDeudaLive(); });
     row.querySelector('.rm-row').addEventListener('click', ()=>{ row.remove(); recalcLiveTotal(); recalcDeudaLive(); });
   }
-  applyPVModes();
   recalcLiveTotal();
 }
 function addArregloRow(p){
@@ -1141,20 +1148,16 @@ function addArregloRow(p){
   const row = document.createElement('div');
   row.className='prod-row arreglo-row';
   row.innerHTML = `
-    <div class="prod-row-lines">
-      <div class="field"><input class="ar-desc" placeholder="Arreglo / otro" value="${esc(p.desc||'')}"></div>
-      <div class="prod-row-line2">
-        <div class="field pd-moneda-wrap"><select class="ar-moneda"><option value="ARS" ${p.moneda==='USD'?'':'selected'}>$</option><option value="USD" ${p.moneda==='USD'?'selected':''}>usd</option></select></div>
-        <div class="field pd-vu-wrap"><input class="ar-valor" placeholder="Valor" value="${fmtMoney(p.total)}"></div>
-      </div>
-    </div>
+    <div class="field c-desc"><textarea class="ar-desc" rows="1" placeholder="Arreglo / otro">${esc(p.desc||'')}</textarea></div>
+    <div class="field c-mon">${monedaSelectHTML('ar-moneda', p)}</div>
+    <div class="field c-tot"><input class="ar-valor" placeholder="Valor" inputmode="numeric" value="${fmtMoney(p.total)}"></div>
     <div class="rm-row">✕</div>`;
-  cont.appendChild(row);
+  cont.appendChild(row); attachDescInput(row);
   const valorInput = row.querySelector('.ar-valor');
   attachMoneyInput(valorInput);
   valorInput.addEventListener('input', ()=>{ recalcLiveTotal(); recalcDeudaLive(); });
+  row.querySelector('.ar-moneda').addEventListener('change', ()=>{ recalcLiveTotal(); recalcDeudaLive(); });
   row.querySelector('.rm-row').addEventListener('click', ()=>{ row.remove(); recalcLiveTotal(); recalcDeudaLive(); });
-  applyPVModes();
   recalcLiveTotal();
 }
 function recalcLiveTotal(){
@@ -1162,7 +1165,6 @@ function recalcLiveTotal(){
   if(!el || editingDocTipo!=='venta') return;
   let totalARS=0, totalUSD=0;
   document.querySelectorAll('#productos-container .prod-row').forEach(row=>{
-    if(row.classList.contains('pv-cc')) return; // CC: solo texto, no suma
     const moneda = row.classList.contains('arreglo-row')? row.querySelector('.ar-moneda').value : row.querySelector('.pd-moneda').value;
     let total;
     if(row.classList.contains('arreglo-row')){ total = num(row.querySelector('.ar-valor').value)||0; }
@@ -1198,7 +1200,6 @@ function recalcDeudaLive(){
   if(!el || editingDocTipo!=='venta') return;
   let totalARS=0, totalUSD=0;
   document.querySelectorAll('#productos-container .prod-row').forEach(row=>{
-    if(row.classList.contains('pv-cc')) return; // CC: solo texto, no suma
     const moneda = row.classList.contains('arreglo-row')? row.querySelector('.ar-moneda').value : row.querySelector('.pd-moneda').value;
     let total;
     if(row.classList.contains('arreglo-row')){ total = num(row.querySelector('.ar-valor').value)||0; }
@@ -1267,7 +1268,6 @@ function saveDoc(){
     if(tipo==='venta' && row.classList.contains('arreglo-row')){
       const desc = row.querySelector('.ar-desc').value.trim();
       if(!desc) return;
-      if(currentPV==='CC'){ productos.push({desc, texto:true, puntoVenta:'CC'}); if(!pvsUsadas.includes('CC')) pvsUsadas.push('CC'); return; }
       const moneda = row.querySelector('.ar-moneda').value;
       const total = num(row.querySelector('.ar-valor').value)||0;
       productos.push({desc, moneda, esArreglo:true, total, puntoVenta: currentPV});
@@ -1277,7 +1277,6 @@ function saveDoc(){
     }
     const desc = row.querySelector('.pd-desc').value.trim();
     if(!desc) return;
-    if(tipo==='venta' && currentPV==='CC'){ productos.push({desc, texto:true, puntoVenta:'CC'}); if(!pvsUsadas.includes('CC')) pvsUsadas.push('CC'); return; }
     const moneda = row.querySelector('.pd-moneda').value;
     if(tipo==='presupuesto'){
       const efvo = num(row.querySelector('.pd-efvo').value);
@@ -2266,7 +2265,7 @@ function renderVentaSheet(docs){
         const estadoClass = p.estadoCostos==='falta'?'estado-falta':(p.estadoCostos==='completo'?'estado-completo':'');
         html += `<td class="vmid plus-cell"><span class="sheet-plus ${estadoClass}" onclick="openCostosModal('${d.clienteId}','${d.id}', ${i}, ${JSON.stringify(p.costos||[]).replace(/"/g,'&quot;')}, '${p.estadoCostos||''}')">+</span></td>`;
         const f = p.moneda==='USD'?fmtUSD:fmtARS;
-        if(p.texto){ html += `<td>-</td><td>-</td><td>-</td>`; }
+        if(p.texto || p.puntoVenta==='CC'){ html += `<td>-</td><td>-</td><td>-</td>`; } // CC: en movimientos solo texto en Producto
         else {
           html += `<td>${p.esArreglo?'-':(p.cant||'')}</td>`;
           html += `<td>${p.esArreglo?'-':f(p.valorUnit||0)}</td>`;
