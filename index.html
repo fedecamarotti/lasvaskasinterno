@@ -470,6 +470,7 @@ body.role-admin .doctype-btns button.pago{display:block}
       <div class="field"><label>Fecha</label><input id="doc-fecha" type="date"></div>
       <div class="field"><label>Fecha evento</label><input id="doc-fechaevento" type="text" maxlength="14" placeholder="ej: 15/12/27"></div>
     </div>
+    <div class="field hidden" id="doc-codigo-field"><label>Código (solo administrador)</label><input id="doc-codigo" maxlength="8" inputmode="numeric"></div>
     <div id="pventa-section" class="hidden">
       <div class="field"><label>Punto de venta</label>
         <select id="doc-puntoventa">
@@ -965,6 +966,9 @@ function openDocModal(tipo, existing){
   editingExistingSaldarPagos = existing? (existing.pagos||[]).filter(p=>p.pagoDocId) : [];
   document.getElementById('doc-id').value = existing? existing.id : '';
   document.getElementById('doc-tipo').value = tipo;
+  const mostrarCodigo = tipo==='venta' && !!existing && currentUserRole==='admin' && existing.codigo!==undefined && existing.codigo!=='-';
+  document.getElementById('doc-codigo-field').classList.toggle('hidden', !mostrarCodigo);
+  document.getElementById('doc-codigo').value = mostrarCodigo? existing.codigo : '';
   document.getElementById('doc-fecha').value = existing? existing.fecha : todayISO();
   document.getElementById('doc-fechaevento').value = existing? (existing.fechaEvento||'') : '';
   document.getElementById('doc-notas').value = existing? (existing.notas||'') : '';
@@ -1280,7 +1284,10 @@ function saveDoc(){
   const codigoViejo = (id && editingExistingCodigo!=null)? String(editingExistingCodigo) : null;
   // Si al editar la fecha cambia a otro mes distinto del que tiene el código (ej: 1001 en una venta de septiembre), se genera uno nuevo del mes correcto.
   const codigoDeOtroMes = !!codigoViejo && /^\d{4}$/.test(codigoViejo) && codigoViejo.slice(0,2)!==fecha.slice(5,7);
-  if(tipo==='venta' && (!id || codigoDeOtroMes)){
+  const codigoManual = (!document.getElementById('doc-codigo-field').classList.contains('hidden'))? document.getElementById('doc-codigo').value.trim() : '';
+  if(tipo==='venta' && id && codigoManual && codigoManual!==codigoViejo){
+    proceed(codigoManual); // el administrador corrigió el código a mano
+  } else if(tipo==='venta' && (!id || (codigoDeOtroMes && !codigoManual))){
     if(codigoDeOtroMes || pvsUsadas.includes('Belgrano') || pvsUsadas.includes('Venta por señar')){
       nextCodigo(fecha).then(proceed);
     } else {
