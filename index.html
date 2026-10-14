@@ -181,6 +181,8 @@ table.sheet-table thead th{background:#f2eee3;color:#a8823f;font-size:9.5px;lett
 .sheet-filter:focus{outline:none;border-bottom:1.5px solid #c9a86a}
 table.sheet-table tbody td{border-bottom:1px solid #f0ece2;padding:5px 8px;vertical-align:middle;color:#3a352c;text-align:center;white-space:nowrap}
 table.sheet-table td.notes-cell{white-space:normal}
+/* Producto: si no entra en una línea pasa a dos, con letra y interlineado compactos para casi no agrandar la fila */
+table.sheet-table tbody td.prod-cell{white-space:normal;overflow-wrap:anywhere;line-height:1.15;padding-top:3px;padding-bottom:3px;font-size:11px;max-height:2.4em}
 table.sheet-table tbody tr.group-first td{border-top:1px solid #e3ddd0}
 table.sheet-table td.vmid{vertical-align:middle;text-align:center}
 table.sheet-table td.notes-cell{color:#9a9285;font-style:italic;font-size:10.5px;text-align:left;padding-left:10px}
@@ -2084,7 +2086,7 @@ function renderPresuSheet(docs){
         html += `<td class="vmid" rowspan="${rowspan}">${d.fechaEvento||''}</td>`;
         html += `<td class="vmid" rowspan="${rowspan}">${d.clienteTelefono||''}</td>`;
       }
-      html += `<td>${p.desc}</td><td>${f(p.efvo)}</td><td>${f(p.tarj)}</td></tr>`;
+      html += `<td class="prod-cell">${p.desc}</td><td>${f(p.efvo)}</td><td>${f(p.tarj)}</td></tr>`;
     });
     if(d.notas) html += `<tr><td colspan="3" class="notes-cell">${d.notas}</td></tr>`;
   });
@@ -2154,7 +2156,7 @@ function renderVentaSheet(docs){
         html += `<td class="vmid" rowspan="${rowspan}">${d.puntoVenta||''}</td>`;
         html += `<td class="vmid" rowspan="${rowspan}">${d.fechaEvento||''}</td>`;
       }
-      html += `<td>${p.desc}</td>`;
+      html += `<td class="prod-cell">${p.desc}</td>`;
       if(d.esSaldoMovimiento){
         html += `<td class="vmid">-</td><td>-</td><td>-</td><td>-</td>`;
       } else {
