@@ -64,6 +64,27 @@ with sync_playwright() as p:
         ok('editar pago -> saldado', ev("docsCache.find(d=>d.tipo==='venta').saldado===true"))
         ev(f"openPagoModal('{pid}')"); ev("deletePago()"); wait(300)
         ok('borrar pago restaura deuda', ev("docsCache.find(d=>d.tipo==='venta').aPagarARS")==80000-0 or ev("docsCache.find(d=>d.tipo==='venta').aPagarARS")>0)
+        # varios métodos en una misma carga: 50.000 efectivo + 30.000 transferencia saldan los 80.000
+        n0=ev("docsCache.filter(d=>d.tipo==='pago').length")
+        ev("openPagoModal()"); pg.select_option('#pago-metodo-select','EFVO_ARS'); pg.fill('#pago-monto-input','50000')
+        ev("addPagoLine()"); pg.select_option('.pl-metodo','TRBF'); pg.fill('.pl-monto','30000')
+        ok('segunda linea de pago visible', ev("document.querySelectorAll('#pago-extra-lines .pago-line').length")==1)
+        ev("savePago()"); wait(400)
+        ok('2 metodos: se crean 2 pagos', ev("docsCache.filter(d=>d.tipo==='pago').length")==n0+2)
+        ok('2 metodos: saldan la venta', ev("docsCache.find(d=>d.tipo==='venta').saldado===true") and ev("docsCache.find(d=>d.tipo==='venta').aPagarARS")==0)
+        ev("openPagoModal()"); ok('modal reabre con una sola linea', ev("document.querySelectorAll('#pago-extra-lines .pago-line').length")==0); ev("closeModal('modal-pago')")
+        for x in ev("docsCache.filter(d=>d.tipo==='pago'&&d.refVentaId).map(d=>d.id)"):
+            ev(f"openPagoModal('{x}')"); ev("deletePago()"); wait(150)
+        ok('borrar los 2 pagos restaura la deuda', ev("docsCache.find(d=>d.tipo==='venta').aPagarARS")==80000)
+        # linea sin monto no guarda nada
+        n1=ev("docsCache.filter(d=>d.tipo==='pago').length")
+        ev("openPagoModal()"); pg.select_option('#pago-doc-select','__libre__'); pg.select_option('#pago-metodo-select','EFVO_ARS'); pg.fill('#pago-monto-input','1000'); ev("addPagoLine()"); pg.select_option('.pl-metodo','TRBF')
+        pg.once('dialog', lambda d: d.accept()); ev("savePago()"); wait(200)
+        ok('linea 2 sin monto: no guarda', ev("docsCache.filter(d=>d.tipo==='pago').length")==n1)
+        pg.fill('.pl-monto','2000'); ev("savePago()"); wait(400)
+        ok('saldo libre con 2 metodos: 2 pagos', ev("docsCache.filter(d=>d.tipo==='pago').length")==n1+2)
+        for x in ev("docsCache.filter(d=>d.tipo==='pago'&&d.libre).map(d=>d.id)"):
+            ev(f"openPagoModal('{x}')"); ev("deletePago()"); wait(150)
     # notas
     ev("openNotaModal()"); pg.fill('#nota-texto','hola nota'); ev("saveNota()"); wait(300)
     ok('nota creada', 'hola nota' in txt('#docs-list'))

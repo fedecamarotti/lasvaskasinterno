@@ -255,6 +255,9 @@ body.role-limited #venta-table colgroup col:nth-child(8){display:none}
 .add-pills{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px}
 .add-pill{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:16px;border:none;font-size:12px;font-weight:600;cursor:pointer;background:#f4ecd9;color:#8f6c2a}
 .add-pill.hidden{display:none}
+.pago-line{border-top:1px dashed #e3d9c2;margin-top:6px;padding-top:10px;position:relative}
+.pago-line .pl-head{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:600;color:#8f6c2a;margin-bottom:6px}
+.pago-line .pl-del{background:none;border:none;color:#999;font-size:15px;cursor:pointer;padding:2px 6px}
 .pv-divider{display:flex;align-items:center;gap:8px;margin:12px 0 8px;padding-top:10px;border-top:1px dashed #ddd3ba}
 .pv-divider label{margin:0;flex-shrink:0}
 .pv-divider select{flex:1}
@@ -551,6 +554,8 @@ body.role-admin .doctype-btns button.pago{display:block}
     <div class="field"><label>Método de pago</label><select id="pago-metodo-select"></select></div>
     <div class="field"><label>Monto</label><input id="pago-monto-input" placeholder="Monto"></div>
     <div class="field"><label>Cotización (solo si pagás en una moneda distinta a la de la deuda)</label><input id="pago-cotizacion-input" placeholder="ej: 1350"></div>
+    <div id="pago-extra-lines"></div>
+    <div class="add-pills" id="pago-add-row"><button type="button" class="add-pill" onclick="addPagoLine()"><i class="fa-solid fa-plus"></i> Otro método de pago</button></div>
     <button class="btn btn-primary" id="pago-save-btn" style="width:100%" onclick="savePago()">Guardar pago</button>
     <div id="pago-delete-row" class="hidden" style="text-align:center;margin-top:14px">
       <button class="btn-danger" style="font-size:13px" onclick="deletePago()">Eliminar pago</button>
@@ -1501,15 +1506,45 @@ function buildPagoLibreMovimiento(metodo, monto, fecha){
     createdAt: Date.now()
   };
 }
+function pagoMetodoOptions(){
+  return `<option value="" selected disabled hidden>Método de pago</option>` +
+    Object.keys(METODOS).map(k=>`<option value="${k}">${METODOS[k].label}</option>`).join('');
+}
+// Permite cargar varios métodos de pago en una misma carga (ej: parte en efectivo y parte en transferencia).
+function addPagoLine(){
+  const box = document.getElementById('pago-extra-lines');
+  const n = box.children.length + 2;
+  const div = document.createElement('div');
+  div.className = 'pago-line';
+  div.innerHTML = `<div class="pl-head"><span>Pago ${n}</span><button type="button" class="pl-del" title="Quitar" onclick="removePagoLine(this)">✕</button></div>
+    <div class="field"><label>Método de pago</label><select class="pl-metodo">${pagoMetodoOptions()}</select></div>
+    <div class="field"><label>Monto</label><input class="pl-monto" placeholder="Monto" inputmode="numeric"></div>
+    <div class="field"><label>Cotización (solo si pagás en una moneda distinta a la de la deuda)</label><input class="pl-cot" placeholder="ej: 1350" inputmode="numeric"></div>`;
+  box.appendChild(div);
+  attachMoneyInput(div.querySelector('.pl-monto'));
+  attachMoneyInput(div.querySelector('.pl-cot'));
+  div.querySelector('.pl-metodo').focus();
+}
+function removePagoLine(btn){
+  const line = btn.closest('.pago-line'); if(line) line.remove();
+  [...document.getElementById('pago-extra-lines').children].forEach((el,i)=>{ el.querySelector('.pl-head span').textContent = 'Pago '+(i+2); });
+}
+function getPagoLines(){
+  const lines = [{metodo:document.getElementById('pago-metodo-select').value, monto:num(document.getElementById('pago-monto-input').value), cotizacion:num(document.getElementById('pago-cotizacion-input').value)}];
+  document.querySelectorAll('#pago-extra-lines .pago-line').forEach(el=>{
+    lines.push({metodo:el.querySelector('.pl-metodo').value, monto:num(el.querySelector('.pl-monto').value), cotizacion:num(el.querySelector('.pl-cot').value)});
+  });
+  return lines;
+}
 function openPagoModal(editPagoId){
   if(currentUserRole!=='admin'){ return; }
   const isEdit = !!editPagoId;
   document.getElementById('pago-editing-id').value = editPagoId||'';
   document.getElementById('pago-modal-title').textContent = isEdit? 'Editar pago' : 'Registrar pago';
   document.getElementById('pago-delete-row').classList.toggle('hidden', !isEdit);
-  document.getElementById('pago-metodo-select').innerHTML =
-    `<option value="" selected disabled hidden>Método de pago</option>` +
-    Object.keys(METODOS).map(k=>`<option value="${k}">${METODOS[k].label}</option>`).join('');
+  document.getElementById('pago-metodo-select').innerHTML = pagoMetodoOptions();
+  document.getElementById('pago-extra-lines').innerHTML = '';
+  document.getElementById('pago-add-row').classList.toggle('hidden', isEdit);
 
   if(isEdit){
     const p = docsCache.find(x=>x.id===editPagoId);
@@ -1607,8 +1642,12 @@ function savePago(){
   const metodo = document.getElementById('pago-metodo-select').value;
   const monto = num(document.getElementById('pago-monto-input').value);
   const cotizacion = num(document.getElementById('pago-cotizacion-input').value);
-  if(!metodo){ alert('Falta método de pago'); return; }
-  if(monto<=0){ alert('Ingresá un monto.'); return; }
+  const lines = editPagoId ? [{metodo, monto, cotizacion}] : getPagoLines();
+  for(let i=0;i<lines.length;i++){
+    const tag = lines.length>1 ? ` (pago ${i+1})` : '';
+    if(!lines[i].metodo){ alert('Falta método de pago'+tag); return; }
+    if(!(lines[i].monto>0)){ alert('Ingresá un monto'+tag+'.'); return; }
+  }
   const fecha = todayISO();
 
   if(editPagoId){
@@ -1674,67 +1713,72 @@ function savePago(){
   }
 
   const docId = document.getElementById('pago-doc-select').value;
+  const baseTs = Date.now();
+  const clienteDocs = db.collection('clientas').doc(currentClienteId).collection('documentos');
+  const quien = {creadoPor: auth.currentUser? auth.currentUser.email : '', creadoPorNombre: currentUserNombre};
+  const cli = {clienteNombre: currentClienteData.nombre, clienteApellido: currentClienteData.apellido, clienteTelefono: currentClienteData.telefono||''};
   if(docId===PAGO_LIBRE){
     const f = document.getElementById('pago-fecha-input').value || fecha;
-    const ref = db.collection('clientas').doc(currentClienteId).collection('documentos').doc();
-    const pdata = {
-      tipo:'pago', fecha:f, metodo, monto, refVentaId:null, libre:true,
-      clienteNombre: currentClienteData.nombre, clienteApellido: currentClienteData.apellido,
-      clienteTelefono: currentClienteData.telefono||'', createdAt: Date.now(),
-      creadoPor: auth.currentUser? auth.currentUser.email : '', creadoPorNombre: currentUserNombre
-    };
-    const mov = buildPagoLibreMovimiento(metodo, monto, f);
-    closeModal('modal-pago');
-    upsertDocInCache({id:ref.id, ...pdata});
-    upsertSaldoMovimientoInSheet(ref.id, mov);
     const nb = db.batch();
-    nb.set(ref, pdata);
-    nb.set(db.collection('ventas').doc(ref.id), mov);
+    const creados = [];
+    lines.forEach((ln,i)=>{
+      const ref = clienteDocs.doc();
+      const ts = baseTs + i;
+      const pdata = {tipo:'pago', fecha:f, metodo:ln.metodo, monto:ln.monto, refVentaId:null, libre:true, ...cli, createdAt: ts, ...quien};
+      const mov = {...buildPagoLibreMovimiento(ln.metodo, ln.monto, f), createdAt: ts};
+      nb.set(ref, pdata);
+      nb.set(db.collection('ventas').doc(ref.id), mov);
+      creados.push({ref, pdata, mov});
+    });
+    closeModal('modal-pago');
+    creados.forEach(c=>{ upsertDocInCache({id:c.ref.id, ...c.pdata}); upsertSaldoMovimientoInSheet(c.ref.id, c.mov); });
     markSaving();
     nb.commit().catch(err=>{
       console.error(err);
       alert('No se pudo guardar el pago. Revisá la consola.');
-      removeDocFromCache(ref.id); removeSaldoMovimientoFromSheet(ref.id);
+      creados.forEach(c=>{ removeDocFromCache(c.ref.id); removeSaldoMovimientoFromSheet(c.ref.id); });
     });
     return;
   }
   const d = docsCache.find(x=>x.id===docId);
-  const eff = computePagoEffect(d, metodo, monto, cotizacion);
-  if(eff.error){ alert(eff.error); return; }
-  const pagoRef = db.collection('clientas').doc(currentClienteId).collection('documentos').doc();
-  const nuevoPago = {metodo, monto, ...(cotizacion?{cotizacion}:{}), pagoDocId: pagoRef.id, addARS: eff.addARS, addUSD: eff.addUSD};
-  const pagoData = {
-    tipo:'pago', fecha, metodo, monto, refVentaId: docId,
-    ...(cotizacion?{cotizacion}:{}),
-    clienteNombre: currentClienteData.nombre, clienteApellido: currentClienteData.apellido,
-    clienteTelefono: currentClienteData.telefono||'', createdAt: Date.now(),
-    creadoPor: auth.currentUser? auth.currentUser.email : '', creadoPorNombre: currentUserNombre
-  };
-  const pagos = [...(d.pagos||[]), nuevoPago];
+  if(!d){ alert('No se encontró la venta a saldar.'); return; }
+  // Se aplican los pagos en orden, cada uno sobre lo que queda debiendo después del anterior.
+  let pagos = [...(d.pagos||[])];
+  const nuevos = [];
+  for(let i=0;i<lines.length;i++){
+    const ln = lines[i];
+    const cur = applyPagosToVenta(d, pagos);
+    const eff = computePagoEffect({...d, aPagarARS: cur.aPagarARS, aPagarUSD: cur.aPagarUSD}, ln.metodo, ln.monto, ln.cotizacion);
+    if(eff.error){ alert((lines.length>1?`Pago ${i+1}: `:'')+eff.error); return; }
+    const pagoRef = clienteDocs.doc();
+    const ts = baseTs + i;
+    const nuevoPago = {metodo:ln.metodo, monto:ln.monto, ...(ln.cotizacion?{cotizacion:ln.cotizacion}:{}), pagoDocId: pagoRef.id, addARS: eff.addARS, addUSD: eff.addUSD};
+    const pagoData = {tipo:'pago', fecha, metodo:ln.metodo, monto:ln.monto, refVentaId: docId, ...(ln.cotizacion?{cotizacion:ln.cotizacion}:{}), ...cli, createdAt: ts, ...quien};
+    pagos.push(nuevoPago);
+    nuevos.push({pagoRef, pagoData, saldoData:{...buildSaldoMovimientoData(d, ln.metodo, ln.monto, fecha), createdAt: ts}, eff, ln});
+  }
   const totals = applyPagosToVenta(d, pagos);
   const updateData = {pagos, pagadoARS: totals.pagadoARS, pagadoUSD: totals.pagadoUSD, aPagarARS: totals.aPagarARS, aPagarUSD: totals.aPagarUSD};
   if(totals.fullySettled){
+    // "Saldado": se resume con la moneda del primer pago y la suma de los pagos en esa moneda.
+    const mon0 = nuevos[0].eff.payMoneda;
     updateData.saldado = true;
     updateData.saldadoFecha = fecha;
-    updateData.saldadoMonto = monto;
-    updateData.saldadoMoneda = eff.payMoneda;
-    updateData.saldadoMetodo = metodo;
+    updateData.saldadoMonto = nuevos.filter(n=>n.eff.payMoneda===mon0).reduce((t,n)=>t+n.ln.monto,0);
+    updateData.saldadoMoneda = mon0;
+    updateData.saldadoMetodo = nuevos[0].ln.metodo;
   }
-  const saldoData = buildSaldoMovimientoData(d, metodo, monto, fecha);
 
   // Optimista: reflejamos todo al instante; Firestore se escribe en segundo plano.
   closeModal('modal-pago');
   upsertDocInCache({...d, ...updateData});
-  upsertDocInCache({id: pagoRef.id, ...pagoData});
-  upsertSaldoMovimientoInSheet(pagoRef.id, saldoData);
+  nuevos.forEach(n=>{ upsertDocInCache({id: n.pagoRef.id, ...n.pagoData}); upsertSaldoMovimientoInSheet(n.pagoRef.id, n.saldoData); });
   refreshClienteDeudaFast(currentClienteId);
 
-  const ventaRef = db.collection('clientas').doc(currentClienteId).collection('documentos').doc(docId);
   const batch = db.batch();
-  batch.update(ventaRef, updateData);
-  batch.set(pagoRef, pagoData);
+  batch.update(clienteDocs.doc(docId), updateData);
+  nuevos.forEach(n=>{ batch.set(n.pagoRef, n.pagoData); batch.set(db.collection('ventas').doc(n.pagoRef.id), n.saldoData); });
   batchSetVentaGlobal(batch, docId, d, updateData);
-  batch.set(db.collection('ventas').doc(pagoRef.id), saldoData);
   markSaving();
   batch.commit().catch(err=>{
     console.error(err);
