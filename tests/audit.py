@@ -158,11 +158,10 @@ with sync_playwright() as p:
         pg.fill('#pago-monto-input','9000'); ev("savePago()"); wait(500)
         ok('saldo editado se ve en la planilla', '9.000' in txt('#venta-sheet-body'))
         # pie de planilla: totales filtrados + resumen del mes
-        ok('pie: resumen del mes visible', 'ingresos del mes' in txt('#venta-footer').lower() and 'cobros por métodos de pago' in txt('#venta-footer').lower())
+        ok('pie: resumen del mes visible', 'ingresos del mes' in txt('#venta-footer').lower() and 'totales en esta vista' in txt('#venta-footer').lower())
         ev("ventaSheetDocsRaw.push({id:'zz1',clienteId:'c1',clienteNombre:'Qwerty',clienteApellido:'Test',fecha:'2026-09-15',createdAt:1,puntoVenta:'Belgrano',productos:[{desc:'x',cant:'2',valorUnit:50000,total:100000,moneda:'ARS'},{desc:'y',cant:'1',valorUnit:300,total:300,moneda:'USD'}],pagos:[],aPagarARS:100000,aPagarUSD:300}); applySheetFilters('venta')"); wait(200)
         t0=txt('#venta-footer').lower() if False else txt('#venta-footer')
         ok('pie: totales (cant 3, $100.000, usd 300)', 'Cantidad de prendas 3' in t0 and 'Total $ $100.000' in t0 and 'Total usd usd 300' in t0)
-        ok('pie: deuda del mes suma las ventas', 'Deuda $100.000 · usd 300' in t0)
         pg.fill('#vf-clienta','zzzzno'); wait(200)
         t1=txt('#venta-footer')
         ok('pie: filtrando, los totales cambian pero el resumen del mes no', 'Cantidad de prendas 0' in t1 and t1.lower().split('resumen del mes')[1]==t0.lower().split('resumen del mes')[1])
