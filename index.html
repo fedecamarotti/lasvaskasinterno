@@ -8,8 +8,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Jost:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- Las hojas de estilo externas no bloquean el primer dibujo de la página: se aplican apenas llegan -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Jost:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Jost:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700&display=swap"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
+<link rel="preload" as="script" href="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
@@ -31,6 +34,7 @@ label{font-size:12px;color:#9a9285;display:block;margin-bottom:4px;letter-spacin
 .btn-sm{padding:6px 12px;font-size:12.5px}
 
 /* ---------- LOGIN ---------- */
+.splash{min-height:100vh;display:flex;align-items:center;justify-content:center}
 #screen-login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
 .login-box{width:100%;max-width:340px;text-align:center}
 .login-logo{font-family:'Cormorant Garamond',serif;font-size:42px;letter-spacing:.05em;margin-bottom:6px}
@@ -333,8 +337,11 @@ body.role-admin .doctype-btns button.pago{display:block}
 </head>
 <body>
 
+<!-- ============ SPLASH (mientras se comprueba la sesión: evita el parpadeo de la pantalla de login) ============ -->
+<div id="screen-splash" class="screen splash"><div class="login-logo">LASVASKAS</div></div>
+
 <!-- ============ LOGIN ============ -->
-<div id="screen-login" class="screen">
+<div id="screen-login" class="screen hidden">
   <div class="login-box">
     <div class="login-logo">LASVASKAS</div>
     <div class="login-sub">Gestión de clientas y ventas</div>
@@ -621,6 +628,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 // Caché local persistente (IndexedDB): los datos ya vistos quedan disponibles al instante, incluso después de recargar la página.
+try{ db.settings({experimentalAutoDetectLongPolling:true, merge:true}); }catch(e){}
 db.enablePersistence({synchronizeTabs:true}).catch(()=>{});
 // "Caché primero, servidor después": muestra al instante lo que ya está guardado en el dispositivo y, cuando llega
 // la respuesta del servidor, actualiza la pantalla. Evita esperar la ida y vuelta a Firestore en cada pantalla.
@@ -740,8 +748,18 @@ function showScreen(name){
   document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
   document.getElementById('screen-'+name).classList.remove('hidden');
   setNavActive(name);
+  stopLiveExcept(name);
   window.scrollTo(0,0);
 }
+// Escuchas en vivo de las planillas y deudoras: solo están activas mientras se ve esa pantalla.
+const liveUnsubs = {'venta-sheet':null, 'presu-sheet':null, 'deudas':null};
+function stopLive(key){ const u = liveUnsubs[key]; if(u){ u.forEach(f=>f()); liveUnsubs[key]=null; } }
+function stopLiveExcept(name){ Object.keys(liveUnsubs).forEach(k=>{ if(k!==name) stopLive(k); }); }
+function stopAllLive(){ Object.keys(liveUnsubs).forEach(stopLive); }
+// includeMetadataChanges: avisa también cuando el servidor confirma que lo del caché ya está al día (ej: mes sin ventas).
+const SNAP_META = {includeMetadataChanges:true};
+// Snapshot vacío que viene solo del caché del dispositivo: todavía no sabemos si de verdad está vacío, no se muestra.
+function snapIncierto(snap){ return snap.empty && snap.metadata && snap.metadata.fromCache; }
 function closeModal(id){ document.getElementById(id).classList.add('hidden'); }
 function openModal(id){ document.getElementById(id).classList.remove('hidden'); }
 
@@ -759,27 +777,51 @@ function doLogout(){ auth.signOut(); }
 //  - "admin"      -> Fede: ve todo, incluida la columna Costos
 //  - "full"       -> Belu, Viqui: ven todo, incluida la columna Costos
 //  - "limitado"   -> Juli: por ahora ve todo salvo la columna Costos (a futuro se le pueden ocultar más cosas bajo este mismo rol)
+// Sesión recordada en este dispositivo: al abrir/actualizar la página se muestra al instante la pantalla de clientas
+// (con los datos guardados en el dispositivo), sin esperar a Firebase. Si la sesión ya no es válida, se pasa al login.
+const SESSION_KEY = 'lv_session_v1';
+function readSession(){ try{ const o = JSON.parse(localStorage.getItem(SESSION_KEY)||'null'); return o && o.uid ? o : null; }catch(e){ return null; } }
+function saveSession(){ try{ localStorage.setItem(SESSION_KEY, JSON.stringify({uid:currentUserUid, rol:currentUserRole, nombre:currentUserNombre})); }catch(e){} }
+function clearSession(){ try{ localStorage.removeItem(SESSION_KEY); }catch(e){} }
+function applyRoleClasses(){
+  document.body.classList.toggle('role-limited', currentUserRole==='limitado');
+  document.body.classList.toggle('role-admin', currentUserRole==='admin');
+}
+let bootedFromSession = false;
+function bootFromSession(){
+  const ses = readSession();
+  if(!ses) return;
+  currentUserUid = ses.uid; currentUserRole = ses.rol||'full'; currentUserNombre = ses.nombre||'';
+  applyRoleClasses();
+  bootedFromSession = true;
+  showScreen('clientas');
+  loadClientas();
+}
 auth.onAuthStateChanged(user=>{
   if(user){
+    const yaMostrada = bootedFromSession && currentUserUid===user.uid;
     currentUserUid = user.uid;
+    const entrar = ()=>{
+      applyRoleClasses();
+      saveSession();
+      if(!yaMostrada){ showScreen('clientas'); loadClientas(); }
+    };
     db.collection('usuarios').doc(user.uid).get().then(doc=>{
       currentUserRole = doc.exists? (doc.data().rol||'full') : 'full';
       currentUserNombre = doc.exists? (doc.data().nombre||user.email||'') : (user.email||'');
-      document.body.classList.toggle('role-limited', currentUserRole==='limitado');
-      document.body.classList.toggle('role-admin', currentUserRole==='admin');
-      showScreen('clientas');
-      loadClientas();
+      entrar();
     }).catch(()=>{
-      currentUserRole = 'full';
-      currentUserNombre = user.email||'';
-      document.body.classList.remove('role-limited','role-admin');
-      showScreen('clientas');
-      loadClientas();
+      if(!yaMostrada){ currentUserRole = 'full'; currentUserNombre = user.email||''; }
+      entrar();
     });
   } else {
+    bootedFromSession = false;
+    clearSession();
     currentUserRole = null; currentUserUid = null;
+    document.body.classList.remove('role-limited','role-admin');
     if(unsubClientas){ unsubClientas(); unsubClientas=null; }
     if(unsubDocs){ unsubDocs(); unsubDocs=null; }
+    stopAllLive();
     clientasCache = []; docsCache = []; docsCacheClienteId = null;
     showScreen('login');
   }
@@ -791,7 +833,8 @@ function loadClientas(){
   // Listener en tiempo real: refleja al instante lo que se guarda en este dispositivo (sin esperar al servidor)
   // y también lo que cargan los demás usuarios, y evita que una respuesta tardía pise lo recién cargado.
   if(unsubClientas) unsubClientas();
-  unsubClientas = db.collection('clientas').orderBy('apellido').onSnapshot(snap=>{
+  unsubClientas = db.collection('clientas').orderBy('apellido').onSnapshot(SNAP_META, snap=>{
+    if(snapIncierto(snap)) return;
     clientasCache = snap.docs.map(d=>({id:d.id, ...d.data()}));
     renderClientasList();
     updateDeudasBadge();
@@ -2054,14 +2097,17 @@ function openDeudas(){
     const flat = Array.from(map.values()).sort((a,b)=> (a.fecha||'') < (b.fecha||'') ? -1 : (a.fecha||'') > (b.fecha||'') ? 1 : 0);
     renderDeudasList(flat);
   };
-  let deudasServer = false;
-  Promise.all([qARS.get({source:'cache'}), qUSD.get({source:'cache'})]).then(r=>{
-    if(!deudasServer && (!r[0].empty || !r[1].empty)) pintarDeudas(r);
-  }).catch(()=>{});
-  Promise.all([qARS.get(), qUSD.get()]).then(r=>{ deudasServer = true; pintarDeudas(r); }).catch(err=>{
+  let snapA=null, snapB=null;
+  const intentar = ()=>{ if(snapA && snapB) pintarDeudas([snapA, snapB]); };
+  const onErr = err=>{
     console.error(err);
     document.getElementById('deudas-list').innerHTML = '<div class="empty">No se pudieron cargar las deudoras. Revisá la consola.</div>';
-  });
+  };
+  stopLive('deudas');
+  liveUnsubs['deudas'] = [
+    qARS.onSnapshot(SNAP_META, sn=>{ if(snapIncierto(sn)) return; snapA = sn; intentar(); }, onErr),
+    qUSD.onSnapshot(SNAP_META, sn=>{ if(snapIncierto(sn)) return; snapB = sn; intentar(); }, onErr)
+  ];
 }
 function renderDeudasList(items){
   const list = document.getElementById('deudas-list');
@@ -2288,20 +2334,33 @@ function shiftMonth(which, delta){
   if(which==='presu'){ presuMonth.setMonth(presuMonth.getMonth()+delta); openPresupuestosSheet(); }
   else { ventaMonth.setMonth(ventaMonth.getMonth()+delta); openVentasSheet(); }
 }
+// Si alguien está escribiendo en un casillero de la planilla (ej. factura), el redibujado por un cambio ajeno espera a que termine.
+let sheetPendiente = null;
+function renderSheetSeguro(which){
+  const ae = document.activeElement;
+  if(ae && ae.classList && ae.classList.contains('sheet-inline-input')){ sheetPendiente = which; return; }
+  applySheetFilters(which);
+}
+document.addEventListener('focusout', ()=>{
+  if(sheetPendiente){ const w = sheetPendiente; sheetPendiente = null; setTimeout(()=>applySheetFilters(w), 0); }
+});
 function openPresupuestosSheet(){
   document.getElementById('presu-month-label').textContent = monthLabel(presuMonth);
   showScreen('presu-sheet');
   const {start,end} = monthRange(presuMonth);
   const body = document.getElementById('presu-sheet-body');
   body.innerHTML = '<tr><td colspan="8" class="sheet-empty">Cargando...</td></tr>';
-  getSWR(db.collection('presupuestos').where('fecha','>=',start).where('fecha','<=',end).orderBy('fecha'), snap=>{
+  stopLive('presu-sheet');
+  const unsub = db.collection('presupuestos').where('fecha','>=',start).where('fecha','<=',end).orderBy('fecha').onSnapshot(SNAP_META, snap=>{
     if(monthRange(presuMonth).start!==start) return;
+    if(snapIncierto(snap)) return;
     presuSheetDocsRaw = snap.docs.map(d=>({id:d.id,...d.data()}));
-    applySheetFilters('presu');
-  }).catch(err=>{
+    renderSheetSeguro('presu');
+  }, err=>{
     console.error(err);
     body.innerHTML = '<tr><td colspan="8" class="sheet-empty">Error al cargar. Revisá la consola.</td></tr>';
   });
+  liveUnsubs['presu-sheet'] = [unsub];
 }
 // clic en el nombre de la clienta dentro de una planilla -> va directo a su ficha
 function goToClienteFromSheet(clienteId){
@@ -2343,14 +2402,17 @@ function openVentasSheet(){
   const body = document.getElementById('venta-sheet-body');
   body.innerHTML = '<tr><td colspan="15" class="sheet-empty">Cargando...</td></tr>';
   document.getElementById('venta-footer').innerHTML = '';
-  getSWR(db.collection('ventas').where('fecha','>=',start).where('fecha','<=',end).orderBy('fecha'), snap=>{
+  stopLive('venta-sheet');
+  const unsub = db.collection('ventas').where('fecha','>=',start).where('fecha','<=',end).orderBy('fecha').onSnapshot(SNAP_META, snap=>{
     if(monthRange(ventaMonth).start!==start) return;
+    if(snapIncierto(snap)) return;
     ventaSheetDocsRaw = snap.docs.map(d=>({id:d.id,...d.data()}));
-    applySheetFilters('venta');
-  }).catch(err=>{
+    renderSheetSeguro('venta');
+  }, err=>{
     console.error(err);
     body.innerHTML = '<tr><td colspan="15" class="sheet-empty">Error al cargar. Revisá la consola.</td></tr>';
   });
+  liveUnsubs['venta-sheet'] = [unsub];
 }
 // Etiquetas cortas para la planilla (evita repetir "Transferencia" completo al lado del monto)
 const METODO_SHEET_LABEL = {EFVO_ARS:'Efectivo $', EFVO_USD:'Efectivo usd', TRBF:'Transf. BF', TRVF:'Transf. VF', TARJ:'Tarjeta'};
@@ -2542,6 +2604,9 @@ function editSheetDoc(clienteId, docId, tipo){
     });
   });
 }
+
+// Arranque: se ejecuta al final, cuando todo el código ya está definido.
+bootFromSession();
 </script>
 </body>
 </html>

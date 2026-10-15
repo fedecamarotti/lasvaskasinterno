@@ -11,7 +11,7 @@ function colRef(path){return {
   where(f,op,v){return query(path).where(f,op,v);},
   orderBy(f,d){return query(path).orderBy(f,d);},
   get(){return query(path).get();},
-  onSnapshot(cb,err){return query(path).onSnapshot(cb,err);}
+  onSnapshot(a,b,c){return query(path).onSnapshot(a,b,c);}
 };}
 function docRef(path){const parts=path.split('/');return {id:parts[parts.length-1],path,
   collection(n){return colRef(path+'/'+n);},
@@ -23,7 +23,7 @@ function docRef(path){const parts=path.split('/');return {id:parts[parts.length-
 function query(path,filters=[],order=null,dir='asc'){return {
   where(f,op,v){return query(path,[...filters,[f,op,v]],order,dir);},
   orderBy(f,d){return query(path,filters,f,d||'asc');},
-  onSnapshot(cb,err){const l={q:this,cb};listeners.add(l);setTimeout(()=>this.get().then(cb),0);return()=>listeners.delete(l);},
+  onSnapshot(a,b,c){const cb=typeof a==='function'?a:b;const l={q:this,cb};listeners.add(l);setTimeout(()=>this.get().then(cb),0);return()=>listeners.delete(l);},
   async get(){
     const depth=path.split('/').length+1;
     let docs=Object.keys(store).filter(p=>p.startsWith(path+'/')&&p.split('/').length===depth).map(p=>({id:p.split('/').pop(),data:()=>clone(store[p]),_d:store[p]}));
@@ -32,7 +32,7 @@ function query(path,filters=[],order=null,dir='asc'){return {
     else docs.sort((a,b)=>a.id<b.id?-1:1);
     return {docs,empty:!docs.length,size:docs.length,forEach:f=>docs.forEach(f)};
   }};}
-const fs={enablePersistence:async()=>{},waitForPendingWrites:async()=>{},runTransaction:async f=>f({get:r=>r.get(),set:(r,d,o)=>r.set(o&&o.merge?{...(store[r.path]||{}),...d}:d)}),collection:n=>colRef(n),batch(){const ops=[];return{
+const fs={settings(){},enablePersistence:async()=>{},waitForPendingWrites:async()=>{},runTransaction:async f=>f({get:r=>r.get(),set:(r,d,o)=>r.set(o&&o.merge?{...(store[r.path]||{}),...d}:d)}),collection:n=>colRef(n),batch(){const ops=[];return{
   set(r,d){ops.push(()=>r.set(d));return this;},update(r,d){ops.push(()=>r.update(d));return this;},delete(r){ops.push(()=>r.delete());return this;},
   async commit(){for(const o of ops) await o();}};}};
 let cb=null;const user={uid:'u1',email:window.__EMAIL||'fede@x.com'};

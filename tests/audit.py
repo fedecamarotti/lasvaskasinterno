@@ -14,6 +14,19 @@ with sync_playwright() as p:
     txt=lambda sel: ev(f"document.querySelector('{sel}').innerText.replace(/\\s+/g,' ')")
     wait=lambda n=250: pg.wait_for_timeout(n)
     ok('lista inicial',  'Arana' in txt('#clientas-list') and 'Cosentino' in txt('#clientas-list'))
+    # arranque sin parpadeo de login: con sesión recordada se abre directo en Clientas
+    ok('sesión recordada en el dispositivo', ev("!!localStorage.getItem('lv_session_v1')"))
+    pg.reload(wait_until='domcontentloaded')
+    st=ev("({login:!document.getElementById('screen-login').classList.contains('hidden'), clientas:!document.getElementById('screen-clientas').classList.contains('hidden')})")
+    ok('recarga: abre directo en clientas, sin pantalla de login', st['clientas'] and not st['login'])
+    wait(500)
+    ok('recarga: la lista de clientas aparece', 'Arana' in txt('#clientas-list'))
+    ev("localStorage.clear()")
+    pg.add_init_script("window.__ROLE='%s';"%role)
+    pg.reload(wait_until='domcontentloaded')
+    st=ev("({login:!document.getElementById('screen-login').classList.contains('hidden'), splash:!document.getElementById('screen-splash').classList.contains('hidden')})")
+    ok('sin sesión: no se muestra el login mientras se comprueba (splash)', st['splash'] and not st['login'])
+    wait(500)
     # crear clienta
     ev("openClientaModal()"); wait(100)
     pg.fill('#clienta-nombre','Ana'); pg.fill('#clienta-apellido','Zeta'); pg.fill('#clienta-telefono','1155')
@@ -156,6 +169,11 @@ with sync_playwright() as p:
         pg.fill('#vf-clienta',''); wait(200)
         ok('pie: vuelve al limpiar el filtro', txt('#venta-footer')==t0)
         ev("ventaSheetDocsRaw=ventaSheetDocsRaw.filter(d=>d.id!=='zz1'); applySheetFilters('venta')")
+        # en vivo: lo que carga otra persona aparece solo en la planilla abierta
+        ev("db.collection('ventas').doc('zz9').set({clienteId:'c2',clienteNombre:'Ajena',clienteApellido:'Persona',fecha:'2026-09-20',createdAt:5,puntoVenta:'Belgrano',codigo:'0999',productos:[{desc:'cosa ajena',cant:'1',valorUnit:10,total:10,moneda:'ARS'}],pagos:[],aPagarARS:0,aPagarUSD:0})"); wait(400)
+        ok('planilla en vivo: aparece lo cargado por otra persona', 'cosa ajena' in txt('#venta-sheet-body'))
+        ev("db.collection('ventas').doc('zz9').delete()"); wait(300)
+        ok('planilla en vivo: desaparece lo borrado', 'cosa ajena' not in txt('#venta-sheet-body'))
         ok('espacio debajo de la planilla', ev("parseInt(getComputedStyle(document.getElementById('venta-footer')).paddingBottom)")>=60)
         # editar una venta desde la planilla no cambia su posicion
         orden=ev("[...document.querySelectorAll('#venta-sheet-body tr')].map(r=>r.innerText.replace(/\\s+/g,' ').slice(0,30))")
