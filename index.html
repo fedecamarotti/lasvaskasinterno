@@ -55,6 +55,9 @@ label{font-size:12px;color:#9a9285;display:block;margin-bottom:4px;letter-spacin
   .topbar-3col .topbar-right{order:2;margin-left:auto}
   .topbar-3col .topbar-center{order:3;width:100%;justify-content:flex-start;overflow-x:auto}
 }
+.chip-btn.active,.chip-btn.active:hover{background:#cfc19b;color:#2b261d}
+.chip-btn .nav-ic{display:inline}
+@media(max-width:520px){ .main-nav{justify-content:center;gap:5px} .main-nav .chip-btn{padding:8px 9px;gap:4px;font-size:11.5px} .main-nav .nav-ic{display:none} }
 .icon-btn{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#f2eee3;color:#3a352c}
 .icon-btn:hover{background:#e9e3d3}
 .chip-btn{background:#f2eee3;color:#3a352c;border-radius:20px;padding:9px 14px;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:7px}
@@ -335,11 +338,7 @@ body.role-admin .doctype-btns button.pago{display:block}
 <div id="screen-clientas" class="screen hidden">
   <div class="topbar topbar-3col">
     <div class="brand">LASVASKAS</div>
-    <div class="actions topbar-center">
-      <button id="btn-presu-sheet" class="chip-btn" onclick="openPresupuestosSheet()"><i class="fa-solid fa-file-lines"></i> Presupuestos</button>
-      <button id="btn-venta-sheet" class="chip-btn" onclick="openVentasSheet()"><i class="fa-solid fa-receipt"></i> Ventas</button>
-      <button class="chip-btn" onclick="openDeudas()"><i class="fa-solid fa-hand-holding-dollar"></i> Deudoras<span id="deudas-count" class="debt-badge hidden">0</span></button>
-    </div>
+    <div class="actions topbar-center main-nav"></div>
     <div class="topbar-right"><button class="icon-btn" onclick="doLogout()" title="Salir"><i class="fa-solid fa-right-from-bracket"></i></button></div>
   </div>
   <div class="container">
@@ -353,8 +352,8 @@ body.role-admin .doctype-btns button.pago{display:block}
 <div id="screen-cliente" class="screen hidden">
   <div class="topbar topbar-3col">
     <div class="brand">LASVASKAS</div>
-    <button class="btn-volver topbar-center" onclick="goBackToClientas()"><i class="fa-solid fa-arrow-left"></i> Volver</button>
-    <div class="topbar-right"></div>
+    <div class="actions topbar-center main-nav"></div>
+    <div class="topbar-right"><button class="icon-btn" onclick="doLogout()" title="Salir"><i class="fa-solid fa-right-from-bracket"></i></button></div>
   </div>
   <div class="container">
     <div id="client-header-box"></div>
@@ -372,8 +371,8 @@ body.role-admin .doctype-btns button.pago{display:block}
 <div id="screen-deudas" class="screen hidden">
   <div class="topbar topbar-3col">
     <div class="brand">LASVASKAS</div>
-    <button class="btn-volver topbar-center" onclick="goBackToClientas()"><i class="fa-solid fa-arrow-left"></i> Volver</button>
-    <div class="topbar-right"></div>
+    <div class="actions topbar-center main-nav"></div>
+    <div class="topbar-right"><button class="icon-btn" onclick="doLogout()" title="Salir"><i class="fa-solid fa-right-from-bracket"></i></button></div>
   </div>
   <div class="container">
     <div id="deudas-list"></div>
@@ -384,8 +383,8 @@ body.role-admin .doctype-btns button.pago{display:block}
 <div id="screen-presu-sheet" class="screen hidden">
   <div class="topbar topbar-3col">
     <div class="brand">LASVASKAS</div>
-    <button class="btn-volver topbar-center" onclick="goBackToClientas()"><i class="fa-solid fa-arrow-left"></i> Volver</button>
-    <div class="topbar-right"></div>
+    <div class="actions topbar-center main-nav"></div>
+    <div class="topbar-right"><button class="icon-btn" onclick="doLogout()" title="Salir"><i class="fa-solid fa-right-from-bracket"></i></button></div>
   </div>
   <div class="sheet-monthbar">
     <button class="icon-btn" onclick="shiftMonth('presu',-1)"><i class="fa-solid fa-chevron-left"></i></button>
@@ -416,8 +415,8 @@ body.role-admin .doctype-btns button.pago{display:block}
 <div id="screen-venta-sheet" class="screen hidden">
   <div class="topbar topbar-3col">
     <div class="brand">LASVASKAS</div>
-    <button class="btn-volver topbar-center" onclick="goBackToClientas()"><i class="fa-solid fa-arrow-left"></i> Volver</button>
-    <div class="topbar-right"></div>
+    <div class="actions topbar-center main-nav"></div>
+    <div class="topbar-right"><button class="icon-btn" onclick="doLogout()" title="Salir"><i class="fa-solid fa-right-from-bracket"></i></button></div>
   </div>
   <div class="sheet-monthbar">
     <button class="icon-btn" onclick="shiftMonth('venta',-1)"><i class="fa-solid fa-chevron-left"></i></button>
@@ -709,9 +708,26 @@ function fmtDateCorto(iso){ if(!iso) return ''; const [y,m,d]=iso.split('-'); re
 // Sin ceros a la izquierda, con año de 2 dígitos (para el texto de WhatsApp, ej: "22/9/26")
 function fmtDateCortoAnio(iso){ if(!iso) return ''; const [y,m,d]=iso.split('-'); return `${parseInt(d,10)}/${parseInt(m,10)}/${y.slice(-2)}`; }
 function fmtDateSheet(iso){ if(!iso) return ''; const [y,m,d]=iso.split('-'); return `${parseInt(d,10)}/${parseInt(m,10)}`; }
+// Barra de navegación común (Clientas · Ventas · Presupuestos · Deudoras), siempre visible y con la sección actual resaltada.
+const NAV_ITEMS = [
+  {key:'clientas', label:'Clientas', icon:'fa-users', go:'goBackToClientas()'},
+  {key:'venta-sheet', label:'Ventas', icon:'fa-receipt', go:'openVentasSheet()'},
+  {key:'presu-sheet', label:'Presupuestos', icon:'fa-file-lines', go:'openPresupuestosSheet()'},
+  {key:'deudas', label:'Deudoras', icon:'fa-hand-holding-dollar', go:'openDeudas()', badge:true}
+];
+function buildNav(){
+  const html = NAV_ITEMS.map(n=>`<button type="button" class="chip-btn" data-nav="${n.key}" onclick="${n.go}"><i class="fa-solid ${n.icon} nav-ic"></i> ${n.label}${n.badge?'<span class="debt-badge deudas-count hidden">0</span>':''}</button>`).join('');
+  document.querySelectorAll('.main-nav').forEach(el=>{ el.innerHTML = html; });
+}
+function setNavActive(name){
+  const key = name==='cliente' ? 'clientas' : name;
+  document.querySelectorAll('.main-nav .chip-btn').forEach(b=>b.classList.toggle('active', b.dataset.nav===key));
+}
+buildNav();
 function showScreen(name){
   document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
   document.getElementById('screen-'+name).classList.remove('hidden');
+  setNavActive(name);
   window.scrollTo(0,0);
 }
 function closeModal(id){ document.getElementById(id).classList.add('hidden'); }
@@ -778,8 +794,9 @@ function loadClientas(){
 }
 function updateDeudasBadge(){
   const count = clientasCache.filter(c=>(c.deudaARS>0)||(c.deudaUSD>0)).length;
-  const el = document.getElementById('deudas-count');
-  if(count>0){ el.textContent=count; el.classList.remove('hidden'); } else { el.classList.add('hidden'); }
+  document.querySelectorAll('.deudas-count').forEach(el=>{
+    if(count>0){ el.textContent=count; el.classList.remove('hidden'); } else { el.classList.add('hidden'); }
+  });
 }
 // Recalcula la deuda total de una clienta (suma de sus ventas pendientes) y la guarda en su ficha,
 // consultando Firestore directamente. Se usa como respaldo cuando docsCache no corresponde a esta clienta
