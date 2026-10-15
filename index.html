@@ -2274,8 +2274,8 @@ function ventaColText(d, col){
     case 'fevento': return d.fechaEvento||'';
     case 'producto': return (d.productos||[]).map(p=>p.desc).join(' ');
     case 'cant': return (d.productos||[]).map(p=>p.esArreglo?'':(p.cant||'')).join(' ');
-    case 'valorunit': return (d.productos||[]).map(p=>String(p.valorUnit||'')).join(' ');
-    case 'total': return (d.productos||[]).map(p=>String(p.total||'')).join(' ');
+    case 'valorunit': return (d.productos||[]).map(p=>String((p.esArreglo?p.total:p.valorUnit)||'')).join(' ');
+    case 'total': return d.esSaldoMovimiento? '' : (d.productos||[]).filter(p=>!(p.texto||p.puntoVenta==='CC')).reduce((t,p)=>t+(p.total||0),0).toString();
     case 'metodo': {
       const pagosTxt = (d.pagos||[]).map(p=>METODOS[p.metodo].label).join(' ');
       const debe = ((d.aPagarARS||0)>0||(d.aPagarUSD||0)>0) ? 'debe' : '';
@@ -2457,6 +2457,14 @@ function renderVentaSheet(docs){
   docs.forEach((d, gi)=>{
     const zebra = gi%2===1? ' zebra' : ''; // filas alternas entre movimientos: la 1ª blanca, la 2ª apenas gris, etc.
     const rowspan = Math.max((d.productos||[]).length + (d.notas?1:0), 1);
+    // Total del movimiento: una sola celda centrada que suma todos los productos y arreglos (en $ y/o usd)
+    let movARS = 0, movUSD = 0, movHay = false;
+    if(!d.esSaldoMovimiento) (d.productos||[]).forEach(p=>{
+      if(p.texto || p.puntoVenta==='CC') return;
+      movHay = true;
+      if(p.moneda==='USD') movUSD += p.total||0; else movARS += p.total||0;
+    });
+    const movTotalHTML = !movHay ? '-' : [movARS>0||movUSD<=0 ? fmtARS(movARS) : '', movUSD>0 ? fmtUSD(movUSD) : ''].filter(Boolean).join('<br>');
     (d.productos||[]).forEach((p,i)=>{
       html += `<tr class="${i===0?'group-first':''}${zebra}">`;
       if(i===0){
@@ -2473,17 +2481,18 @@ function renderVentaSheet(docs){
       }
       html += `<td class="prod-cell">${esc(p.desc)}</td>`;
       if(d.esSaldoMovimiento){
-        html += `<td class="vmid">-</td><td>-</td><td>-</td><td>-</td>`;
+        html += `<td class="vmid">-</td><td>-</td><td>-</td><td class="vmid tot-cell">-</td>`;
       } else {
         const estadoClass = p.estadoCostos==='falta'?'estado-falta':(p.estadoCostos==='completo'?'estado-completo':'');
         html += `<td class="vmid plus-cell"><span class="sheet-plus ${estadoClass}" onclick="openCostosModal('${d.clienteId}','${d.id}', ${i}, ${JSON.stringify(p.costos||[]).replace(/"/g,'&quot;')}, '${p.estadoCostos||''}')">+</span></td>`;
         const f = p.moneda==='USD'?fmtUSD:fmtARS;
-        if(p.texto || p.puntoVenta==='CC'){ html += `<td>-</td><td>-</td><td>-</td>`; } // CC: en movimientos solo texto en Producto
+        if(p.texto || p.puntoVenta==='CC'){ html += `<td>-</td><td>-</td>`; } // CC: en movimientos solo texto en Producto
         else {
           html += `<td>${p.esArreglo?'-':(p.cant||'')}</td>`;
-          html += `<td>${p.esArreglo?'-':f(p.valorUnit||0)}</td>`;
-          html += `<td class="tot-cell">${f(p.total||0)}</td>`;
+          // En un arreglo, el importe va en "V. unit." (así el Total del movimiento los suma a todos)
+          html += `<td>${p.esArreglo?f(p.total||0):f(p.valorUnit||0)}</td>`;
         }
+        if(i===0) html += `<td class="vmid tot-cell" rowspan="${rowspan}">${movTotalHTML}</td>`;
       }
       if(i===0){
         html += `<td class="vmid" rowspan="${rowspan}">${ventaMetodoCellHTML(d)}</td>`;
@@ -2493,7 +2502,7 @@ function renderVentaSheet(docs){
       }
       html += `</tr>`;
     });
-    if(d.notas) html += `<tr class="${zebra.trim()}"><td class="notes-cell">${esc(d.notas)}</td><td colspan="4"></td></tr>`;
+    if(d.notas) html += `<tr class="${zebra.trim()}"><td class="notes-cell">${esc(d.notas)}</td><td colspan="3"></td></tr>`;
   });
   body.innerHTML = html;
 }

@@ -174,6 +174,11 @@ with sync_playwright() as p:
         pg.fill('#vf-clienta',''); wait(200)
         ok('pie: vuelve al limpiar el filtro', txt('#venta-footer')==t0)
         ev("ventaSheetDocsRaw=ventaSheetDocsRaw.filter(d=>d.id!=='zz1'); applySheetFilters('venta')")
+        # Total único por movimiento: suma productos y arreglos; el arreglo va en V. unit.
+        ev("ventaSheetDocsRaw.push({id:'zz2',clienteId:'c1',clienteNombre:'Tot',clienteApellido:'Suma',fecha:'2026-09-16',createdAt:2,puntoVenta:'Belgrano',codigo:'0998',productos:[{desc:'a',cant:'1',valorUnit:290000,total:290000,moneda:'ARS'},{desc:'arreglo x',esArreglo:true,total:68750,moneda:'ARS'}],pagos:[],aPagarARS:0,aPagarUSD:0}); applySheetFilters('venta')"); wait(200)
+        ok('planilla: un solo Total por movimiento (suma producto + arreglo)', ev("[...document.querySelectorAll('#venta-sheet-body td.tot-cell')].some(t=>t.innerText.trim()==='$358.750' && t.rowSpan===2)"))
+        ok('planilla: el arreglo va en V. unit.', 'Tot Suma' in txt('#venta-sheet-body') and ev("[...document.querySelectorAll('#venta-sheet-body tr')].some(r=>r.innerText.includes('arreglo x') && r.innerText.includes('$68.750'))"))
+        ev("ventaSheetDocsRaw=ventaSheetDocsRaw.filter(d=>d.id!=='zz2'); applySheetFilters('venta')")
         # en vivo: lo que carga otra persona aparece solo en la planilla abierta
         ev("db.collection('ventas').doc('zz9').set({clienteId:'c2',clienteNombre:'Ajena',clienteApellido:'Persona',fecha:'2026-09-20',createdAt:5,puntoVenta:'Belgrano',codigo:'0999',productos:[{desc:'cosa ajena',cant:'1',valorUnit:10,total:10,moneda:'ARS'}],pagos:[],aPagarARS:0,aPagarUSD:0})"); wait(400)
         ok('planilla en vivo: aparece lo cargado por otra persona', 'cosa ajena' in txt('#venta-sheet-body'))
