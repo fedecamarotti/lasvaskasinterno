@@ -2525,9 +2525,9 @@ function renderVentaFooter(filtered){
   const fm = m=> METODOS[m].moneda==='USD'? fmtUSD(porMetodo[m]) : fmtARS(porMetodo[m]);
   el.innerHTML = `
     <div class="sf-card">
-      <div class="sf-title">Totales de lo que ves</div>
+      <div class="sf-title">Totales en esta vista</div>
       <div class="sf-row">
-        <div class="sf-item"><span class="sf-l">Cantidad</span><b>${cant.toLocaleString('es-AR')}</b></div>
+        <div class="sf-item"><span class="sf-l">Cantidad de prendas</span><b>${cant.toLocaleString('es-AR')}</b></div>
         <div class="sf-item"><span class="sf-l">Total $</span><b>${fmtARS(totARS)}</b></div>
         <div class="sf-item"><span class="sf-l">Total usd</span><b>${fmtUSD(totUSD)}</b></div>
       </div>
