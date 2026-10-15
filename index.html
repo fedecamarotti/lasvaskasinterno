@@ -183,6 +183,17 @@ table.p-detail tfoot tr.payrow td,table.p-detail tfoot tr.saldorow td,table.p-de
 .sheet-monthbar{display:flex;align-items:center;justify-content:center;gap:18px;padding:12px;background:#fff;border-bottom:1px solid #ece6d8;font-family:'Montserrat',sans-serif}
 .sheet-month-label{font-family:'Montserrat',sans-serif;font-weight:600;font-size:15px;min-width:150px;text-align:center;text-transform:capitalize;color:#3a352c}
 .sheet-wrap{overflow-x:auto;padding:10px}
+.sheet-footer{padding:2px 10px 70px;display:flex;flex-direction:column;gap:12px;max-width:1100px;margin:0 auto}
+.sf-card{background:#fff;border:1px solid #ece6d8;border-radius:10px;padding:12px 16px}
+.sf-title{font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8f6c2a;margin-bottom:8px}
+.sf-row{display:flex;flex-wrap:wrap;gap:8px 26px;align-items:baseline}
+.sf-item{display:flex;gap:7px;align-items:baseline;font-size:13px;color:#3a352c}
+.sf-item b{font-size:14px}
+.sf-item .sf-l{color:#8a8372}
+.sf-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:6px 20px;margin-top:6px}
+.sf-line{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:4px 0;border-bottom:1px dashed #efe9da}
+.sf-line b{font-weight:700;white-space:nowrap}
+.sf-big{font-size:15px}
 table.sheet-table{border-collapse:collapse;table-layout:fixed;font-size:11.5px;background:#fff;font-family:'Montserrat',sans-serif;width:100%}
 table.sheet-table thead th{background:#f2eee3;color:#a8823f;font-size:9.5px;letter-spacing:.02em;text-transform:uppercase;padding:7px 4px;text-align:center;position:sticky;top:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700}
 .sheet-filter{width:100%;border:none;background:transparent;text-align:center;font-family:'Montserrat',sans-serif;font-size:9.5px;font-weight:700;color:#a8823f;text-transform:uppercase;letter-spacing:.02em;padding:2px 0}
@@ -440,7 +451,7 @@ body.role-admin .doctype-btns button.pago{display:block}
         <th><input class="sheet-filter" id="vf-cant" placeholder="Cant." oninput="applySheetFilters('venta')"></th>
         <th><input class="sheet-filter" id="vf-valorunit" placeholder="V. unit." oninput="applySheetFilters('venta')"></th>
         <th><input class="sheet-filter" id="vf-total" placeholder="Total" oninput="applySheetFilters('venta')"></th>
-        <th><input class="sheet-filter" id="vf-metodo" placeholder="Método" oninput="applySheetFilters('venta')"></th>
+        <th><input class="sheet-filter" id="vf-metodo" placeholder="Mét. de pago" oninput="applySheetFilters('venta')"></th>
         <th><input class="sheet-filter" id="vf-dni" placeholder="DNI" oninput="applySheetFilters('venta')"></th>
         <th><input class="sheet-filter" id="vf-factura" placeholder="Fact." oninput="applySheetFilters('venta')"></th>
         <th><input class="sheet-filter" id="vf-celular" placeholder="Celular" oninput="applySheetFilters('venta')"></th>
@@ -448,6 +459,7 @@ body.role-admin .doctype-btns button.pago{display:block}
       <tbody id="venta-sheet-body"><tr><td colspan="15" class="sheet-empty">Cargando...</td></tr></tbody>
     </table>
   </div>
+  <div id="venta-footer" class="sheet-footer"></div>
 </div>
 
 <!-- ============ MODAL: COSTOS ============ -->
@@ -1023,13 +1035,16 @@ function renderDocsList(){
   if(!docsCache.length){ list.innerHTML = '<div class="empty">Todavía no hay presupuestos ni ventas cargadas.</div>'; return; }
   list.innerHTML = docsCache.map(d=>{
     if(d.tipo==='pago'){
-      const monto = METODOS[d.metodo].moneda==='USD'?fmtUSD(d.monto):fmtARS(d.monto);
+      const lineasHTML = pagoLineas(d).map(l=>{
+        const mt = METODOS[l.metodo].moneda==='USD'?fmtUSD(l.monto):fmtARS(l.monto);
+        return `<span>${METODOS[l.metodo].label}: ${mt}${l.cotizacion?` (cot. ${l.cotizacion})`:''}</span>`;
+      }).join('<br>');
       return `<div class="doc-card pago-card" onclick="openPagoModal('${d.id}')">
         <div class="toprow">
           <span class="tag-mini pago">Pago</span>
           <span class="fecha">${fmtDate(d.fecha)}</span>
         </div>
-        <div class="totales"><span>${METODOS[d.metodo].label}: ${monto}${d.cotizacion?` (cot. ${d.cotizacion})`:''}</span></div>
+        <div class="totales">${lineasHTML}</div>
       </div>`;
     }
     if(d.tipo==='nota'){
@@ -1511,7 +1526,12 @@ function syncPagoFecha(){
   const libre = document.getElementById('pago-doc-select').value===PAGO_LIBRE;
   document.getElementById('pago-fecha-field').classList.toggle('hidden', !libre);
 }
-function buildPagoLibreMovimiento(metodo, monto, fecha){
+// Un pago puede tener varias líneas (ej: parte en efectivo y parte en transferencia). Los pagos viejos tienen una sola (metodo/monto).
+function pagoLineas(p){
+  if(Array.isArray(p.lineas) && p.lineas.length) return p.lineas;
+  return [{metodo:p.metodo, monto:p.monto, ...(p.cotizacion?{cotizacion:p.cotizacion}:{})}];
+}
+function buildPagoLibreMovimiento(lineas, fecha){
   return {
     tipo:'venta', esSaldoMovimiento:true, fecha,
     clienteId: currentClienteId,
@@ -1519,7 +1539,7 @@ function buildPagoLibreMovimiento(metodo, monto, fecha){
     clienteTelefono: currentClienteData.telefono||'', clienteDni: currentClienteData.dni||'',
     codigo:'-', puntoVenta:'Salda c/c', fechaEvento:'-',
     productos:[{desc:'Saldo / pago a cuenta', cant:'-', valorUnit:'-', total:'-'}],
-    pagos:[{metodo, monto}], aPagarARS:0, aPagarUSD:0,
+    pagos:lineas.map(l=>({metodo:l.metodo, monto:l.monto})), aPagarARS:0, aPagarUSD:0,
     createdAt: Date.now()
   };
 }
@@ -1528,7 +1548,7 @@ function pagoMetodoOptions(){
     Object.keys(METODOS).map(k=>`<option value="${k}">${METODOS[k].label}</option>`).join('');
 }
 // Permite cargar varios métodos de pago en una misma carga (ej: parte en efectivo y parte en transferencia).
-function addPagoLine(){
+function addPagoLine(pre){
   const box = document.getElementById('pago-extra-lines');
   const n = box.children.length + 2;
   const div = document.createElement('div');
@@ -1540,7 +1560,8 @@ function addPagoLine(){
   box.appendChild(div);
   attachMoneyInput(div.querySelector('.pl-monto'));
   attachMoneyInput(div.querySelector('.pl-cot'));
-  div.querySelector('.pl-metodo').focus();
+  if(pre){ div.querySelector('.pl-metodo').value = pre.metodo; div.querySelector('.pl-monto').value = fmtMoney(pre.monto); div.querySelector('.pl-cot').value = fmtMoney(pre.cotizacion||0); }
+  else div.querySelector('.pl-metodo').focus();
 }
 function removePagoLine(btn){
   const line = btn.closest('.pago-line'); if(line) line.remove();
@@ -1561,7 +1582,7 @@ function openPagoModal(editPagoId){
   document.getElementById('pago-delete-row').classList.toggle('hidden', !isEdit);
   document.getElementById('pago-metodo-select').innerHTML = pagoMetodoOptions();
   document.getElementById('pago-extra-lines').innerHTML = '';
-  document.getElementById('pago-add-row').classList.toggle('hidden', isEdit);
+  document.getElementById('pago-add-row').classList.remove('hidden');
 
   if(isEdit){
     const p = docsCache.find(x=>x.id===editPagoId);
@@ -1570,9 +1591,11 @@ function openPagoModal(editPagoId){
     const libre = !p.refVentaId;
     document.getElementById('pago-fecha-field').classList.toggle('hidden', !libre);
     if(libre) document.getElementById('pago-fecha-input').value = p.fecha||todayISO();
-    document.getElementById('pago-metodo-select').value = p.metodo;
-    document.getElementById('pago-monto-input').value = fmtMoney(p.monto);
-    document.getElementById('pago-cotizacion-input').value = fmtMoney(p.cotizacion||0);
+    const ls = pagoLineas(p);
+    document.getElementById('pago-metodo-select').value = ls[0].metodo;
+    document.getElementById('pago-monto-input').value = fmtMoney(ls[0].monto);
+    document.getElementById('pago-cotizacion-input').value = fmtMoney(ls[0].cotizacion||0);
+    ls.slice(1).forEach(l=>addPagoLine(l));
     openModal('modal-pago');
     return;
   }
@@ -1629,7 +1652,7 @@ function commitVentaUpdate(docId, updateData){
 }
 // Cuando se salda una deuda con un pago aparte, ese pago se muestra como su propio movimiento
 // "Salda c/c" en la planilla de Ventas (no modifica la fila original de la venta).
-function buildSaldoMovimientoData(ventaDoc, metodo, monto, fecha){
+function buildSaldoMovimientoData(ventaDoc, lineas, fecha){
   return {
     tipo:'venta', esSaldoMovimiento:true, fecha,
     clienteId: currentClienteId,
@@ -1637,7 +1660,7 @@ function buildSaldoMovimientoData(ventaDoc, metodo, monto, fecha){
     clienteTelefono: currentClienteData.telefono||'', clienteDni: currentClienteData.dni||'',
     codigo:'-', puntoVenta:'Salda c/c', fechaEvento:'-',
     productos:[{desc:`Salda deuda del ${fmtDateCorto(ventaDoc.fecha)}`, cant:'-', valorUnit:'-', total:'-'}],
-    pagos:[{metodo, monto}], aPagarARS:0, aPagarUSD:0,
+    pagos:lineas.map(l=>({metodo:l.metodo, monto:l.monto})), aPagarARS:0, aPagarUSD:0,
     createdAt: Date.now()
   };
 }
@@ -1654,32 +1677,52 @@ function removeSaldoMovimientoFromSheet(id){
   const idx = ventaSheetDocsRaw.findIndex(x=>x.id===id);
   if(idx>-1){ ventaSheetDocsRaw.splice(idx,1); applySheetFilters('venta'); }
 }
+// Resumen "Saldado" de una venta que quedó pagada (moneda del primer pago y suma de los pagos en esa moneda)
+function saldadoResumen(items, fecha){
+  const mon0 = items[0].eff.payMoneda;
+  return {saldado:true, saldadoFecha:fecha, saldadoMonto: items.filter(n=>n.eff.payMoneda===mon0).reduce((t,n)=>t+n.ln.monto,0), saldadoMoneda:mon0, saldadoMetodo:items[0].ln.metodo};
+}
+// Aplica las líneas de un pago en orden sobre una venta (cada una sobre lo que queda debiendo después de la anterior).
+function aplicarLineasAVenta(d, pagosBase, lines, pagoDocId){
+  let pagos = [...pagosBase];
+  const items = [];
+  for(let i=0;i<lines.length;i++){
+    const ln = lines[i];
+    const cur = applyPagosToVenta(d, pagos);
+    const eff = computePagoEffect({...d, aPagarARS: cur.aPagarARS, aPagarUSD: cur.aPagarUSD}, ln.metodo, ln.monto, ln.cotizacion);
+    if(eff.error) return {error:(lines.length>1?`Pago ${i+1}: `:'')+eff.error};
+    pagos.push({metodo:ln.metodo, monto:ln.monto, ...(ln.cotizacion?{cotizacion:ln.cotizacion}:{}), pagoDocId, addARS:eff.addARS, addUSD:eff.addUSD});
+    items.push({ln, eff});
+  }
+  return {pagos, items};
+}
+function lineasLimpias(lines){ return lines.map(l=>({metodo:l.metodo, monto:l.monto, ...(l.cotizacion?{cotizacion:l.cotizacion}:{})})); }
 function savePago(){
   const editPagoId = document.getElementById('pago-editing-id').value;
-  const metodo = document.getElementById('pago-metodo-select').value;
-  const monto = num(document.getElementById('pago-monto-input').value);
-  const cotizacion = num(document.getElementById('pago-cotizacion-input').value);
-  const lines = editPagoId ? [{metodo, monto, cotizacion}] : getPagoLines();
+  const lines = getPagoLines();
   for(let i=0;i<lines.length;i++){
     const tag = lines.length>1 ? ` (pago ${i+1})` : '';
     if(!lines[i].metodo){ alert('Falta método de pago'+tag); return; }
     if(!(lines[i].monto>0)){ alert('Ingresá un monto'+tag+'.'); return; }
   }
+  const limpias = lineasLimpias(lines);
   const fecha = todayISO();
+  const clienteDocs = db.collection('clientas').doc(currentClienteId).collection('documentos');
 
   if(editPagoId){
     const pagoDoc = docsCache.find(x=>x.id===editPagoId);
     if(!pagoDoc) return;
+    const base = {metodo:limpias[0].metodo, monto:limpias[0].monto, lineas:limpias};
     if(!pagoDoc.refVentaId){
       const f = document.getElementById('pago-fecha-input').value || pagoDoc.fecha;
-      const upd = {metodo, monto, fecha:f};
-      const mov = {...buildPagoLibreMovimiento(metodo, monto, f), createdAt: pagoDoc.createdAt||Date.now()};
+      const upd = {...base, fecha:f};
+      const mov = {...buildPagoLibreMovimiento(limpias, f), createdAt: pagoDoc.createdAt||Date.now()};
       const prev = {...pagoDoc};
       closeModal('modal-pago');
       upsertDocInCache({...pagoDoc, ...upd});
       upsertSaldoMovimientoInSheet(editPagoId, mov);
       const lb = db.batch();
-      lb.update(db.collection('clientas').doc(currentClienteId).collection('documentos').doc(editPagoId), upd);
+      lb.update(clienteDocs.doc(editPagoId), upd);
       lb.set(db.collection('ventas').doc(editPagoId), mov);
       markSaving();
       lb.commit().catch(err=>{
@@ -1696,29 +1739,26 @@ function savePago(){
       return;
     }
     const otrosPagos = (d.pagos||[]).filter(p=>p.pagoDocId!==editPagoId);
-    const base = applyPagosToVenta(d, otrosPagos);
-    const eff = computePagoEffect({...d, aPagarARS: base.aPagarARS, aPagarUSD: base.aPagarUSD}, metodo, monto, cotizacion);
-    if(eff.error){ alert(eff.error); return; }
-    const nuevoPago = {metodo, monto, ...(cotizacion?{cotizacion}:{}), pagoDocId: editPagoId, addARS: eff.addARS, addUSD: eff.addUSD};
-    const pagos = [...otrosPagos, nuevoPago];
-    const totals = applyPagosToVenta(d, pagos);
-    const updateData = {pagos, pagadoARS: totals.pagadoARS, pagadoUSD: totals.pagadoUSD, aPagarARS: totals.aPagarARS, aPagarUSD: totals.aPagarUSD};
-    if(totals.fullySettled){ updateData.saldado=true; updateData.saldadoFecha=pagoDoc.fecha; updateData.saldadoMonto=monto; updateData.saldadoMoneda=eff.payMoneda; updateData.saldadoMetodo=metodo; }
-    else { updateData.saldado=false; }
-    const pagoUpdate = {metodo, monto, ...(cotizacion?{cotizacion}: {cotizacion: firebase.firestore.FieldValue.delete()})};
-    const saldoData = {...buildSaldoMovimientoData(d, metodo, monto, pagoDoc.fecha), createdAt: pagoDoc.createdAt||Date.now()};
+    const ap = aplicarLineasAVenta(d, otrosPagos, lines, editPagoId);
+    if(ap.error){ alert(ap.error); return; }
+    const totals = applyPagosToVenta(d, ap.pagos);
+    const updateData = {pagos: ap.pagos, pagadoARS: totals.pagadoARS, pagadoUSD: totals.pagadoUSD, aPagarARS: totals.aPagarARS, aPagarUSD: totals.aPagarUSD};
+    if(totals.fullySettled) Object.assign(updateData, saldadoResumen(ap.items, pagoDoc.fecha));
+    else updateData.saldado = false;
+    const pagoUpdate = {...base, cotizacion: firebase.firestore.FieldValue.delete()};
+    const saldoData = {...buildSaldoMovimientoData(d, limpias, pagoDoc.fecha), createdAt: pagoDoc.createdAt||Date.now()};
 
     // Optimista: reflejamos todo al instante; Firestore se escribe en segundo plano.
     closeModal('modal-pago');
     upsertDocInCache({...d, ...updateData});
-    upsertDocInCache({...pagoDoc, metodo, monto, cotizacion: cotizacion||undefined});
+    const {cotizacion:_c, ...pagoSinCot} = pagoDoc;
+    upsertDocInCache({...pagoSinCot, ...base});
     upsertSaldoMovimientoInSheet(editPagoId, saldoData);
     refreshClienteDeudaFast(currentClienteId);
 
-    const ventaRef = db.collection('clientas').doc(currentClienteId).collection('documentos').doc(pagoDoc.refVentaId);
     const batch = db.batch();
-    batch.update(ventaRef, updateData);
-    batch.update(db.collection('clientas').doc(currentClienteId).collection('documentos').doc(editPagoId), pagoUpdate);
+    batch.update(clienteDocs.doc(pagoDoc.refVentaId), updateData);
+    batch.update(clienteDocs.doc(editPagoId), pagoUpdate);
     batchSetVentaGlobal(batch, pagoDoc.refVentaId, d, updateData);
     batch.set(db.collection('ventas').doc(editPagoId), saldoData);
     markSaving();
@@ -1729,73 +1769,53 @@ function savePago(){
     return;
   }
 
+  // ---- Pago nuevo: un solo pago / un solo movimiento, con todas las líneas (métodos)
   const docId = document.getElementById('pago-doc-select').value;
-  const baseTs = Date.now();
-  const clienteDocs = db.collection('clientas').doc(currentClienteId).collection('documentos');
-  const quien = {creadoPor: auth.currentUser? auth.currentUser.email : '', creadoPorNombre: currentUserNombre};
+  const ts = Date.now();
+  const pagoRef = clienteDocs.doc();
   const cli = {clienteNombre: currentClienteData.nombre, clienteApellido: currentClienteData.apellido, clienteTelefono: currentClienteData.telefono||''};
+  const quien = {creadoPor: auth.currentUser? auth.currentUser.email : '', creadoPorNombre: currentUserNombre};
+  const base = {metodo:limpias[0].metodo, monto:limpias[0].monto, lineas:limpias};
   if(docId===PAGO_LIBRE){
     const f = document.getElementById('pago-fecha-input').value || fecha;
-    const nb = db.batch();
-    const creados = [];
-    lines.forEach((ln,i)=>{
-      const ref = clienteDocs.doc();
-      const ts = baseTs + i;
-      const pdata = {tipo:'pago', fecha:f, metodo:ln.metodo, monto:ln.monto, refVentaId:null, libre:true, ...cli, createdAt: ts, ...quien};
-      const mov = {...buildPagoLibreMovimiento(ln.metodo, ln.monto, f), createdAt: ts};
-      nb.set(ref, pdata);
-      nb.set(db.collection('ventas').doc(ref.id), mov);
-      creados.push({ref, pdata, mov});
-    });
+    const pdata = {tipo:'pago', fecha:f, ...base, refVentaId:null, libre:true, ...cli, createdAt: ts, ...quien};
+    const mov = {...buildPagoLibreMovimiento(limpias, f), createdAt: ts};
     closeModal('modal-pago');
-    creados.forEach(c=>{ upsertDocInCache({id:c.ref.id, ...c.pdata}); upsertSaldoMovimientoInSheet(c.ref.id, c.mov); });
+    upsertDocInCache({id:pagoRef.id, ...pdata});
+    upsertSaldoMovimientoInSheet(pagoRef.id, mov);
+    const nb = db.batch();
+    nb.set(pagoRef, pdata);
+    nb.set(db.collection('ventas').doc(pagoRef.id), mov);
     markSaving();
     nb.commit().catch(err=>{
       console.error(err);
       alert('No se pudo guardar el pago. Revisá la consola.');
-      creados.forEach(c=>{ removeDocFromCache(c.ref.id); removeSaldoMovimientoFromSheet(c.ref.id); });
+      removeDocFromCache(pagoRef.id); removeSaldoMovimientoFromSheet(pagoRef.id);
     });
     return;
   }
   const d = docsCache.find(x=>x.id===docId);
   if(!d){ alert('No se encontró la venta a saldar.'); return; }
-  // Se aplican los pagos en orden, cada uno sobre lo que queda debiendo después del anterior.
-  let pagos = [...(d.pagos||[])];
-  const nuevos = [];
-  for(let i=0;i<lines.length;i++){
-    const ln = lines[i];
-    const cur = applyPagosToVenta(d, pagos);
-    const eff = computePagoEffect({...d, aPagarARS: cur.aPagarARS, aPagarUSD: cur.aPagarUSD}, ln.metodo, ln.monto, ln.cotizacion);
-    if(eff.error){ alert((lines.length>1?`Pago ${i+1}: `:'')+eff.error); return; }
-    const pagoRef = clienteDocs.doc();
-    const ts = baseTs + i;
-    const nuevoPago = {metodo:ln.metodo, monto:ln.monto, ...(ln.cotizacion?{cotizacion:ln.cotizacion}:{}), pagoDocId: pagoRef.id, addARS: eff.addARS, addUSD: eff.addUSD};
-    const pagoData = {tipo:'pago', fecha, metodo:ln.metodo, monto:ln.monto, refVentaId: docId, ...(ln.cotizacion?{cotizacion:ln.cotizacion}:{}), ...cli, createdAt: ts, ...quien};
-    pagos.push(nuevoPago);
-    nuevos.push({pagoRef, pagoData, saldoData:{...buildSaldoMovimientoData(d, ln.metodo, ln.monto, fecha), createdAt: ts}, eff, ln});
-  }
-  const totals = applyPagosToVenta(d, pagos);
-  const updateData = {pagos, pagadoARS: totals.pagadoARS, pagadoUSD: totals.pagadoUSD, aPagarARS: totals.aPagarARS, aPagarUSD: totals.aPagarUSD};
-  if(totals.fullySettled){
-    // "Saldado": se resume con la moneda del primer pago y la suma de los pagos en esa moneda.
-    const mon0 = nuevos[0].eff.payMoneda;
-    updateData.saldado = true;
-    updateData.saldadoFecha = fecha;
-    updateData.saldadoMonto = nuevos.filter(n=>n.eff.payMoneda===mon0).reduce((t,n)=>t+n.ln.monto,0);
-    updateData.saldadoMoneda = mon0;
-    updateData.saldadoMetodo = nuevos[0].ln.metodo;
-  }
+  const ap = aplicarLineasAVenta(d, d.pagos||[], lines, pagoRef.id);
+  if(ap.error){ alert(ap.error); return; }
+  const totals = applyPagosToVenta(d, ap.pagos);
+  const updateData = {pagos: ap.pagos, pagadoARS: totals.pagadoARS, pagadoUSD: totals.pagadoUSD, aPagarARS: totals.aPagarARS, aPagarUSD: totals.aPagarUSD};
+  if(totals.fullySettled) Object.assign(updateData, saldadoResumen(ap.items, fecha));
+  const pagoData = {tipo:'pago', fecha, ...base, refVentaId: docId, ...cli, createdAt: ts, ...quien};
+  const saldoData = {...buildSaldoMovimientoData(d, limpias, fecha), createdAt: ts};
 
   // Optimista: reflejamos todo al instante; Firestore se escribe en segundo plano.
   closeModal('modal-pago');
   upsertDocInCache({...d, ...updateData});
-  nuevos.forEach(n=>{ upsertDocInCache({id: n.pagoRef.id, ...n.pagoData}); upsertSaldoMovimientoInSheet(n.pagoRef.id, n.saldoData); });
+  upsertDocInCache({id: pagoRef.id, ...pagoData});
+  upsertSaldoMovimientoInSheet(pagoRef.id, saldoData);
   refreshClienteDeudaFast(currentClienteId);
 
   const batch = db.batch();
   batch.update(clienteDocs.doc(docId), updateData);
-  nuevos.forEach(n=>{ batch.set(n.pagoRef, n.pagoData); batch.set(db.collection('ventas').doc(n.pagoRef.id), n.saldoData); });
+  batch.set(pagoRef, pagoData);
   batchSetVentaGlobal(batch, docId, d, updateData);
+  batch.set(db.collection('ventas').doc(pagoRef.id), saldoData);
   markSaving();
   batch.commit().catch(err=>{
     console.error(err);
@@ -2251,6 +2271,7 @@ function applySheetFilters(which){
       })
     );
     renderVentaSheet(filtered);
+    renderVentaFooter(filtered);
   }
 }
 let presuMonth = new Date(); presuMonth.setDate(1);
@@ -2321,6 +2342,7 @@ function openVentasSheet(){
   const {start,end} = monthRange(ventaMonth);
   const body = document.getElementById('venta-sheet-body');
   body.innerHTML = '<tr><td colspan="15" class="sheet-empty">Cargando...</td></tr>';
+  document.getElementById('venta-footer').innerHTML = '';
   getSWR(db.collection('ventas').where('fecha','>=',start).where('fecha','<=',end).orderBy('fecha'), snap=>{
     if(monthRange(ventaMonth).start!==start) return;
     ventaSheetDocsRaw = snap.docs.map(d=>({id:d.id,...d.data()}));
@@ -2413,6 +2435,58 @@ function renderVentaSheet(docs){
     if(d.notas) html += `<tr class="${zebra.trim()}"><td class="notes-cell">${esc(d.notas)}</td><td colspan="4"></td></tr>`;
   });
   body.innerHTML = html;
+}
+function esCC(d){ return String(d.puntoVenta||'').split(' + ').map(x=>x.trim()).includes('CC'); }
+// Totales de lo que se está viendo (se actualizan al filtrar) + resumen del mes completo (no depende de los filtros)
+function renderVentaFooter(filtered){
+  const el = document.getElementById('venta-footer'); if(!el) return;
+  let cant=0, totARS=0, totUSD=0;
+  filtered.forEach(d=>{
+    if(d.esSaldoMovimiento) return;
+    (d.productos||[]).forEach(p=>{
+      if(p.texto || p.puntoVenta==='CC') return;
+      if(!p.esArreglo) cant += num(p.cant);
+      if(p.moneda==='USD') totUSD += p.total||0; else totARS += p.total||0;
+    });
+  });
+  const mDocs = ventaSheetDocsRaw.filter(d=>!esCC(d));
+  const porMetodo = {EFVO_ARS:0, EFVO_USD:0, TRBF:0, TRVF:0, TARJ:0};
+  let ingARS=0, ingUSD=0, debeARS=0, debeUSD=0;
+  mDocs.forEach(d=>{
+    (d.pagos||[]).filter(p=>!p.pagoDocId).forEach(p=>{
+      if(!METODOS[p.metodo]) return;
+      porMetodo[p.metodo] += p.monto||0;
+      if(METODOS[p.metodo].moneda==='USD') ingUSD += p.monto||0; else ingARS += p.monto||0;
+    });
+    if(!d.esSaldoMovimiento){ debeARS += d.aPagarARS||0; debeUSD += d.aPagarUSD||0; }
+  });
+  const fm = m=> METODOS[m].moneda==='USD'? fmtUSD(porMetodo[m]) : fmtARS(porMetodo[m]);
+  el.innerHTML = `
+    <div class="sf-card">
+      <div class="sf-title">Totales de lo que ves</div>
+      <div class="sf-row">
+        <div class="sf-item"><span class="sf-l">Cantidad</span><b>${cant.toLocaleString('es-AR')}</b></div>
+        <div class="sf-item"><span class="sf-l">Total $</span><b>${fmtARS(totARS)}</b></div>
+        <div class="sf-item"><span class="sf-l">Total usd</span><b>${fmtUSD(totUSD)}</b></div>
+      </div>
+    </div>
+    <div class="sf-card">
+      <div class="sf-title">Resumen del mes · ${esc(monthLabel(ventaMonth))}</div>
+      <div class="sf-row">
+        <div class="sf-item sf-big"><span class="sf-l">Ingresos del mes (pagos + cobros de deudas)</span></div>
+        <div class="sf-item sf-big"><b>${fmtARS(ingARS)}</b></div>
+        <div class="sf-item sf-big"><b>${fmtUSD(ingUSD)}</b></div>
+      </div>
+      <div class="sf-title" style="margin-top:14px">Cobros por métodos de pago</div>
+      <div class="sf-grid">
+        <div class="sf-line"><span>Efectivo $</span><b>${fm('EFVO_ARS')}</b></div>
+        <div class="sf-line"><span>Efectivo usd</span><b>${fm('EFVO_USD')}</b></div>
+        <div class="sf-line"><span>Transf. BF</span><b>${fm('TRBF')}</b></div>
+        <div class="sf-line"><span>Transf. VF</span><b>${fm('TRVF')}</b></div>
+        <div class="sf-line"><span>Tarjeta</span><b>${fm('TARJ')}</b></div>
+        <div class="sf-line"><span>Deuda</span><b>${fmtARS(debeARS)} · ${fmtUSD(debeUSD)}</b></div>
+      </div>
+    </div>`;
 }
 function updateFacturaInline(el){
   const clienteId = el.dataset.clienteId, ventaId = el.dataset.ventaId, factura = el.value.trim();

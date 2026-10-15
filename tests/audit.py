@@ -70,7 +70,7 @@ with sync_playwright() as p:
         ev("addPagoLine()"); pg.select_option('.pl-metodo','TRBF'); pg.fill('.pl-monto','30000')
         ok('segunda linea de pago visible', ev("document.querySelectorAll('#pago-extra-lines .pago-line').length")==1)
         ev("savePago()"); wait(400)
-        ok('2 metodos: se crean 2 pagos', ev("docsCache.filter(d=>d.tipo==='pago').length")==n0+2)
+        ok('2 metodos: un solo pago con 2 lineas', ev("docsCache.filter(d=>d.tipo==='pago').length")==n0+1 and ev("docsCache.filter(d=>d.tipo==='pago')[0].lineas.length")==2)
         ok('2 metodos: saldan la venta', ev("docsCache.find(d=>d.tipo==='venta').saldado===true") and ev("docsCache.find(d=>d.tipo==='venta').aPagarARS")==0)
         ev("openPagoModal()"); ok('modal reabre con una sola linea', ev("document.querySelectorAll('#pago-extra-lines .pago-line').length")==0); ev("closeModal('modal-pago')")
         for x in ev("docsCache.filter(d=>d.tipo==='pago'&&d.refVentaId).map(d=>d.id)"):
@@ -79,10 +79,10 @@ with sync_playwright() as p:
         # linea sin monto no guarda nada
         n1=ev("docsCache.filter(d=>d.tipo==='pago').length")
         ev("openPagoModal()"); pg.select_option('#pago-doc-select','__libre__'); pg.select_option('#pago-metodo-select','EFVO_ARS'); pg.fill('#pago-monto-input','1000'); ev("addPagoLine()"); pg.select_option('.pl-metodo','TRBF')
-        pg.once('dialog', lambda d: d.accept()); ev("savePago()"); wait(200)
+        ev("savePago()"); wait(200)
         ok('linea 2 sin monto: no guarda', ev("docsCache.filter(d=>d.tipo==='pago').length")==n1)
         pg.fill('.pl-monto','2000'); ev("savePago()"); wait(400)
-        ok('saldo libre con 2 metodos: 2 pagos', ev("docsCache.filter(d=>d.tipo==='pago').length")==n1+2)
+        ok('saldo libre con 2 metodos: un solo movimiento con 2 pagos', ev("docsCache.filter(d=>d.tipo==='pago').length")==n1+1 and ev("docsCache.filter(d=>d.tipo==='pago'&&d.libre)[0].lineas.length")==2)
         for x in ev("docsCache.filter(d=>d.tipo==='pago'&&d.libre).map(d=>d.id)"):
             ev(f"openPagoModal('{x}')"); ev("deletePago()"); wait(150)
     # notas
@@ -144,6 +144,19 @@ with sync_playwright() as p:
         ok('editar saldo desde planilla abre el formulario', ev("!document.getElementById('modal-pago').classList.contains('hidden')") and ev("document.getElementById('pago-monto-input').value")=='7.000')
         pg.fill('#pago-monto-input','9000'); ev("savePago()"); wait(500)
         ok('saldo editado se ve en la planilla', '9.000' in txt('#venta-sheet-body'))
+        # pie de planilla: totales filtrados + resumen del mes
+        ok('pie: resumen del mes visible', 'ingresos del mes' in txt('#venta-footer').lower() and 'cobros por métodos de pago' in txt('#venta-footer').lower())
+        ev("ventaSheetDocsRaw.push({id:'zz1',clienteId:'c1',clienteNombre:'Qwerty',clienteApellido:'Test',fecha:'2026-09-15',createdAt:1,puntoVenta:'Belgrano',productos:[{desc:'x',cant:'2',valorUnit:50000,total:100000,moneda:'ARS'},{desc:'y',cant:'1',valorUnit:300,total:300,moneda:'USD'}],pagos:[],aPagarARS:100000,aPagarUSD:300}); applySheetFilters('venta')"); wait(200)
+        t0=txt('#venta-footer').lower() if False else txt('#venta-footer')
+        ok('pie: totales (cant 3, $100.000, usd 300)', 'Cantidad 3' in t0 and 'Total $ $100.000' in t0 and 'Total usd usd 300' in t0)
+        ok('pie: deuda del mes suma las ventas', 'Deuda $100.000 · usd 300' in t0)
+        pg.fill('#vf-clienta','zzzzno'); wait(200)
+        t1=txt('#venta-footer')
+        ok('pie: filtrando, los totales cambian pero el resumen del mes no', 'Cantidad 0' in t1 and t1.lower().split('resumen del mes')[1]==t0.lower().split('resumen del mes')[1])
+        pg.fill('#vf-clienta',''); wait(200)
+        ok('pie: vuelve al limpiar el filtro', txt('#venta-footer')==t0)
+        ev("ventaSheetDocsRaw=ventaSheetDocsRaw.filter(d=>d.id!=='zz1'); applySheetFilters('venta')")
+        ok('espacio debajo de la planilla', ev("parseInt(getComputedStyle(document.getElementById('venta-footer')).paddingBottom)")>=60)
         # editar una venta desde la planilla no cambia su posicion
         orden=ev("[...document.querySelectorAll('#venta-sheet-body tr')].map(r=>r.innerText.replace(/\\s+/g,' ').slice(0,30))")
         vv=ev("ventaSheetDocsRaw.find(d=>!d.esSaldoMovimiento && d.codigo && d.codigo!=='-')")
