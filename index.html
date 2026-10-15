@@ -187,6 +187,7 @@ table.p-detail tfoot tr.payrow td,table.p-detail tfoot tr.saldorow td,table.p-de
 .sheet-monthbar{display:flex;align-items:center;justify-content:center;gap:18px;padding:12px;background:#fff;border-bottom:1px solid #ece6d8;font-family:'Montserrat',sans-serif}
 .sheet-month-label{font-family:'Montserrat',sans-serif;font-weight:600;font-size:15px;min-width:150px;text-align:center;text-transform:capitalize;color:#3a352c}
 .sheet-wrap{overflow-x:auto;padding:10px}
+.nota-pop{position:fixed;z-index:60;max-width:min(280px,calc(100vw - 16px));background:#fff;border:1px solid #e3d9c2;border-radius:10px;padding:10px 13px;font-size:13px;line-height:1.4;color:#3a352c;white-space:pre-wrap;word-break:break-word;box-shadow:0 6px 22px rgba(60,50,30,.18)}
 .sheet-footer{padding:34px 10px 70px;display:flex;flex-direction:column;gap:12px;max-width:1100px;margin:0 auto}
 .sf-sep{height:1px;background:#efe9da;margin:14px 0 12px}
 .sf-card{background:#fff;border:1px solid #ece6d8;border-radius:10px;padding:12px 16px}
@@ -445,7 +446,7 @@ body.role-admin .doctype-btns button.pago{display:block}
   <div class="sheet-wrap">
     <table class="sheet-table" id="venta-table">
       <colgroup>
-        <col style="width:26px"><col style="width:44px"><col style="width:120px"><col style="width:56px"><col style="width:82px"><col style="width:78px"><col style="width:200px"><col style="width:48px"><col style="width:36px"><col style="width:68px"><col style="width:70px"><col style="width:172px"><col style="width:72px"><col style="width:44px"><col style="width:88px">
+        <col style="width:26px"><col style="width:44px"><col style="width:120px"><col style="width:56px"><col style="width:82px"><col style="width:78px"><col style="width:200px"><col style="width:46px"><col style="width:48px"><col style="width:36px"><col style="width:68px"><col style="width:70px"><col style="width:172px"><col style="width:72px"><col style="width:44px"><col style="width:88px">
       </colgroup>
       <thead><tr>
         <th></th>
@@ -455,6 +456,7 @@ body.role-admin .doctype-btns button.pago{display:block}
         <th><input class="sheet-filter" id="vf-pventa" placeholder="P. Venta" oninput="applySheetFilters('venta')"></th>
         <th><input class="sheet-filter" id="vf-fevento" placeholder="F. Evento" oninput="applySheetFilters('venta')"></th>
         <th><input class="sheet-filter" id="vf-producto" placeholder="Producto" oninput="applySheetFilters('venta')"></th>
+        <th>Notas</th>
         <th>Costos</th>
         <th><input class="sheet-filter" id="vf-cant" placeholder="Cant." oninput="applySheetFilters('venta')"></th>
         <th><input class="sheet-filter" id="vf-valorunit" placeholder="V. unit." oninput="applySheetFilters('venta')"></th>
@@ -464,7 +466,7 @@ body.role-admin .doctype-btns button.pago{display:block}
         <th><input class="sheet-filter" id="vf-factura" placeholder="Fact." oninput="applySheetFilters('venta')"></th>
         <th><input class="sheet-filter" id="vf-celular" placeholder="Celular" oninput="applySheetFilters('venta')"></th>
       </tr></thead>
-      <tbody id="venta-sheet-body"><tr><td colspan="15" class="sheet-empty">Cargando...</td></tr></tbody>
+      <tbody id="venta-sheet-body"><tr><td colspan="16" class="sheet-empty">Cargando...</td></tr></tbody>
     </table>
   </div>
   <div id="venta-footer" class="sheet-footer"></div>
@@ -2400,7 +2402,7 @@ function openVentasSheet(){
   showScreen('venta-sheet');
   const {start,end} = monthRange(ventaMonth);
   const body = document.getElementById('venta-sheet-body');
-  body.innerHTML = '<tr><td colspan="15" class="sheet-empty">Cargando...</td></tr>';
+  body.innerHTML = '<tr><td colspan="16" class="sheet-empty">Cargando...</td></tr>';
   document.getElementById('venta-footer').innerHTML = '';
   stopLive('venta-sheet');
   const unsub = db.collection('ventas').where('fecha','>=',start).where('fecha','<=',end).orderBy('fecha').onSnapshot(SNAP_META, snap=>{
@@ -2410,7 +2412,7 @@ function openVentasSheet(){
     renderSheetSeguro('venta');
   }, err=>{
     console.error(err);
-    body.innerHTML = '<tr><td colspan="15" class="sheet-empty">Error al cargar. Revisá la consola.</td></tr>';
+    body.innerHTML = '<tr><td colspan="16" class="sheet-empty">Error al cargar. Revisá la consola.</td></tr>';
   });
   liveUnsubs['venta-sheet'] = [unsub];
 }
@@ -2453,11 +2455,11 @@ function facturaColorClass(d){
 }
 function renderVentaSheet(docs){
   const body = document.getElementById('venta-sheet-body');
-  if(!docs.length){ body.innerHTML = '<tr><td colspan="15" class="sheet-empty">Sin ventas este mes.</td></tr>'; return; }
+  if(!docs.length){ body.innerHTML = '<tr><td colspan="16" class="sheet-empty">Sin ventas este mes.</td></tr>'; return; }
   let html = '';
   docs.forEach((d, gi)=>{
     const zebra = gi%2===1? ' zebra' : ''; // filas alternas entre movimientos: la 1ª blanca, la 2ª apenas gris, etc.
-    const rowspan = Math.max((d.productos||[]).length + (d.notas?1:0), 1);
+    const rowspan = Math.max((d.productos||[]).length, 1);
     // Total del movimiento: una sola celda centrada que suma todos los productos y arreglos (en $ y/o usd)
     let movARS = 0, movUSD = 0, movHay = false;
     if(!d.esSaldoMovimiento) (d.productos||[]).forEach(p=>{
@@ -2481,6 +2483,8 @@ function renderVentaSheet(docs){
         html += `<td class="vmid" rowspan="${rowspan}">${esc(d.fechaEvento||'')}</td>`;
       }
       html += `<td class="prod-cell">${esc(p.desc)}</td>`;
+      // Notas: un solo botón (ojo) centrado en toda la fila de la venta; muestra la nota en un mini desplegable
+      if(i===0) html += `<td class="vmid" rowspan="${rowspan}">${d.notas? `<span class="sheet-plus nota-btn" title="Ver nota" onclick="showNotaPop(this,'${d.id}')"><i class="fa-solid fa-eye"></i></span>` : ''}</td>`;
       if(d.esSaldoMovimiento){
         html += `<td class="vmid">-</td><td>-</td><td>-</td><td class="vmid tot-cell">-</td>`;
       } else {
@@ -2503,10 +2507,31 @@ function renderVentaSheet(docs){
       }
       html += `</tr>`;
     });
-    if(d.notas) html += `<tr class="${zebra.trim()}"><td class="notes-cell">${esc(d.notas)}</td><td colspan="3"></td></tr>`;
   });
+  closeNotaPop();
   body.innerHTML = html;
 }
+// Mini desplegable con la nota de una venta (se abre con el botón del ojo en la planilla)
+function closeNotaPop(){ const p = document.getElementById('nota-pop'); if(p) p.remove(); }
+function showNotaPop(btn, id){
+  const d = ventaSheetDocsRaw.find(x=>x.id===id);
+  const abierta = document.getElementById('nota-pop');
+  const mismo = abierta && abierta.dataset.for===id;
+  closeNotaPop();
+  if(!d || !d.notas || mismo) return;
+  const pop = document.createElement('div');
+  pop.id = 'nota-pop'; pop.className = 'nota-pop'; pop.dataset.for = id;
+  pop.textContent = d.notas;
+  document.body.appendChild(pop);
+  const r = btn.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
+  let left = Math.min(Math.max(8, r.left + r.width/2 - w/2), window.innerWidth - w - 8);
+  let top = r.bottom + 8;
+  if(top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 8);
+  pop.style.left = left+'px'; pop.style.top = top+'px';
+}
+document.addEventListener('click', e=>{ if(!e.target.closest('.nota-btn') && !e.target.closest('#nota-pop')) closeNotaPop(); });
+document.addEventListener('scroll', closeNotaPop, true);
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeNotaPop(); });
 function esCC(d){ return String(d.puntoVenta||'').split(' + ').map(x=>x.trim()).includes('CC'); }
 // Totales de lo que se está viendo (se actualizan al filtrar) + resumen del mes completo (no depende de los filtros)
 function renderVentaFooter(filtered){

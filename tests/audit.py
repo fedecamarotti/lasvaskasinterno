@@ -189,6 +189,17 @@ with sync_playwright() as p:
         ok('planilla: un solo Total por movimiento (suma producto + arreglo)', ev("[...document.querySelectorAll('#venta-sheet-body td.tot-cell')].some(t=>t.innerText.trim()==='$358.750' && t.rowSpan===2)"))
         ok('planilla: el arreglo va en V. unit.', 'Tot Suma' in txt('#venta-sheet-body') and ev("[...document.querySelectorAll('#venta-sheet-body tr')].some(r=>r.innerText.includes('arreglo x') && r.innerText.includes('$68.750'))"))
         ev("ventaSheetDocsRaw=ventaSheetDocsRaw.filter(d=>d.id!=='zz2'); applySheetFilters('venta')")
+        # Notas: botón (ojo) único por venta, con mini desplegable; sin la línea de nota bajo los productos
+        ev("ventaSheetDocsRaw.push({id:'zz3',clienteId:'c1',clienteNombre:'Con',clienteApellido:'Nota',fecha:'2026-09-17',createdAt:3,puntoVenta:'Belgrano',codigo:'0997',notas:'cintura 96 busto 102',productos:[{desc:'p1',cant:'1',valorUnit:10,total:10,moneda:'ARS'},{desc:'p2',cant:'1',valorUnit:20,total:20,moneda:'ARS'},{desc:'p3',cant:'1',valorUnit:30,total:30,moneda:'ARS'}],pagos:[],aPagarARS:0,aPagarUSD:0}); applySheetFilters('venta')"); wait(200)
+        ok('notas: un botón por venta con rowspan de toda la fila', ev("(()=>{const b=document.querySelectorAll('#venta-sheet-body .nota-btn'); return b.length>=1 && [...b].some(x=>x.parentElement.rowSpan===3)})()"))
+        ok('notas: ya no hay línea de nota bajo los productos', not ev("!!document.querySelector('#venta-sheet-body td.notes-cell')") and 'cintura 96' not in txt('#venta-sheet-body'))
+        ev("document.querySelector('#venta-sheet-body .nota-btn').click()"); wait(100)
+        ok('notas: el desplegable muestra la nota', ev("(document.getElementById('nota-pop')||{}).innerText")=='cintura 96 busto 102')
+        ev("document.querySelector('#venta-sheet-body .nota-btn').click()"); wait(100)
+        ok('notas: tocar de nuevo lo cierra', ev("!document.getElementById('nota-pop')"))
+        ev("document.querySelector('#venta-sheet-body .nota-btn').click()"); wait(100); ev("document.body.click()"); wait(100)
+        ok('notas: tocar afuera lo cierra', ev("!document.getElementById('nota-pop')"))
+        ev("ventaSheetDocsRaw=ventaSheetDocsRaw.filter(d=>d.id!=='zz3'); applySheetFilters('venta')")
         # en vivo: lo que carga otra persona aparece solo en la planilla abierta
         ev("db.collection('ventas').doc('zz9').set({clienteId:'c2',clienteNombre:'Ajena',clienteApellido:'Persona',fecha:'2026-09-20',createdAt:5,puntoVenta:'Belgrano',codigo:'0999',productos:[{desc:'cosa ajena',cant:'1',valorUnit:10,total:10,moneda:'ARS'}],pagos:[],aPagarARS:0,aPagarUSD:0})"); wait(400)
         ok('planilla en vivo: aparece lo cargado por otra persona', 'cosa ajena' in txt('#venta-sheet-body'))
