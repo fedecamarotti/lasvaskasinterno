@@ -678,6 +678,7 @@ const METODOS = {
   EFVO_ARS:{label:"Efectivo $", paren:"efectivo", moneda:"ARS"},
   EFVO_USD:{label:"Efectivo usd", paren:"efectivo", moneda:"USD"},
   TRBF:{label:"Transferencia BF", paren:"transferencia bf", moneda:"ARS"},
+  TRBF_USD:{label:"Transferencia BF usd", paren:"transferencia bf usd", moneda:"USD"},
   TRVF:{label:"Transferencia VF", paren:"transferencia vf", moneda:"ARS"},
   TARJ:{label:"Tarjeta", paren:"tarjeta", moneda:"ARS"}
 };
@@ -2414,7 +2415,7 @@ function openVentasSheet(){
   liveUnsubs['venta-sheet'] = [unsub];
 }
 // Etiquetas cortas para la planilla (evita repetir "Transferencia" completo al lado del monto)
-const METODO_SHEET_LABEL = {EFVO_ARS:'Efectivo', EFVO_USD:'Efectivo', TRBF:'Transf. BF', TRVF:'Transf. VF', TARJ:'Tarjeta'};
+const METODO_SHEET_LABEL = {EFVO_ARS:'Efectivo', EFVO_USD:'Efectivo', TRBF:'Transf. BF', TRBF_USD:'Transf. BF', TRVF:'Transf. VF', TARJ:'Tarjeta'};
 // Monto pagado "de origen" (cargado junto con la venta), sin contar los pagos posteriores que saldan deuda
 // (esos se muestran como su propio movimiento "Salda c/c" en la planilla).
 // Punto de venta como "pastilla" de color (si la venta tiene varios puntos de venta, una por cada uno)
@@ -2424,7 +2425,7 @@ function pvChipsHTML(pv){
     .map(x=>`<span class="pv-chip ${PV_CLASES[x]||''}">${esc(x)}</span>`).join('');
 }
 function ventaMetodoCellHTML(d){
-  const classes = {EFVO_ARS:'metodo-efvo',EFVO_USD:'metodo-efvo',TRBF:'metodo-transf',TRVF:'metodo-naranja',TARJ:'metodo-naranja'};
+  const classes = {EFVO_ARS:'metodo-efvo',EFVO_USD:'metodo-efvo',TRBF:'metodo-transf',TRBF_USD:'metodo-transf',TRVF:'metodo-naranja',TARJ:'metodo-naranja'};
   const sums = {};
   (d.pagos||[]).filter(p=>!p.pagoDocId).forEach(p=>{ sums[p.metodo] = (sums[p.metodo]||0) + p.monto; });
   let html = Object.keys(sums).map(m=>{
@@ -2440,13 +2441,13 @@ function ventaMetodoCellHTML(d){
   }
   return html;
 }
-// prioridad de color del casillero factura: TRBF (azul) > TRVF/TARJ (naranja) > efectivo (gris)
+// prioridad de color del casillero factura: TRBF/TRBF_USD (azul) > TRVF/TARJ (naranja) > efectivo (gris)
 // Solo corresponde casillero de factura para transferencias y tarjeta (no para efectivo).
 // Se basa en el/los métodos que efectivamente se muestran en esta fila (el pago de origen de la venta,
 // o el de ese movimiento puntual si es un "Salda c/c"), no en todo el historial de pagos de la venta.
 function facturaColorClass(d){
   const metodos = (d.pagos||[]).filter(p=>!p.pagoDocId).map(p=>p.metodo);
-  if(metodos.includes('TRBF')) return 'fact-azul';
+  if(metodos.includes('TRBF')||metodos.includes('TRBF_USD')) return 'fact-azul';
   if(metodos.includes('TRVF')||metodos.includes('TARJ')) return 'fact-naranja';
   return '';
 }

@@ -95,6 +95,16 @@ with sync_playwright() as p:
         for x in ev("docsCache.filter(d=>d.tipo==='pago'&&d.refVentaId).map(d=>d.id)"):
             ev(f"openPagoModal('{x}')"); ev("deletePago()"); wait(150)
         ok('borrar los 2 pagos restaura la deuda', ev("docsCache.find(d=>d.tipo==='venta').aPagarARS")==80000)
+        # Transferencia BF en dólares: pago libre, se ve en la planilla con su chip y cuenta como usd
+        n2=ev("docsCache.filter(d=>d.tipo==='pago').length")
+        ev("openPagoModal()"); pg.select_option('#pago-doc-select','__libre__'); pg.select_option('#pago-metodo-select','TRBF_USD'); pg.fill('#pago-monto-input','300'); pg.fill('#pago-fecha-input','2026-09-11'); ev("savePago()"); wait(400)
+        ok('Transf. BF usd: se guarda', ev("docsCache.filter(d=>d.tipo==='pago').length")==n2+1)
+        ev("ventaMonth=new Date(2026,8,1); openVentasSheet()"); wait(400)
+        ok('Transf. BF usd: chip en la planilla', 'Transf. BF usd 300' in txt('#venta-sheet-body'))
+        ok('Transf. BF usd: suma en los ingresos en usd', 'usd 300' in txt('#venta-footer') or 'usd 3' in txt('#venta-footer'))
+        for x in ev("docsCache.filter(d=>d.tipo==='pago'&&d.libre&&d.metodo==='TRBF_USD').map(d=>d.id)"):
+            ev(f"openPagoModal('{x}')"); ev("deletePago()"); wait(150)
+        ev("openClienteDetail('c1')"); wait()
         # linea sin monto no guarda nada
         n1=ev("docsCache.filter(d=>d.tipo==='pago').length")
         ev("openPagoModal()"); pg.select_option('#pago-doc-select','__libre__'); pg.select_option('#pago-metodo-select','EFVO_ARS'); pg.fill('#pago-monto-input','1000'); ev("addPagoLine()"); pg.select_option('.pl-metodo','TRBF')
