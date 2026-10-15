@@ -569,7 +569,7 @@ body.role-admin .doctype-btns button.pago{display:block}
     <h2 id="pago-modal-title">Registrar pago</h2>
     <input type="hidden" id="pago-editing-id">
     <div class="field" id="pago-doc-select-field"><label>Saldar deuda del</label><select id="pago-doc-select"></select></div>
-    <div class="field hidden" id="pago-fecha-field"><label>Fecha del pago</label><input type="date" id="pago-fecha-input"></div>
+    <div class="field" id="pago-fecha-field"><label>Fecha del pago</label><input type="date" id="pago-fecha-input"></div>
     <div class="field"><label>Método de pago</label><select id="pago-metodo-select"></select></div>
     <div class="field"><label>Monto</label><input id="pago-monto-input" placeholder="Monto"></div>
     <div class="field"><label>Cotización (solo si pagás en una moneda distinta a la de la deuda)</label><input id="pago-cotizacion-input" placeholder="ej: 1350"></div>
@@ -1568,7 +1568,6 @@ function editCurrentDoc(){
 const PAGO_LIBRE = '__libre__';
 function syncPagoFecha(){
   const libre = document.getElementById('pago-doc-select').value===PAGO_LIBRE;
-  document.getElementById('pago-fecha-field').classList.toggle('hidden', !libre);
 }
 // Un pago puede tener varias líneas (ej: parte en efectivo y parte en transferencia). Los pagos viejos tienen una sola (metodo/monto).
 function pagoLineas(p){
@@ -1633,8 +1632,7 @@ function openPagoModal(editPagoId){
     if(!p){ alert('No se encontró el pago.'); return; }
     document.getElementById('pago-doc-select-field').classList.add('hidden');
     const libre = !p.refVentaId;
-    document.getElementById('pago-fecha-field').classList.toggle('hidden', !libre);
-    if(libre) document.getElementById('pago-fecha-input').value = p.fecha||todayISO();
+    document.getElementById('pago-fecha-input').value = p.fecha||todayISO();
     const ls = pagoLineas(p);
     document.getElementById('pago-metodo-select').value = ls[0].metodo;
     document.getElementById('pago-monto-input').value = fmtMoney(ls[0].monto);
@@ -1750,7 +1748,7 @@ function savePago(){
     if(!(lines[i].monto>0)){ alert('Ingresá un monto'+tag+'.'); return; }
   }
   const limpias = lineasLimpias(lines);
-  const fecha = todayISO();
+  const fecha = document.getElementById('pago-fecha-input').value || todayISO();
   const clienteDocs = db.collection('clientas').doc(currentClienteId).collection('documentos');
 
   if(editPagoId){
@@ -1758,7 +1756,7 @@ function savePago(){
     if(!pagoDoc) return;
     const base = {metodo:limpias[0].metodo, monto:limpias[0].monto, lineas:limpias};
     if(!pagoDoc.refVentaId){
-      const f = document.getElementById('pago-fecha-input').value || pagoDoc.fecha;
+      const f = fecha;
       const upd = {...base, fecha:f};
       const mov = {...buildPagoLibreMovimiento(limpias, f), createdAt: pagoDoc.createdAt||Date.now()};
       const prev = {...pagoDoc};
@@ -1787,16 +1785,16 @@ function savePago(){
     if(ap.error){ alert(ap.error); return; }
     const totals = applyPagosToVenta(d, ap.pagos);
     const updateData = {pagos: ap.pagos, pagadoARS: totals.pagadoARS, pagadoUSD: totals.pagadoUSD, aPagarARS: totals.aPagarARS, aPagarUSD: totals.aPagarUSD};
-    if(totals.fullySettled) Object.assign(updateData, saldadoResumen(ap.items, pagoDoc.fecha));
+    if(totals.fullySettled) Object.assign(updateData, saldadoResumen(ap.items, fecha));
     else updateData.saldado = false;
-    const pagoUpdate = {...base, cotizacion: firebase.firestore.FieldValue.delete()};
-    const saldoData = {...buildSaldoMovimientoData(d, limpias, pagoDoc.fecha), createdAt: pagoDoc.createdAt||Date.now()};
+    const pagoUpdate = {...base, fecha, cotizacion: firebase.firestore.FieldValue.delete()};
+    const saldoData = {...buildSaldoMovimientoData(d, limpias, fecha), createdAt: pagoDoc.createdAt||Date.now()};
 
     // Optimista: reflejamos todo al instante; Firestore se escribe en segundo plano.
     closeModal('modal-pago');
     upsertDocInCache({...d, ...updateData});
     const {cotizacion:_c, ...pagoSinCot} = pagoDoc;
-    upsertDocInCache({...pagoSinCot, ...base});
+    upsertDocInCache({...pagoSinCot, ...base, fecha});
     upsertSaldoMovimientoInSheet(editPagoId, saldoData);
     refreshClienteDeudaFast(currentClienteId);
 
@@ -1821,7 +1819,7 @@ function savePago(){
   const quien = {creadoPor: auth.currentUser? auth.currentUser.email : '', creadoPorNombre: currentUserNombre};
   const base = {metodo:limpias[0].metodo, monto:limpias[0].monto, lineas:limpias};
   if(docId===PAGO_LIBRE){
-    const f = document.getElementById('pago-fecha-input').value || fecha;
+    const f = fecha;
     const pdata = {tipo:'pago', fecha:f, ...base, refVentaId:null, libre:true, ...cli, createdAt: ts, ...quien};
     const mov = {...buildPagoLibreMovimiento(limpias, f), createdAt: ts};
     closeModal('modal-pago');
