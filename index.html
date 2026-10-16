@@ -418,7 +418,7 @@ body.role-admin .doctype-btns button.pago{display:block}
   <div class="sheet-wrap">
     <table class="sheet-table" id="presu-table">
       <colgroup>
-        <col style="width:26px"><col style="width:130px"><col style="width:44px"><col style="width:80px"><col style="width:95px"><col style="width:440px"><col style="width:80px"><col style="width:80px">
+        <col style="width:26px"><col style="width:130px"><col style="width:44px"><col style="width:80px"><col style="width:95px"><col style="width:440px"><col style="width:46px"><col style="width:80px"><col style="width:80px">
       </colgroup>
       <thead><tr>
         <th></th>
@@ -427,10 +427,11 @@ body.role-admin .doctype-btns button.pago{display:block}
         <th><input class="sheet-filter" id="pf-fechaEvento" placeholder="Fecha evento" oninput="applySheetFilters('presu')"></th>
         <th><input class="sheet-filter" id="pf-celular" placeholder="Celular" oninput="applySheetFilters('presu')"></th>
         <th><input class="sheet-filter" id="pf-producto" placeholder="Producto" oninput="applySheetFilters('presu')"></th>
+        <th>Notas</th>
         <th><input class="sheet-filter" id="pf-valorEfvo" placeholder="Valor $" oninput="applySheetFilters('presu')"></th>
         <th><input class="sheet-filter" id="pf-valorTarj" placeholder="Valor tarj." oninput="applySheetFilters('presu')"></th>
       </tr></thead>
-      <tbody id="presu-sheet-body"><tr><td colspan="8" class="sheet-empty">Cargando...</td></tr></tbody>
+      <tbody id="presu-sheet-body"><tr><td colspan="9" class="sheet-empty">Cargando...</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -2353,7 +2354,7 @@ function openPresupuestosSheet(){
   showScreen('presu-sheet');
   const {start,end} = monthRange(presuMonth);
   const body = document.getElementById('presu-sheet-body');
-  body.innerHTML = '<tr><td colspan="8" class="sheet-empty">Cargando...</td></tr>';
+  body.innerHTML = '<tr><td colspan="9" class="sheet-empty">Cargando...</td></tr>';
   stopLive('presu-sheet');
   const unsub = db.collection('presupuestos').where('fecha','>=',start).where('fecha','<=',end).orderBy('fecha').onSnapshot(SNAP_META, snap=>{
     if(monthRange(presuMonth).start!==start) return;
@@ -2362,7 +2363,7 @@ function openPresupuestosSheet(){
     renderSheetSeguro('presu');
   }, err=>{
     console.error(err);
-    body.innerHTML = '<tr><td colspan="8" class="sheet-empty">Error al cargar. Revisá la consola.</td></tr>';
+    body.innerHTML = '<tr><td colspan="9" class="sheet-empty">Error al cargar. Revisá la consola.</td></tr>';
   });
   liveUnsubs['presu-sheet'] = [unsub];
 }
@@ -2376,11 +2377,11 @@ function goToClienteFromSheet(clienteId){
 }
 function renderPresuSheet(docs){
   const body = document.getElementById('presu-sheet-body');
-  if(!docs.length){ body.innerHTML = '<tr><td colspan="8" class="sheet-empty">Sin presupuestos este mes.</td></tr>'; return; }
+  if(!docs.length){ body.innerHTML = '<tr><td colspan="9" class="sheet-empty">Sin presupuestos este mes.</td></tr>'; return; }
   let html = '';
   docs.forEach((d, gi)=>{
     const zebra = gi%2===1? ' zebra' : '';
-    const rowspan = Math.max((d.productos||[]).length + (d.notas?1:0), 1);
+    const rowspan = Math.max((d.productos||[]).length, 1);
     (d.productos||[]).forEach((p,i)=>{
       const f = p.moneda==='USD'?fmtUSD:fmtARS;
       html += `<tr class="${i===0?'group-first':''}${zebra}">`;
@@ -2393,10 +2394,13 @@ function renderPresuSheet(docs){
         html += `<td class="vmid" rowspan="${rowspan}">${esc(d.fechaEvento||'')}</td>`;
         html += `<td class="vmid" rowspan="${rowspan}">${esc(d.clienteTelefono||'')}</td>`;
       }
-      html += `<td class="prod-cell">${esc(p.desc)}</td><td>${f(p.efvo)}</td><td>${f(p.tarj)}</td></tr>`;
+      html += `<td class="prod-cell">${esc(p.desc)}</td>`;
+      // Notas: un solo botón (ojo) centrado en toda la fila del presupuesto
+      if(i===0) html += `<td class="vmid" rowspan="${rowspan}">${d.notas? `<span class="sheet-plus nota-btn" title="Ver nota" onclick="showNotaPop(this,'${d.id}')"><svg class="eye-ic" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg></span>` : ''}</td>`;
+      html += `<td>${f(p.efvo)}</td><td>${f(p.tarj)}</td></tr>`;
     });
-    if(d.notas) html += `<tr class="${zebra.trim()}"><td class="notes-cell">${nl2br(d.notas)}</td><td colspan="2"></td></tr>`;
   });
+  closeNotaPop();
   body.innerHTML = html;
 }
 function openVentasSheet(){
@@ -2516,7 +2520,7 @@ function renderVentaSheet(docs){
 // Mini desplegable con la nota de una venta (se abre con el botón del ojo en la planilla)
 function closeNotaPop(){ const p = document.getElementById('nota-pop'); if(p) p.remove(); }
 function showNotaPop(btn, id){
-  const d = ventaSheetDocsRaw.find(x=>x.id===id);
+  const d = ventaSheetDocsRaw.find(x=>x.id===id) || presuSheetDocsRaw.find(x=>x.id===id);
   const abierta = document.getElementById('nota-pop');
   const mismo = abierta && abierta.dataset.for===id;
   closeNotaPop();
