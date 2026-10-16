@@ -306,6 +306,7 @@ body.role-limited #venta-table colgroup col:nth-child(9){display:none}
 .co-cant-wrap input{text-align:center;padding:9px 4px}
 .co-valor-wrap{flex:0 0 84px}
 .co-valor-wrap input{text-align:right;padding:9px 6px}
+@media(max-width:420px){ .eg-l1 .eg-pv{flex:0 0 128px} .eg-l1 .eg-cod{flex:0 0 62px} }
 @media(max-width:400px){
   .co-tipo-wrap{flex:0 0 104px}
   .co-valor-wrap{flex:0 0 74px}
@@ -323,7 +324,6 @@ table.sheet-table tbody td.tot-cell{font-weight:700}
 .sheet-inline-input.fact-naranja{background:#fbe3c7}
 
 /* ---------- egresos ---------- */
-.eg-toolbar{display:flex;justify-content:flex-end;padding:10px 10px 0;max-width:100%}
 .eg-estado{appearance:none;-webkit-appearance:none;border:none;border-radius:10px;font-family:'Montserrat',sans-serif;font-weight:600;font-size:10px;text-align:center;text-align-last:center;padding:3px 6px;cursor:pointer;height:22px;color:#3a352c}
 .eg-estado.pend{background:#f8dcd8;color:#a13f38}
 .eg-estado.pag{background:#d9f0e1;color:#2f6b45}
@@ -332,10 +332,11 @@ table.sheet-table tbody td.tot-cell{font-weight:700}
 .eg-line{border:1px solid #ece6d8;border-radius:10px;padding:10px;margin-bottom:10px;background:#fcfbf8}
 .eg-line .field{margin-bottom:0}
 .eg-l1,.eg-l2,.eg-l3{display:flex;gap:6px;align-items:center;margin-bottom:6px}
-.eg-l1 .eg-cod{flex:0 0 84px}
+.eg-l1 .eg-pv{flex:0 0 150px}
+.eg-l1 .eg-cod{flex:0 0 74px}
 .eg-l1 .eg-cli{flex:1;min-width:0}
 .eg-l2 .field{flex:1;min-width:0}
-.eg-l3 .eg-c{flex:0 0 70px}
+.eg-l3 .eg-c{flex:0 0 58px}
 .eg-l3 .eg-v{flex:1;min-width:0}
 .eg-l3 input{text-align:right}
 .eg-sub{flex:0 0 auto;font-size:12px;color:#8a8375;white-space:nowrap}
@@ -344,12 +345,7 @@ table.sheet-table tbody td.tot-cell{font-weight:700}
 .eg-stat.err{color:#c1685c}
 .eg-stat:empty{display:none}
 .eg-line input[readonly]{background:#f3f0e8;color:#6d6657}
-.cf-box{background:#f7f4ec;border:1px dashed #d9cfb5;border-radius:9px;padding:8px 10px;margin-bottom:12px}
-.cf-title{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8f6c2a;margin-bottom:4px}
-.cf-row{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;padding:3px 0;color:#3a352c}
-.cf-row .cf-d{color:#8a8372;font-size:11.5px;flex:1;min-width:0}
-.cf-row .cf-v{font-weight:700;white-space:nowrap}
-.cf-note{font-size:11px;color:#9a9285;margin-top:4px}
+.costo-row-fijo input,.costo-row-fijo select{background:#f3f0e8;color:#6d6657}
 
 /* ---------- costos falta/completo ---------- */
 .sheet-plus.estado-falta{background:#f8dcd8;border-color:#c1685c;color:#a13f38}
@@ -539,7 +535,6 @@ body.role-admin .doctype-btns button.pago{display:block}
     <div id="egresos-month-label" class="sheet-month-label"></div>
     <button class="icon-btn" onclick="shiftMonth('egresos',1)"><i class="fa-solid fa-chevron-right"></i></button>
   </div>
-  <div class="eg-toolbar"><button class="btn btn-primary btn-sm" onclick="openEgresoModal()"><i class="fa-solid fa-plus"></i> Cargar egreso</button></div>
   <div class="sheet-wrap">
     <table class="sheet-table" id="egresos-table">
       <colgroup>
@@ -563,6 +558,7 @@ body.role-admin .doctype-btns button.pago{display:block}
     </table>
   </div>
   <div id="egresos-footer" class="sheet-footer"></div>
+  <button class="fab" onclick="openEgresoModal()" title="Cargar egreso">+</button>
 </div>
 
 <!-- ============ MODAL: COSTOS ============ -->
@@ -574,7 +570,6 @@ body.role-admin .doctype-btns button.pago{display:block}
     <input type="hidden" id="costos-cliente-id">
     <input type="hidden" id="costos-producto-index">
     <input type="hidden" id="costos-estado" value="">
-    <div id="costos-fijos"></div>
     <div id="costos-container"></div>
     <div class="add-row-btn" onclick="addCostoRow()"><i class="fa-solid fa-plus"></i> Agregar línea</div>
     <div class="costos-totals">
@@ -2277,12 +2272,13 @@ function addCostoRow(c){
   row.className='costo-row';
   row.innerHTML = `
     <div class="field co-tipo-wrap"><select class="co-tipo">
-      <option value="Telas" ${c.tipo==='Telas'?'selected':''}>Telas</option>
-      <option value="Rufina nuevo" ${c.tipo==='Rufina nuevo'?'selected':''}>Rufina nuevo</option>
-      <option value="Rufina arreglos" ${c.tipo==='Rufina arreglos'?'selected':''}>Rufina arreglos</option>
+      <option value="Avíos" ${(c.tipo||'Telas')==='Avíos'?'selected':''}>Avíos</option>
+      <option value="Telas" ${(c.tipo||'Telas')==='Telas'?'selected':''}>Telas</option>
+      <option value="Rufina nuevo" ${(c.tipo||'Telas')==='Rufina nuevo'?'selected':''}>Rufina nuevo</option>
+      <option value="Rufina arreglos" ${(c.tipo||'Telas')==='Rufina arreglos'?'selected':''}>Rufina arreglos</option>
     </select></div>
     <div class="field co-detalle-wrap"><input class="co-detalle" placeholder="Detalle" value="${esc(c.detalle||'')}"></div>
-    <div class="field co-cant-wrap"><input class="co-cant" placeholder="Cant." value="${esc(c.cant||'')}"></div>
+    <div class="field co-cant-wrap"><input class="co-cant" placeholder="Cant." inputmode="decimal" value="${esc(String(c.cant||'').replace('.',','))}"></div>
     <div class="field co-valor-wrap co-valor-field"><input class="co-valor" placeholder="$" value="${fmtMoney(c.valor)}"></div>
     <div class="rm-row">✕</div>`;
   cont.appendChild(row);
@@ -2300,15 +2296,15 @@ function addCostoRow(c){
   recalc();
 }
 function recalcCostosTotals(){
-  let totalCostos=0, totalArreglos=0;
-  document.querySelectorAll('#costos-container .costo-row').forEach(row=>{
+  let totalCostos=0, totalArreglos=costosFijosArreglos;
+  document.querySelectorAll('#costos-container .costo-row:not(.costo-row-fijo)').forEach(row=>{
     const tipo = row.querySelector('.co-tipo').value;
     // Cantidad admite decimales (ej: 2,5 metros de tela); el valor en pesos es siempre entero.
     const cant = numDec(row.querySelector('.co-cant').value)||0;
     if(tipo==='Rufina arreglos'){ totalArreglos += cant; }
     else { const valor = num(row.querySelector('.co-valor').value)||0; totalCostos += cant*valor; }
   });
-  totalCostos += costosFijosTotal; // avíos automáticos + costos cargados en Egresos
+  totalCostos += costosFijosTotal; // costos que vienen de Egresos
   document.getElementById('costos-total-costos').textContent = fmtARS(totalCostos);
   document.getElementById('costos-total-arreglos').textContent = totalArreglos;
 }
@@ -2321,9 +2317,13 @@ function setCostosEstado(v){
 }
 // productoIndex identifica a qué producto de la venta pertenecen estos costos (cada producto tiene los suyos,
 // y por lo tanto cada botón "+" de la planilla puede tener su propio color falta/completo).
-// Costos que no se cargan a mano: $5.000 de avíos por prenda (automático) + lo cargado en Egresos para esa prenda
+// $5.000 de avíos por prenda: se precarga como una línea más de costos (se puede sacar o cambiar).
+// Los costos cargados en Egresos para esa prenda aparecen como líneas de solo lectura (se editan en Egresos).
 const AVIOS_UNIT = 5000;
-let costosFijosTotal = 0;
+let costosFijosTotal = 0, costosFijosArreglos = 0;
+const PROVEEDORES = ['Telas','Rufina nuevo','Rufina arreglos'];
+// Nombres viejos de proveedor -> nombres actuales (iguales a los de Costos)
+function provNorm(p){ return p==='Compra Telas' ? 'Telas' : (p==='Rufina arreglo' ? 'Rufina arreglos' : (p||'')); }
 function egresoLineaApuntaA(l, productos){
   const i = l.prendaIdx;
   if(i!=null && productos[i] && (!l.prenda || productos[i].desc===l.prenda)) return i;
@@ -2331,32 +2331,44 @@ function egresoLineaApuntaA(l, productos){
   if(j>-1) return j;
   return (i!=null && productos[i]) ? i : -1;
 }
-function costosFijosDeProducto(d, i){
-  const productos = d.productos||[], p = productos[i], out = [];
-  if(!p) return out;
-  if(!p.esArreglo && !p.texto && p.puntoVenta!=='CC'){
-    const cant = numDec(p.cant);
-    if(cant>0) out.push({tipo:'Avíos', detalle:`Automático · ${cant.toLocaleString('es-AR')} × ${fmtARS(AVIOS_UNIT)}`, total:cant*AVIOS_UNIT});
-  }
+function costosDeEgresos(d, i){
+  const productos = d.productos||[], out = [];
   egresosAll.forEach(e=>{
     (e.lineas||[]).forEach(l=>{
       if(l.ventaId!==d.id || egresoLineaApuntaA(l, productos)!==i) return;
-      const t = (numDec(l.cant)||0)*(l.valor||0);
-      out.push({tipo:l.proveedor||'Egreso', detalle:`Egresos · ${numDec(l.cant).toLocaleString('es-AR')} × ${fmtARS(l.valor||0)} · ${e.estado==='pagado'?'Pagado':'Pendiente'}`, total:t});
+      const tipo = provNorm(l.proveedor), cant = numDec(l.cant)||0, valor = l.valor||0;
+      // Rufina arreglos: solo cuenta la cantidad (los arreglos se cuentan por unidad), no el valor
+      out.push({tipo, detalle:l.detalle||'', cant, valor, total: tipo==='Rufina arreglos' ? 0 : Math.round(cant*valor)});
     });
   });
   return out;
 }
+function addCostoFijoRow(c){
+  const row = document.createElement('div');
+  row.className = 'costo-row costo-row-fijo';
+  row.title = 'Viene de Egresos (se edita allí)';
+  const arr = c.tipo==='Rufina arreglos';
+  row.innerHTML = `
+    <div class="field co-tipo-wrap"><select class="co-tipo" disabled><option>${esc(c.tipo)}</option></select></div>
+    <div class="field co-detalle-wrap"><input class="co-detalle" readonly placeholder="Detalle" value="${esc(c.detalle||'')}"></div>
+    <div class="field co-cant-wrap"><input class="co-cant" readonly value="${esc(String(c.cant).replace('.',','))}"></div>
+    ${arr? '' : `<div class="field co-valor-wrap co-valor-field"><input class="co-valor" readonly value="${fmtMoney(c.valor)}"></div>`}
+    <div class="rm-row" style="visibility:hidden">✕</div>`;
+  document.getElementById('costos-container').appendChild(row);
+}
 function openCostosModal(clienteId, ventaId, productoIndex){
   const dRaw = ventaSheetDocsRaw.find(x=>x.id===ventaId) || {};
   const pRaw = (dRaw.productos||[])[productoIndex] || {};
-  const existingCostos = (pRaw.costos||[]).filter(c=>c.tipo!=='Avíos'); // los avíos ahora son automáticos
+  let existingCostos = (pRaw.costos||[]).slice();
   const existingEstado = pRaw.estadoCostos||'';
-  const fijos = costosFijosDeProducto({...dRaw, id:ventaId}, productoIndex);
+  // Avíos precargados la primera vez que se abren los costos de una prenda (si se quitan y se guarda, no vuelven)
+  if(!pRaw.costosInit && !existingCostos.some(c=>c.tipo==='Avíos') && !pRaw.esArreglo && !pRaw.texto && pRaw.puntoVenta!=='CC'){
+    const cant = numDec(pRaw.cant);
+    if(cant>0) existingCostos.unshift({tipo:'Avíos', detalle:'', cant, valor:AVIOS_UNIT});
+  }
+  const fijos = costosDeEgresos({...dRaw, id:ventaId}, productoIndex);
   costosFijosTotal = fijos.reduce((t,f)=>t+f.total,0);
-  document.getElementById('costos-fijos').innerHTML = fijos.length ? `<div class="cf-box"><div class="cf-title">Se suman solos</div>${
-    fijos.map(f=>`<div class="cf-row"><b>${esc(f.tipo)}</b><span class="cf-d">${esc(f.detalle)}</span><span class="cf-v">${fmtARS(f.total)}</span></div>`).join('')
-  }<div class="cf-note">Los costos de proveedores se cargan y editan en Egresos.</div></div>` : '';
+  costosFijosArreglos = fijos.filter(f=>f.tipo==='Rufina arreglos').reduce((t,f)=>t+f.cant,0);
   document.getElementById('costos-cliente-id').value = clienteId;
   document.getElementById('costos-venta-id').value = ventaId;
   document.getElementById('costos-producto-index').value = productoIndex;
@@ -2365,7 +2377,9 @@ function openCostosModal(clienteId, ventaId, productoIndex){
   document.getElementById('estado-btn-completo').classList.remove('sel-completo');
   if(existingEstado) setCostosEstado(existingEstado);
   document.getElementById('costos-container').innerHTML='';
-  (existingCostos&&existingCostos.length? existingCostos : [{}]).forEach(c=>addCostoRow(c));
+  existingCostos.forEach(c=>addCostoRow(c));
+  fijos.forEach(addCostoFijoRow);
+  addCostoRow({}); // línea vacía lista para el próximo costo
   recalcCostosTotals();
   openModal('modal-costos');
 }
@@ -2375,7 +2389,7 @@ function saveCostos(){
   const productoIndex = parseInt(document.getElementById('costos-producto-index').value, 10);
   const estadoCostos = document.getElementById('costos-estado').value || null;
   let costos = [];
-  document.querySelectorAll('#costos-container .costo-row').forEach(row=>{
+  document.querySelectorAll('#costos-container .costo-row:not(.costo-row-fijo)').forEach(row=>{
     const tipo = row.querySelector('.co-tipo').value;
     const detalle = row.querySelector('.co-detalle').value.trim();
     const cant = numDec(row.querySelector('.co-cant').value)||0;
@@ -2386,7 +2400,7 @@ function saveCostos(){
   const ventaRef = db.collection('clientas').doc(clienteId).collection('documentos').doc(ventaId);
 
   const applyAndSave = (productosBase)=>{
-    const productos = productosBase.map((p,i)=> i===productoIndex? {...p, costos, estadoCostos} : p);
+    const productos = productosBase.map((p,i)=> i===productoIndex? {...p, costos, estadoCostos, costosInit:true} : p);
     // Optimista: se ve reflejado en la planilla al instante; Firestore se escribe en segundo plano.
     closeModal('modal-costos');
     const idx = ventaSheetDocsRaw.findIndex(x=>x.id===ventaId);
@@ -2751,23 +2765,19 @@ function toggleConvertido(clienteId, id){
 function renderPresuFooter(filtered){
   const el = document.getElementById('presu-footer'); if(!el) return;
   const cnt = arr => ({env: arr.length, conv: arr.filter(d=>d.convertido).length});
-  const v = cnt(filtered), m = cnt(presuSheetDocsRaw);
+  const m = cnt(presuSheetDocsRaw);
   const row = c => `<div class="sf-row">
         <div class="sf-item"><span class="sf-l">Presupuestos enviados</span><b>${c.env.toLocaleString('es-AR')}</b></div>
         <div class="sf-item"><span class="sf-l">Presupuestos convertidos</span><b>${c.conv.toLocaleString('es-AR')}</b></div>
       </div>`;
   el.innerHTML = `
     <div class="sf-card">
-      <div class="sf-title">Totales en esta vista</div>
-      ${row(v)}
-      <div class="sf-sep"></div>
       <div class="sf-title">Resumen del mes · ${esc(monthLabel(presuMonth))}</div>
       ${row(m)}
     </div>`;
 }
 
 /* =================== EGRESOS (solo administrador) =================== */
-const PROVEEDORES = ['Rufina arreglo','Rufina nuevo','Compra Telas'];
 let egresosAll = [];          // todos los egresos, en vivo (las planillas los filtran por mes)
 let egresosMonth = new Date(); egresosMonth.setDate(1);
 const EG_COLS = ['fecha','codigo','clienta','cant','prenda','proveedor','precio','subtotal','total','estado','fechapago'];
@@ -2805,7 +2815,7 @@ function egColText(e, col){
     case 'clienta': return L.map(l=>l.clienta||'').join(' ');
     case 'cant': return L.map(l=>l.cant||'').join(' ');
     case 'prenda': return L.map(l=>l.prenda||'').join(' ');
-    case 'proveedor': return L.map(l=>l.proveedor||'').join(' ');
+    case 'proveedor': return L.map(l=>provNorm(l.proveedor)).join(' ');
     case 'precio': return L.map(l=>String(l.valor||'')).join(' ');
     case 'subtotal': return L.map(l=>String(egLineaSubtotal(l))).join(' ');
     case 'total': return String(egTotal(e));
@@ -2846,7 +2856,7 @@ function renderEgresosSheet(docs){
       html += `<td class="cli-cell">${l.clienteId? `<b class="sheet-client-link" onclick="goToClienteFromSheet('${esc(l.clienteId)}')">${esc(l.clienta||'')}</b>` : esc(l.clienta||'')}</td>`;
       html += `<td>${l.cant!=null && l.cant!==''? esc(numDec(l.cant).toLocaleString('es-AR')) : ''}</td>`;
       html += `<td class="prod-cell">${esc(l.prenda||'')}</td>`;
-      html += `<td>${esc(l.proveedor||'')}</td>`;
+      html += `<td>${esc(provNorm(l.proveedor))}</td>`;
       html += `<td>${l.valor? fmtARS(l.valor) : ''}</td>`;
       html += `<td>${l.valor? fmtARS(egLineaSubtotal(l)) : ''}</td>`;
       if(i===0){
@@ -2869,7 +2879,7 @@ function renderEgresosFooter(filtered, delMes){
       </div>`;
   el.innerHTML = `
     <div class="sf-card">
-      <div class="sf-title">Totales en esta vista</div>
+      <div class="sf-title">Totales en vista filtrada</div>
       ${row(sum(filtered))}
       <div class="sf-sep"></div>
       <div class="sf-title">Resumen del mes · ${esc(monthLabel(egresosMonth))}</div>
@@ -2942,7 +2952,7 @@ function resolverCodigoEgreso(row, pre){
     let idx = pre && pre.prendaIdx!=null ? egresoLineaApuntaA(pre, v.productos||[]) : -1;
     if(idx>-1 && sel.querySelector(`option[value="${idx}"]`)) sel.value = String(idx);
     sel.classList.remove('hidden'); txt.classList.add('hidden');
-    stat.textContent = `✓ Venta del ${fmtDateSheet(v.fecha)} · ${(v.productos||[]).filter(x=>!x.texto&&x.puntoVenta!=='CC').length} prenda(s)`; stat.className = 'eg-stat';
+    stat.textContent = ''; stat.className = 'eg-stat';
     row._venta = v;
     if(!(pre && pre.prendaIdx!=null)) egAutoCant(row);
   }).catch(err=>{ console.error(err); if(row._tok===tok) manual('No se pudo buscar el código'); });
@@ -2953,7 +2963,7 @@ function egAutoCant(row){
   const v = row._venta, sel = row.querySelector('.eg-prenda-sel'), c = row.querySelector('.eg-cant');
   if(!v || (c.value.trim() && c.dataset.auto!=='1')) return; // no pisa lo que se escribió a mano
   const pr = (v.productos||[])[parseInt(sel.value,10)];
-  c.value = (pr && !pr.esArreglo && pr.cant) ? pr.cant : '';
+  c.value = (pr && !pr.esArreglo && pr.cant) ? String(pr.cant).replace('.',',') : '';
   c.dataset.auto = '1';
   recalcEgresoTotal();
 }
@@ -2961,8 +2971,10 @@ function addEgresoLinea(l){
   l = l||{};
   const row = document.createElement('div');
   row.className = 'eg-line';
+  const provSel = provNorm(l.proveedor);
   row.innerHTML = `
     <div class="eg-l1">
+      <div class="field eg-pv"><select class="eg-prov"><option value="">Proveedor</option>${PROVEEDORES.map(p=>`<option value="${esc(p)}"${provSel===p?' selected':''}>${esc(p)}</option>`).join('')}</select></div>
       <div class="field eg-cod"><input class="eg-codigo" placeholder="Código" inputmode="numeric" value="${esc(l.codigo||'')}"></div>
       <div class="field eg-cli"><input class="eg-clienta" placeholder="Clienta" value="${esc(l.clienta||'')}"></div>
       <div class="rm-row">✕</div>
@@ -2970,11 +2982,11 @@ function addEgresoLinea(l){
     <div class="eg-stat"></div>
     <div class="eg-l2">
       <div class="field"><select class="eg-prenda-sel hidden"></select><input class="eg-prenda-txt" placeholder="Prenda" value="${esc(l.prenda||'')}"></div>
-      <div class="field"><select class="eg-prov"><option value="">Proveedor</option>${PROVEEDORES.map(p=>`<option value="${esc(p)}"${l.proveedor===p?' selected':''}>${esc(p)}</option>`).join('')}</select></div>
+      <div class="field"><input class="eg-detalle" placeholder="Detalle" value="${esc(l.detalle||'')}"></div>
     </div>
     <div class="eg-l3">
-      <div class="field eg-c"><input class="eg-cant" placeholder="Cant." inputmode="decimal" value="${esc(l.cant||'')}"></div>
-      <div class="field eg-v"><input class="eg-valor" placeholder="Precio unit. $" inputmode="numeric" value="${fmtMoney(l.valor)}"></div>
+      <div class="field eg-c"><input class="eg-cant" placeholder="Cant." inputmode="decimal" value="${esc(String(l.cant==null?'':l.cant).replace('.',','))}"></div>
+      <div class="field eg-v"><input class="eg-valor" placeholder="Valor $" inputmode="numeric" value="${fmtMoney(l.valor)}"></div>
       <div class="eg-sub">Subtotal <b>$0</b></div>
     </div>`;
   document.getElementById('eg-lineas').appendChild(row);
@@ -3042,7 +3054,8 @@ async function saveEgreso(){
       if(!proveedor){ alert('Elegí el proveedor en cada línea.'); return; }
       if(!(cant>0)){ alert('Completá la cantidad en cada línea.'); return; }
       if(!(valor>0)){ alert('Completá el precio unitario en cada línea.'); return; }
-      const lin = {codigo, clienta, prenda, proveedor, cant, valor};
+      const detalle = r.querySelector('.eg-detalle').value.trim();
+      const lin = {codigo, clienta, prenda, proveedor, detalle, cant, valor};
       if(ventaId){ lin.ventaId = ventaId; lin.clienteId = clienteId; lin.prendaIdx = parseInt(sel.value,10); }
       lineas.push(lin);
     }
@@ -3091,7 +3104,7 @@ function renderVentaFooter(filtered){
   });
   el.innerHTML = `
     <div class="sf-card">
-      <div class="sf-title">Totales en esta vista</div>
+      <div class="sf-title">Totales en vista filtrada</div>
       <div class="sf-row">
         <div class="sf-item"><span class="sf-l">Cantidad de prendas</span><b>${cant.toLocaleString('es-AR')}</b></div>
         <div class="sf-item"><span class="sf-l">Total $</span><b>${fmtARS(totARS)}</b></div>
