@@ -192,6 +192,9 @@ table.p-detail tfoot tr.payrow td,table.p-detail tfoot tr.saldorow td,table.p-de
 .sheet-monthbar{display:flex;align-items:center;justify-content:center;gap:18px;padding:12px;background:#fff;border-bottom:1px solid #ece6d8;font-family:'Montserrat',sans-serif}
 .sheet-month-label{font-family:'Montserrat',sans-serif;font-weight:600;font-size:15px;min-width:150px;text-align:center;text-transform:capitalize;color:#3a352c}
 .sheet-wrap{overflow-x:auto;padding:10px}
+.conv-btn{color:#9a9285;border-color:#d9d2c0}
+.conv-btn.on{background:#cfe9d6;border-color:#7fb68e;color:#2f7a48}
+table.sheet-table tbody tr.conv td,table.sheet-table tbody tr.zebra.conv td{background:#eaf6ec}
 .eye-ic{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;display:block}
 .nota-pop{position:fixed;z-index:60;max-width:min(280px,calc(100vw - 16px));background:#fff;border:1px solid #e3d9c2;border-radius:10px;padding:10px 13px;font-size:13px;line-height:1.4;color:#3a352c;white-space:pre-wrap;word-break:break-word;box-shadow:0 6px 22px rgba(60,50,30,.18)}
 .sheet-footer{padding:34px 10px 70px;display:flex;flex-direction:column;gap:12px;max-width:1100px;margin:0 auto}
@@ -432,7 +435,7 @@ body.role-admin .doctype-btns button.pago{display:block}
   <div class="sheet-wrap">
     <table class="sheet-table" id="presu-table">
       <colgroup>
-        <col style="width:26px"><col style="width:130px"><col style="width:44px"><col style="width:80px"><col style="width:95px"><col style="width:440px"><col style="width:46px"><col style="width:80px"><col style="width:80px">
+        <col style="width:26px"><col style="width:130px"><col style="width:44px"><col style="width:80px"><col style="width:95px"><col style="width:440px"><col style="width:46px"><col style="width:74px"><col style="width:80px"><col style="width:80px">
       </colgroup>
       <thead><tr>
         <th></th>
@@ -442,12 +445,14 @@ body.role-admin .doctype-btns button.pago{display:block}
         <th><input class="sheet-filter" id="pf-celular" placeholder="Celular" oninput="applySheetFilters('presu')"></th>
         <th><input class="sheet-filter" id="pf-producto" placeholder="Producto" oninput="applySheetFilters('presu')"></th>
         <th>Notas</th>
+        <th>Convertido</th>
         <th><input class="sheet-filter" id="pf-valorEfvo" placeholder="Valor $" oninput="applySheetFilters('presu')"></th>
         <th><input class="sheet-filter" id="pf-valorTarj" placeholder="Valor tarj." oninput="applySheetFilters('presu')"></th>
       </tr></thead>
-      <tbody id="presu-sheet-body"><tr><td colspan="9" class="sheet-empty">Cargando...</td></tr></tbody>
+      <tbody id="presu-sheet-body"><tr><td colspan="10" class="sheet-empty">Cargando...</td></tr></tbody>
     </table>
   </div>
+  <div id="presu-footer" class="sheet-footer"></div>
 </div>
 
 <!-- ============ PLANILLA: VENTAS ============ -->
@@ -1526,7 +1531,8 @@ function saveDoc(){
     savingDoc = false;
     if(tipo==='venta' && codigo!==undefined) data.codigo = codigo;
     const savedId = id || ref.doc().id; // id generado en el cliente: no hace falta esperar al servidor para mostrar el resultado
-    const savedDoc = {id: savedId, ...data};
+    const prevD0 = id? docsCache.find(x=>x.id===id) : null;
+    const savedDoc = {id: savedId, ...data, ...((tipo==='presupuesto' && prevD0 && prevD0.convertido)? {convertido:true} : {})};
     // Optimista: cerramos el modal y mostramos todo al instante; la escritura real viaja en segundo plano.
     closeModal('modal-doc');
     renderPreview(savedDoc);
@@ -1538,7 +1544,10 @@ function saveDoc(){
     const createdAtDoc = (prevDoc && prevDoc.createdAt) || (id && editingExistingCreatedAt) || Date.now(); // al editar se conserva el orden de carga original
     const wb = db.batch();
     if(id) wb.update(ref.doc(id), data); else wb.set(ref.doc(savedId), {...data, createdAt: createdAtDoc});
-    wb.set(db.collection(tipo==='presupuesto'?'presupuestos':'ventas').doc(savedId), {...data, id: savedId, createdAt: createdAtDoc, clienteId: currentClienteId, docId: savedId});
+    const globalRef = db.collection(tipo==='presupuesto'?'presupuestos':'ventas').doc(savedId);
+    const globalData = {...data, id: savedId, createdAt: createdAtDoc, clienteId: currentClienteId, docId: savedId};
+    // En presupuestos se mezcla (merge) para no perder la marca "convertido" al editar el presupuesto.
+    if(tipo==='presupuesto') wb.set(globalRef, globalData, {merge:true}); else wb.set(globalRef, globalData);
     markSaving();
     wb.commit().catch(err=>{
       console.error(err);
@@ -2341,6 +2350,7 @@ function applySheetFilters(which){
       })
     );
     renderPresuSheet(filtered);
+    renderPresuFooter(filtered);
   } else {
     const filtered = ventaSheetDocsRaw.filter(d=>
       VENTA_COLS.every(col=>{
@@ -2383,7 +2393,8 @@ function openPresupuestosSheet(){
   showScreen('presu-sheet');
   const {start,end} = monthRange(presuMonth);
   const body = document.getElementById('presu-sheet-body');
-  body.innerHTML = '<tr><td colspan="9" class="sheet-empty">Cargando...</td></tr>';
+  body.innerHTML = '<tr><td colspan="10" class="sheet-empty">Cargando...</td></tr>';
+  document.getElementById('presu-footer').innerHTML = '';
   stopLive('presu-sheet');
   const unsub = db.collection('presupuestos').where('fecha','>=',start).where('fecha','<=',end).orderBy('fecha').onSnapshot(SNAP_META, snap=>{
     if(monthRange(presuMonth).start!==start) return;
@@ -2392,7 +2403,7 @@ function openPresupuestosSheet(){
     renderSheetSeguro('presu');
   }, err=>{
     console.error(err);
-    body.innerHTML = '<tr><td colspan="9" class="sheet-empty">Error al cargar. Revisá la consola.</td></tr>';
+    body.innerHTML = '<tr><td colspan="10" class="sheet-empty">Error al cargar. Revisá la consola.</td></tr>';
   });
   liveUnsubs['presu-sheet'] = [unsub];
 }
@@ -2406,10 +2417,10 @@ function goToClienteFromSheet(clienteId){
 }
 function renderPresuSheet(docs){
   const body = document.getElementById('presu-sheet-body');
-  if(!docs.length){ body.innerHTML = '<tr><td colspan="9" class="sheet-empty">Sin presupuestos este mes.</td></tr>'; return; }
+  if(!docs.length){ body.innerHTML = '<tr><td colspan="10" class="sheet-empty">Sin presupuestos este mes.</td></tr>'; return; }
   let html = '';
   docs.forEach((d, gi)=>{
-    const zebra = gi%2===1? ' zebra' : '';
+    const zebra = (gi%2===1? ' zebra' : '') + (d.convertido? ' conv' : '');
     const rowspan = Math.max((d.productos||[]).length, 1);
     (d.productos||[]).forEach((p,i)=>{
       const f = p.moneda==='USD'?fmtUSD:fmtARS;
@@ -2426,6 +2437,8 @@ function renderPresuSheet(docs){
       html += `<td class="prod-cell">${esc(p.desc)}</td>`;
       // Notas: un solo botón (ojo) centrado en toda la fila del presupuesto
       if(i===0) html += `<td class="vmid" rowspan="${rowspan}">${d.notas? `<span class="sheet-plus nota-btn" title="Ver nota" onclick="showNotaPop(this,'${d.id}')"><svg class="eye-ic" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg></span>` : ''}</td>`;
+      // Convertido: un solo botón (check) centrado en toda la fila; al marcarlo la fila toma un verde pastel suave
+      if(i===0) html += `<td class="vmid" rowspan="${rowspan}"><span class="sheet-plus conv-btn${d.convertido?' on':''}" title="${d.convertido?'Convertido en venta (tocar para desmarcar)':'Marcar como convertido en venta'}" onclick="toggleConvertido('${d.clienteId}','${d.id}')"><svg class="eye-ic" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M4.5 12.5l5 5L19.5 7"/></svg></span></td>`;
       html += `<td>${f(p.efvo)}</td><td>${f(p.tarj)}</td></tr>`;
     });
   });
@@ -2567,6 +2580,45 @@ function showNotaPop(btn, id){
 document.addEventListener('click', e=>{ if(!e.target.closest('.nota-btn') && !e.target.closest('#nota-pop')) closeNotaPop(); });
 document.addEventListener('scroll', closeNotaPop, true);
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeNotaPop(); });
+// Presupuesto convertido en venta: se marca con el check de la planilla (se guarda en la ficha y en la planilla global)
+function toggleConvertido(clienteId, id){
+  const idx = presuSheetDocsRaw.findIndex(x=>x.id===id); if(idx<0) return;
+  const val = !presuSheetDocsRaw[idx].convertido;
+  const prevSheet = presuSheetDocsRaw[idx];
+  presuSheetDocsRaw[idx] = {...prevSheet, convertido:val};
+  const dc = docsCacheClienteId===clienteId ? docsCache.find(x=>x.id===id) : null;
+  if(dc) upsertDocInCache({...dc, convertido:val});
+  applySheetFilters('presu');
+  const b = db.batch();
+  b.update(db.collection('clientas').doc(clienteId).collection('documentos').doc(id), {convertido:val});
+  b.update(db.collection('presupuestos').doc(id), {convertido:val});
+  markSaving();
+  b.commit().catch(err=>{
+    console.error(err);
+    alert('No se pudo guardar el cambio. Revisá la consola.');
+    const j = presuSheetDocsRaw.findIndex(x=>x.id===id);
+    if(j>-1){ presuSheetDocsRaw[j] = prevSheet; applySheetFilters('presu'); }
+    if(dc) upsertDocInCache(dc);
+  });
+}
+// Estadísticas de presupuestos: enviados y convertidos (de lo que se ve y de todo el mes)
+function renderPresuFooter(filtered){
+  const el = document.getElementById('presu-footer'); if(!el) return;
+  const cnt = arr => ({env: arr.length, conv: arr.filter(d=>d.convertido).length});
+  const v = cnt(filtered), m = cnt(presuSheetDocsRaw);
+  const row = c => `<div class="sf-row">
+        <div class="sf-item"><span class="sf-l">Presupuestos enviados</span><b>${c.env.toLocaleString('es-AR')}</b></div>
+        <div class="sf-item"><span class="sf-l">Presupuestos convertidos</span><b>${c.conv.toLocaleString('es-AR')}</b></div>
+      </div>`;
+  el.innerHTML = `
+    <div class="sf-card">
+      <div class="sf-title">Totales en esta vista</div>
+      ${row(v)}
+      <div class="sf-sep"></div>
+      <div class="sf-title">Resumen del mes · ${esc(monthLabel(presuMonth))}</div>
+      ${row(m)}
+    </div>`;
+}
 function esCC(d){ return String(d.puntoVenta||'').split(' + ').map(x=>x.trim()).includes('CC'); }
 // Totales de lo que se está viendo (se actualizan al filtrar) + resumen del mes completo (no depende de los filtros)
 function renderVentaFooter(filtered){

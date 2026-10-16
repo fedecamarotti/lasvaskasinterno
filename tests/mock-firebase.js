@@ -16,7 +16,7 @@ function colRef(path){return {
 function docRef(path){const parts=path.split('/');return {id:parts[parts.length-1],path,
   collection(n){return colRef(path+'/'+n);},
   async get(){const d=store[path];return {exists:d!==undefined,id:this.id,data:()=>clone(d)};},
-  async set(data,opt){store[path]=clone(data);notify();},
+  async set(data,opt){store[path]=(opt&&opt.merge&&store[path])?{...store[path],...clone(data)}:clone(data);notify();},
   async update(upd){if(store[path]===undefined) throw new Error('not-found '+path);store[path]=applyUpd(store[path],upd);notify();},
   async delete(){delete store[path];notify();}
 };}
@@ -33,7 +33,7 @@ function query(path,filters=[],order=null,dir='asc'){return {
     return {docs,empty:!docs.length,size:docs.length,forEach:f=>docs.forEach(f)};
   }};}
 const fs={settings(){},enablePersistence:async()=>{},waitForPendingWrites:async()=>{},runTransaction:async f=>f({get:r=>r.get(),set:(r,d,o)=>r.set(o&&o.merge?{...(store[r.path]||{}),...d}:d)}),collection:n=>colRef(n),batch(){const ops=[];return{
-  set(r,d){ops.push(()=>r.set(d));return this;},update(r,d){ops.push(()=>r.update(d));return this;},delete(r){ops.push(()=>r.delete());return this;},
+  set(r,d,o){ops.push(()=>r.set(d,o));return this;},update(r,d){ops.push(()=>r.update(d));return this;},delete(r){ops.push(()=>r.delete());return this;},
   async commit(){for(const o of ops) await o();}};}};
 let cb=null;const user={uid:'u1',email:window.__EMAIL||'fede@x.com'};
 const auth={currentUser:null,onAuthStateChanged(f){cb=f;setTimeout(()=>{auth.currentUser=user;f(user);},50);return()=>{};},
