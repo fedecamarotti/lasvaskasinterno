@@ -855,7 +855,7 @@ const NAV_ITEMS = [
   {key:'venta-sheet', label:'Ventas', icon:'fa-receipt', go:'openVentasSheet()'},
   {key:'presu-sheet', label:'Presupuestos', icon:'fa-file-lines', go:'openPresupuestosSheet()'},
   {key:'deudas', label:'Deudoras', icon:'fa-hand-holding-dollar', go:'openDeudas()', badge:true},
-  {key:'egresos-sheet', label:'Telas/Arreglos', icon:'fa-money-bill-transfer', go:'openEgresosSheet()', admin:true}
+  {key:'egresos-sheet', label:'Telas/Arreglos', icon:'fa-person-dress', go:'openEgresosSheet()', admin:true}
 ];
 function buildNav(){
   const html = NAV_ITEMS.map(n=>`<button type="button" class="chip-btn${n.admin?' nav-admin':''}" data-nav="${n.key}" onclick="${n.go}"><i class="fa-solid ${n.icon} nav-ic"></i> ${n.label}${n.badge?'<span class="debt-badge deudas-count hidden">0</span>':''}</button>`).join('');
