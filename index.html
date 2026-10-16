@@ -187,6 +187,7 @@ table.p-detail tfoot tr.payrow td,table.p-detail tfoot tr.saldorow td,table.p-de
 .sheet-monthbar{display:flex;align-items:center;justify-content:center;gap:18px;padding:12px;background:#fff;border-bottom:1px solid #ece6d8;font-family:'Montserrat',sans-serif}
 .sheet-month-label{font-family:'Montserrat',sans-serif;font-weight:600;font-size:15px;min-width:150px;text-align:center;text-transform:capitalize;color:#3a352c}
 .sheet-wrap{overflow-x:auto;padding:10px}
+.eye-ic{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;display:block}
 .nota-pop{position:fixed;z-index:60;max-width:min(280px,calc(100vw - 16px));background:#fff;border:1px solid #e3d9c2;border-radius:10px;padding:10px 13px;font-size:13px;line-height:1.4;color:#3a352c;white-space:pre-wrap;word-break:break-word;box-shadow:0 6px 22px rgba(60,50,30,.18)}
 .sheet-footer{padding:34px 10px 70px;display:flex;flex-direction:column;gap:12px;max-width:1100px;margin:0 auto}
 .sf-sep{height:1px;background:#efe9da;margin:14px 0 12px}
@@ -2484,7 +2485,7 @@ function renderVentaSheet(docs){
       }
       html += `<td class="prod-cell">${esc(p.desc)}</td>`;
       // Notas: un solo botón (ojo) centrado en toda la fila de la venta; muestra la nota en un mini desplegable
-      if(i===0) html += `<td class="vmid" rowspan="${rowspan}">${d.notas? `<span class="sheet-plus nota-btn" title="Ver nota" onclick="showNotaPop(this,'${d.id}')"><i class="fa-solid fa-eye"></i></span>` : ''}</td>`;
+      if(i===0) html += `<td class="vmid" rowspan="${rowspan}">${d.notas? `<span class="sheet-plus nota-btn" title="Ver nota" onclick="showNotaPop(this,'${d.id}')"><svg class="eye-ic" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg></span>` : ''}</td>`;
       if(d.esSaldoMovimiento){
         html += `<td class="vmid">-</td><td>-</td><td>-</td><td class="vmid tot-cell">-</td>`;
       } else {
