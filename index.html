@@ -700,6 +700,7 @@ let currentUserNombre = '';
 
 /* =================== HELPERS =================== */
 // Escapa texto cargado por usuarios antes de meterlo en HTML (evita que un nombre o descripción con < > " rompa la pantalla o inyecte código)
+function nl2br(t){ return esc(t).replace(/\r?\n/g,'<br>'); }
 function esc(v){ return String(v==null?'':v).replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
 function num(v){ const digits = String(v||'').replace(/[^\d]/g,''); return digits? parseInt(digits,10) : 0; }
 // numDec: igual que num() pero respeta decimales, aceptando coma o punto como separador (ej: "2,5" o "2.5" -> 2.5)
@@ -1511,9 +1512,7 @@ function saveDoc(){
       alert('No se pudo guardar. Revisá la consola.');
       if(!id) removeDocFromCache(savedId);
     });
-    // Recién ahora se refresca la planilla (si está abierta): el lote ya está encolado, así que la planilla incluye lo recién guardado.
-    if(!document.getElementById('screen-venta-sheet').classList.contains('hidden')) openVentasSheet();
-    if(!document.getElementById('screen-presu-sheet').classList.contains('hidden')) openPresupuestosSheet();
+    // Las planillas abiertas se actualizan solas (escucha en vivo), sin recargarse ni volver arriba de todo.
   };
   const codigoViejo = (id && editingExistingCodigo!=null)? String(editingExistingCodigo) : null;
   // Si al editar la fecha cambia a otro mes distinto del que tiene el código (ej: 1001 en una venta de septiembre), se genera uno nuevo del mes correcto.
@@ -1555,8 +1554,7 @@ function deleteDoc(){
   db_.delete(db.collection('clientas').doc(currentClienteId).collection('documentos').doc(id));
   db_.delete(db.collection(tipo==='presupuesto'?'presupuestos':'ventas').doc(id));
   const rec = db_.commit(); markSaving();
-  if(!document.getElementById('screen-venta-sheet').classList.contains('hidden')) openVentasSheet();
-  if(!document.getElementById('screen-presu-sheet').classList.contains('hidden')) openPresupuestosSheet();
+  // Las planillas abiertas se actualizan solas (escucha en vivo), sin volver arriba de todo.
   rec.catch(err=>{
     console.error(err);
     alert('No se pudo eliminar. Revisá la consola.');
@@ -1997,7 +1995,7 @@ function buildPaperHTML(d, c, includeNotes){
     totalsHTML = rows;
   }
 
-  const notesHTML = (includeNotes && d.notas)? `<tr class="notesrow"><td colspan="3"><b>Notas:</b> ${esc(d.notas)}</td></tr>` : '';
+  const notesHTML = (includeNotes && d.notas)? `<tr class="notesrow"><td colspan="3"><b>Notas:</b> ${nl2br(d.notas)}</td></tr>` : '';
 
   const termsHTML = isPresu ? `
     <div class="b">Efectivo 20% de descuento (2 cuotas dentro de los 30 días)</div>
@@ -2394,7 +2392,7 @@ function renderPresuSheet(docs){
       }
       html += `<td class="prod-cell">${esc(p.desc)}</td><td>${f(p.efvo)}</td><td>${f(p.tarj)}</td></tr>`;
     });
-    if(d.notas) html += `<tr class="${zebra.trim()}"><td class="notes-cell">${esc(d.notas)}</td><td colspan="2"></td></tr>`;
+    if(d.notas) html += `<tr class="${zebra.trim()}"><td class="notes-cell">${nl2br(d.notas)}</td><td colspan="2"></td></tr>`;
   });
   body.innerHTML = html;
 }
@@ -2522,7 +2520,7 @@ function showNotaPop(btn, id){
   if(!d || !d.notas || mismo) return;
   const pop = document.createElement('div');
   pop.id = 'nota-pop'; pop.className = 'nota-pop'; pop.dataset.for = id;
-  pop.textContent = d.notas;
+  pop.innerHTML = nl2br(d.notas);
   document.body.appendChild(pop);
   const r = btn.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
   let left = Math.min(Math.max(8, r.left + r.width/2 - w/2), window.innerWidth - w - 8);

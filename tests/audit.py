@@ -200,6 +200,17 @@ with sync_playwright() as p:
         ev("document.querySelector('#venta-sheet-body .nota-btn').click()"); wait(100); ev("document.body.click()"); wait(100)
         ok('notas: tocar afuera lo cierra', ev("!document.getElementById('nota-pop')"))
         ev("ventaSheetDocsRaw=ventaSheetDocsRaw.filter(d=>d.id!=='zz3'); applySheetFilters('venta')")
+        # Guardar una edición desde la planilla no vuelve arriba de todo, y la nota conserva los saltos de línea
+        ev("""(()=>{for(let i=0;i<40;i++){const id='sv'+i; const d={id,clienteId:'c1',clienteNombre:'Lola',clienteApellido:'Arana',fecha:'2026-09-'+String(1+(i%25)).padStart(2,'0'),createdAt:100+i,puntoVenta:'Belgrano',codigo:'08'+i,productos:[{desc:'p'+i,cant:'1',valorUnit:1000,total:1000,moneda:'ARS'}],pagos:[],aPagarARS:1000,aPagarUSD:0,totalARS:1000,totalUSD:0,tipo:'venta'}; window.__store['ventas/'+id]=d; window.__store['clientas/c1/documentos/'+id]=d;}})()"""); ev("openVentasSheet()"); wait(600)
+        ev("window.scrollTo(0,600)"); wait(100)
+        ev("editSheetDoc('c1','sv30','venta')"); wait(500)
+        pg.fill('#doc-notas','linea1\nlinea2'); ev("saveDoc()"); wait(600); ev("closeModal('modal-preview')"); wait(300)
+        ok('guardar desde la planilla mantiene la posición', ev("window.scrollY")>=500 and ev("!document.getElementById('screen-venta-sheet').classList.contains('hidden')"))
+        ev("document.querySelector('#venta-sheet-body .nota-btn').click()"); wait(100)
+        ok('nota con salto de línea se ve en dos líneas', ev("document.getElementById('nota-pop').innerHTML")=='linea1<br>linea2')
+        ev("closeNotaPop()")
+        for i in range(40): ev(f"delete window.__store['ventas/sv{i}']; delete window.__store['clientas/c1/documentos/sv{i}']")
+        ev("window.scrollTo(0,0)")
         # en vivo: lo que carga otra persona aparece solo en la planilla abierta
         ev("db.collection('ventas').doc('zz9').set({clienteId:'c2',clienteNombre:'Ajena',clienteApellido:'Persona',fecha:'2026-09-20',createdAt:5,puntoVenta:'Belgrano',codigo:'0999',productos:[{desc:'cosa ajena',cant:'1',valorUnit:10,total:10,moneda:'ARS'}],pagos:[],aPagarARS:0,aPagarUSD:0})"); wait(400)
         ok('planilla en vivo: aparece lo cargado por otra persona', 'cosa ajena' in txt('#venta-sheet-body'))
