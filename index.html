@@ -306,7 +306,7 @@ body.role-limited #venta-table colgroup col:nth-child(9){display:none}
 .co-cant-wrap input{text-align:center;padding:9px 4px}
 .co-valor-wrap{flex:0 0 84px}
 .co-valor-wrap input{text-align:right;padding:9px 6px}
-@media(max-width:420px){ .eg-l1 .eg-pv{flex:0 0 128px} .eg-l1 .eg-cod{flex:0 0 62px} }
+@media(max-width:480px){ .eg-l1 .eg-pv{flex:0 0 106px} .eg-l1 .eg-cod{flex:0 0 56px} .eg-l1 select,.eg-l1 input{padding-left:6px;padding-right:4px} }
 @media(max-width:400px){
   .co-tipo-wrap{flex:0 0 104px}
   .co-valor-wrap{flex:0 0 74px}
@@ -331,14 +331,18 @@ table.sheet-table tbody td.tot-cell{font-weight:700}
 .modal-eg{max-width:560px}
 .eg-line{border:1px solid #ece6d8;border-radius:10px;padding:10px;margin-bottom:10px;background:#fcfbf8}
 .eg-line .field{margin-bottom:0}
-.eg-l1,.eg-l2,.eg-l3{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.eg-l1,.eg-l2{display:flex;gap:6px;align-items:center;margin-bottom:6px}
 .eg-l1 .eg-pv{flex:0 0 150px}
 .eg-l1 .eg-cod{flex:0 0 74px}
 .eg-l1 .eg-cli{flex:1;min-width:0}
-.eg-l2 .field{flex:1;min-width:0}
-.eg-l3 .eg-c{flex:0 0 58px}
-.eg-l3 .eg-v{flex:1;min-width:0}
-.eg-l3 input{text-align:right}
+.eg-l2 .eg-pren{flex:0 0 118px;min-width:0}
+.eg-l2 .eg-det{flex:1;min-width:0}
+.eg-l2 .eg-c{flex:0 0 52px}
+.eg-l2 .eg-v{flex:0 0 84px}
+.eg-l2 .eg-c input{text-align:center;padding-left:4px;padding-right:4px}
+.eg-l2 .eg-v input{text-align:right;padding-left:6px;padding-right:6px}
+.eg-l2 select,.eg-l2 .eg-pren input,.eg-l2 .eg-det input{padding-left:8px;padding-right:6px}
+@media(max-width:480px){ .eg-l2{flex-wrap:wrap} .eg-l2 .eg-det{flex:1 1 40%} .eg-sub{flex:1 0 100%;text-align:right} }
 .eg-sub{flex:0 0 auto;font-size:12px;color:#8a8375;white-space:nowrap}
 .eg-sub b{color:#3a352c}
 .eg-stat{font-size:11px;min-height:0;margin:-2px 0 6px 2px;color:#4f8f68}
@@ -2971,23 +2975,21 @@ function addEgresoLinea(l){
   l = l||{};
   const row = document.createElement('div');
   row.className = 'eg-line';
-  const provSel = provNorm(l.proveedor);
+  const provSel = provNorm(l.proveedor) || 'Telas';
   row.innerHTML = `
     <div class="eg-l1">
-      <div class="field eg-pv"><select class="eg-prov"><option value="">Proveedor</option>${PROVEEDORES.map(p=>`<option value="${esc(p)}"${provSel===p?' selected':''}>${esc(p)}</option>`).join('')}</select></div>
+      <div class="field eg-pv"><select class="eg-prov">${PROVEEDORES.map(p=>`<option value="${esc(p)}"${provSel===p?' selected':''}>${esc(p)}</option>`).join('')}</select></div>
       <div class="field eg-cod"><input class="eg-codigo" placeholder="Código" inputmode="numeric" value="${esc(l.codigo||'')}"></div>
       <div class="field eg-cli"><input class="eg-clienta" placeholder="Clienta" value="${esc(l.clienta||'')}"></div>
       <div class="rm-row">✕</div>
     </div>
     <div class="eg-stat"></div>
     <div class="eg-l2">
-      <div class="field"><select class="eg-prenda-sel hidden"></select><input class="eg-prenda-txt" placeholder="Prenda" value="${esc(l.prenda||'')}"></div>
-      <div class="field"><input class="eg-detalle" placeholder="Detalle" value="${esc(l.detalle||'')}"></div>
-    </div>
-    <div class="eg-l3">
+      <div class="field eg-pren"><select class="eg-prenda-sel hidden"></select><input class="eg-prenda-txt" placeholder="Prenda" value="${esc(l.prenda||'')}"></div>
+      <div class="field eg-det"><input class="eg-detalle" placeholder="Detalle" value="${esc(l.detalle||'')}"></div>
       <div class="field eg-c"><input class="eg-cant" placeholder="Cant." inputmode="decimal" value="${esc(String(l.cant==null?'':l.cant).replace('.',','))}"></div>
       <div class="field eg-v"><input class="eg-valor" placeholder="Valor $" inputmode="numeric" value="${fmtMoney(l.valor)}"></div>
-      <div class="eg-sub">Subtotal <b>$0</b></div>
+      <div class="eg-sub"><b>$0</b></div>
     </div>`;
   document.getElementById('eg-lineas').appendChild(row);
   attachMoneyInput(row.querySelector('.eg-valor'));
@@ -3049,7 +3051,7 @@ async function saveEgreso(){
       const cant = numDec(r.querySelector('.eg-cant').value)||0;
       const valor = num(r.querySelector('.eg-valor').value)||0;
       const clienta = r.querySelector('.eg-clienta').value.trim();
-      if(!codigo && !clienta && !prenda && !proveedor && !cant && !valor) continue; // línea vacía
+      if(!codigo && !clienta && !prenda && !cant && !valor && !r.querySelector('.eg-detalle').value.trim()) continue; // línea vacía (el proveedor siempre viene elegido)
       if(codigo && !ventaId){ alert(`El código ${codigo} no corresponde a ninguna venta. Corregilo o dejalo vacío para escribir la clienta a mano.`); return; }
       if(!proveedor){ alert('Elegí el proveedor en cada línea.'); return; }
       if(!(cant>0)){ alert('Completá la cantidad en cada línea.'); return; }

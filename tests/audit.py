@@ -365,7 +365,7 @@ with sync_playwright() as p:
         ev("(()=>{const s=document.querySelector('#eg-lineas .eg-prenda-sel'); s.value='1'; s.dispatchEvent(new Event('change'))})()"); wait(100)
         ok('Egresos: la cantidad se completa con la de la prenda', ev("document.querySelector('#eg-lineas .eg-cant').value")=='3')
         provs=ev("[...document.querySelectorAll('#eg-lineas .eg-prov option')].map(o=>o.textContent)")
-        ok('Egresos: proveedores', provs==['Proveedor','Telas','Rufina nuevo','Rufina arreglos'])
+        ok('Egresos: proveedores', provs==['Telas','Rufina nuevo','Rufina arreglos'] and ev("document.querySelector('#eg-lineas .eg-prov').value")=='Telas')
         ev("(()=>{const r=document.querySelector('#eg-lineas .eg-line'); r.querySelector('.eg-prov').value='Rufina nuevo'; const v=r.querySelector('.eg-valor'); v.value='10.000'; v.dispatchEvent(new Event('input'))})()"); wait(50)
         ok('Egresos: subtotal y total en vivo (3 x 10.000)', ev("document.querySelector('#eg-lineas .eg-sub b').innerText")=='$30.000' and txt('#eg-total')=='$30.000')
         ev("addEgresoLinea()"); wait(50)
