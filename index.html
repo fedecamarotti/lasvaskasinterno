@@ -2958,18 +2958,9 @@ function resolverCodigoEgreso(row, pre){
     sel.classList.remove('hidden'); txt.classList.add('hidden');
     stat.textContent = ''; stat.className = 'eg-stat';
     row._venta = v;
-    if(!(pre && pre.prendaIdx!=null)) egAutoCant(row);
   }).catch(err=>{ console.error(err); if(row._tok===tok) manual('No se pudo buscar el código'); });
   row._p = p;
   return p;
-}
-function egAutoCant(row){
-  const v = row._venta, sel = row.querySelector('.eg-prenda-sel'), c = row.querySelector('.eg-cant');
-  if(!v || (c.value.trim() && c.dataset.auto!=='1')) return; // no pisa lo que se escribió a mano
-  const pr = (v.productos||[])[parseInt(sel.value,10)];
-  c.value = (pr && !pr.esArreglo && pr.cant) ? String(pr.cant).replace('.',',') : '';
-  c.dataset.auto = '1';
-  recalcEgresoTotal();
 }
 function addEgresoLinea(l){
   l = l||{};
@@ -2997,8 +2988,7 @@ function addEgresoLinea(l){
   let t = null;
   cod.addEventListener('input', ()=>{ clearTimeout(t); t = setTimeout(()=>resolverCodigoEgreso(row), 350); });
   cod.addEventListener('blur', ()=>{ clearTimeout(t); resolverCodigoEgreso(row); });
-  row.querySelector('.eg-prenda-sel').addEventListener('change', ()=>egAutoCant(row));
-  row.querySelector('.eg-cant').addEventListener('input', e=>{ e.target.dataset.auto=''; recalcEgresoTotal(); });
+  row.querySelector('.eg-cant').addEventListener('input', recalcEgresoTotal);
   row.querySelector('.eg-valor').addEventListener('input', recalcEgresoTotal);
   row.querySelector('.rm-row').addEventListener('click', ()=>{
     if(document.querySelectorAll('#eg-lineas .eg-line').length<=1) return; // siempre queda al menos una línea
