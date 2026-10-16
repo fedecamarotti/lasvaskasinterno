@@ -148,6 +148,21 @@ with sync_playwright() as p:
     ok('presupuestos: editar conserva convertido', ev("Object.entries(window.__store).filter(([k,v])=>(k.startsWith('presupuestos/')||(k.includes('/documentos/')&&v.tipo==='presupuesto'))&&v.convertido===true).length")>=2 and ev("!!document.querySelector('#presu-sheet-body tr.conv')"))
     ev("document.querySelector('#presu-sheet-body .conv-btn').click()"); wait(300)
     ok('presupuestos: desmarcar quita el verde', ev("!document.querySelector('#presu-sheet-body tr.conv')") and 'presupuestos convertidos 0' in txt('#presu-footer').lower())
+    # El sistema empieza en septiembre 2026: no se puede ir más atrás y la flecha izquierda desaparece
+    for w,fn,mv,lab in (('venta','openVentasSheet','ventaMonth','venta-month-label'),('presu','openPresupuestosSheet','presuMonth','presu-month-label')):
+        scr = 'screen-venta-sheet' if w=='venta' else 'screen-presu-sheet'
+        ev(f"{mv}=new Date(2026,9,1); {fn}()"); wait(250)
+        arrow=f"document.querySelector('#{scr} .sheet-monthbar .icon-btn').style.visibility"
+        ok(f'{w}: en octubre la flecha izquierda se ve', ev(arrow)=='visible')
+        ev(f"shiftMonth('{w}',-1)"); wait(250)
+        ok(f'{w}: en septiembre 2026 desaparece la flecha izquierda', 'Septiembre 2026' in txt('#'+lab) and ev(arrow)=='hidden')
+        ev(f"shiftMonth('{w}',-1)"); wait(250)
+        ok(f'{w}: no se puede ir antes de septiembre 2026', 'Septiembre 2026' in txt('#'+lab))
+        ev(f"{mv}=new Date(2026,6,1); {fn}()"); wait(250)
+        ok(f'{w}: un mes anterior se corrige a septiembre 2026', 'Septiembre 2026' in txt('#'+lab))
+        ev(f"shiftMonth('{w}',1)"); wait(250)
+        ok(f'{w}: se puede avanzar y la flecha vuelve', 'Octubre 2026' in txt('#'+lab) and ev(arrow)=='visible')
+    ev("ventaMonth=new Date(2026,8,1); presuMonth=new Date(); presuMonth.setDate(1); openPresupuestosSheet()"); wait(300)
     # deudas
     ev("openDeudas()"); wait(300)
     ok('deudoras muestra', 'Arana' in txt('#deudas-list') or 'Amherdt' in txt('#deudas-list') or '$' in txt('#deudas-list'))

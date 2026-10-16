@@ -2374,9 +2374,18 @@ function monthRange(d){
   const end = `${y}-${String(m+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
   return {start, end};
 }
+// Este sistema cuenta desde septiembre 2026 (inclusive): antes de esa fecha no hay datos (se toman de la planilla vieja).
+const MES_INICIAL = new Date(2026, 8, 1);
+function mesIndex(d){ return d.getFullYear()*12 + d.getMonth(); }
+function clampMes(d){ if(mesIndex(d) < mesIndex(MES_INICIAL)){ d.setFullYear(MES_INICIAL.getFullYear(), MES_INICIAL.getMonth(), 1); } }
+// La flecha izquierda desaparece (sin mover el resto) cuando se está en el primer mes
+function syncMonthArrows(screenId, d){
+  const b = document.querySelector('#'+screenId+' .sheet-monthbar .icon-btn');
+  if(b) b.style.visibility = mesIndex(d) <= mesIndex(MES_INICIAL) ? 'hidden' : 'visible';
+}
 function shiftMonth(which, delta){
-  if(which==='presu'){ presuMonth.setMonth(presuMonth.getMonth()+delta); openPresupuestosSheet(); }
-  else { ventaMonth.setMonth(ventaMonth.getMonth()+delta); openVentasSheet(); }
+  if(which==='presu'){ presuMonth.setMonth(presuMonth.getMonth()+delta); clampMes(presuMonth); openPresupuestosSheet(); }
+  else { ventaMonth.setMonth(ventaMonth.getMonth()+delta); clampMes(ventaMonth); openVentasSheet(); }
 }
 // Si alguien está escribiendo en un casillero de la planilla (ej. factura), el redibujado por un cambio ajeno espera a que termine.
 let sheetPendiente = null;
@@ -2389,7 +2398,9 @@ document.addEventListener('focusout', ()=>{
   if(sheetPendiente){ const w = sheetPendiente; sheetPendiente = null; setTimeout(()=>applySheetFilters(w), 0); }
 });
 function openPresupuestosSheet(){
+  clampMes(presuMonth);
   document.getElementById('presu-month-label').textContent = monthLabel(presuMonth);
+  syncMonthArrows('screen-presu-sheet', presuMonth);
   showScreen('presu-sheet');
   const {start,end} = monthRange(presuMonth);
   const body = document.getElementById('presu-sheet-body');
@@ -2446,7 +2457,9 @@ function renderPresuSheet(docs){
   body.innerHTML = html;
 }
 function openVentasSheet(){
+  clampMes(ventaMonth);
   document.getElementById('venta-month-label').textContent = monthLabel(ventaMonth);
+  syncMonthArrows('screen-venta-sheet', ventaMonth);
   showScreen('venta-sheet');
   const {start,end} = monthRange(ventaMonth);
   const body = document.getElementById('venta-sheet-body');
