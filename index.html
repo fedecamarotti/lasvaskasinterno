@@ -222,7 +222,10 @@ table.sheet-table td.plus-cell{text-align:center;vertical-align:middle;padding:3
 .sheet-pencil,.sheet-authorize{cursor:pointer}
 .sheet-pencil{color:#a8823f;cursor:pointer;font-size:11px}
 td.edit-cell{width:26px}
-.sheet-inline-input{width:100%;text-align:center;padding:3px 2px;font-size:11px}
+.sheet-inline-input{width:100%;height:20px;text-align:center;padding:3px 2px;font-size:10px;font-weight:400}
+/* Número de factura: sin negrita mientras se escribe; en negrita una vez guardado (Enter o al salir del casillero) */
+.sheet-inline-input.saved{font-weight:700}
+.sheet-inline-input:focus{font-weight:400}
 .live-total{font-family:'Montserrat',sans-serif;font-size:16px;font-weight:700;margin:4px 0 14px;color:#a8823f}
 .metodo-chip{display:block;padding:1px 6px;border-radius:8px;font-size:9.5px;font-weight:600;white-space:nowrap;margin:1px auto;width:fit-content}
 .metodo-efvo{background:#e3f3e9;color:#3f7a56}
@@ -2501,7 +2504,7 @@ function renderVentaSheet(docs){
       if(i===0){
         html += `<td class="vmid" rowspan="${rowspan}">${ventaMetodoCellHTML(d)}</td>`;
         html += `<td class="vmid" rowspan="${rowspan}">${esc(d.clienteDni||'')}</td>`;
-        html += `<td class="vmid" rowspan="${rowspan}">${facturaColorClass(d)? `<input class="sheet-inline-input ${facturaColorClass(d)}" value="${esc(d.factura||'')}" data-cliente-id="${d.clienteId}" data-venta-id="${d.id}" onchange="updateFacturaInline(this)">` : ''}</td>`;
+        html += `<td class="vmid" rowspan="${rowspan}">${facturaColorClass(d)? `<input class="sheet-inline-input ${facturaColorClass(d)}${d.factura? ' saved':''}" value="${esc(d.factura||'')}" data-cliente-id="${d.clienteId}" data-venta-id="${d.id}" onkeydown="if(event.key==='Enter'){this.blur()}" onchange="updateFacturaInline(this)">` : ''}</td>`;
         html += `<td class="vmid" rowspan="${rowspan}">${esc(d.clienteTelefono||'')}</td>`;
       }
       html += `</tr>`;
@@ -2572,6 +2575,7 @@ function renderVentaFooter(filtered){
 function updateFacturaInline(el){
   const clienteId = el.dataset.clienteId, ventaId = el.dataset.ventaId, factura = el.value.trim();
   // Reflejamos el cambio en memoria para que la planilla no vuelva a mostrar el valor viejo si se vuelve a dibujar.
+  el.classList.toggle('saved', !!factura);
   const idxF = ventaSheetDocsRaw.findIndex(x=>x.id===ventaId);
   if(idxF>-1) ventaSheetDocsRaw[idxF] = {...ventaSheetDocsRaw[idxF], factura};
   const docF = docsCache.find(x=>x.id===ventaId);
