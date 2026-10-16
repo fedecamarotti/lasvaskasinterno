@@ -66,6 +66,8 @@ label{font-size:12px;color:#9a9285;display:block;margin-bottom:4px;letter-spacin
 .icon-btn:hover{background:#e9e3d3}
 .chip-btn{background:#f2eee3;color:#3a352c;border-radius:20px;padding:9px 14px;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:7px}
 .chip-btn:hover{background:#e9e3d3}
+.nav-admin{display:none}
+body.role-admin .nav-admin{display:flex}
 .debt-badge{background:#c1685c;color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 6px;margin-left:4px}
 
 .container{max-width:640px;margin:0 auto;padding:16px}
@@ -249,9 +251,9 @@ td.edit-cell{width:26px}
 .metodo-pagado{background:#fbf0c9;color:#8a6a1f}
 .costos-totals{display:flex;justify-content:space-between;margin-top:8px;font-size:13px;color:#8a8375}
 .sheet-authorize{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:4px;background:#4f8f68;color:#fff;font-size:11px;font-weight:700;cursor:pointer;margin-top:4px}
-body.role-limited #venta-table th:nth-child(8),
-body.role-limited #venta-table td:nth-child(8),
-body.role-limited #venta-table colgroup col:nth-child(8){display:none}
+body.role-limited #venta-table th:nth-child(9),
+body.role-limited #venta-table td:nth-child(9),
+body.role-limited #venta-table colgroup col:nth-child(9){display:none}
 @media(max-width:600px){
   table.sheet-table thead th{font-size:8px;padding:6px 2px;letter-spacing:0}
   .sheet-filter{font-size:8px;letter-spacing:0}
@@ -283,7 +285,7 @@ body.role-limited #venta-table colgroup col:nth-child(8){display:none}
   .prod-row.pr-presu{grid-template-columns:52px minmax(0,1fr) 92px 24px;grid-template-areas:"d d d x" "m v t ."}
   .prod-row.arreglo-row{grid-template-areas:"d d d d x" "m . . t ."}
 }
-/* botones "+ Producto" / "+ Arreglos/otros" */
+/* botones "+ Prenda" / "+ Arreglos/otros" */
 .add-pills{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px}
 .add-pill{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:16px;border:none;font-size:12px;font-weight:600;cursor:pointer;background:#f4ecd9;color:#8f6c2a}
 .add-pill.hidden{display:none}
@@ -319,6 +321,35 @@ table.sheet-table tbody td.tot-cell{font-weight:700}
 /* ---------- factura color por método ---------- */
 .sheet-inline-input.fact-azul{background:#dbe6fb}
 .sheet-inline-input.fact-naranja{background:#fbe3c7}
+
+/* ---------- egresos ---------- */
+.eg-toolbar{display:flex;justify-content:flex-end;padding:10px 10px 0;max-width:100%}
+.eg-estado{appearance:none;-webkit-appearance:none;border:none;border-radius:10px;font-family:'Montserrat',sans-serif;font-weight:600;font-size:10px;text-align:center;text-align-last:center;padding:3px 6px;cursor:pointer;height:22px;color:#3a352c}
+.eg-estado.pend{background:#f8dcd8;color:#a13f38}
+.eg-estado.pag{background:#d9f0e1;color:#2f6b45}
+.eg-fp{font-family:'Montserrat',sans-serif;min-width:0}
+.modal-eg{max-width:560px}
+.eg-line{border:1px solid #ece6d8;border-radius:10px;padding:10px;margin-bottom:10px;background:#fcfbf8}
+.eg-line .field{margin-bottom:0}
+.eg-l1,.eg-l2,.eg-l3{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.eg-l1 .eg-cod{flex:0 0 84px}
+.eg-l1 .eg-cli{flex:1;min-width:0}
+.eg-l2 .field{flex:1;min-width:0}
+.eg-l3 .eg-c{flex:0 0 70px}
+.eg-l3 .eg-v{flex:1;min-width:0}
+.eg-l3 input{text-align:right}
+.eg-sub{flex:0 0 auto;font-size:12px;color:#8a8375;white-space:nowrap}
+.eg-sub b{color:#3a352c}
+.eg-stat{font-size:11px;min-height:0;margin:-2px 0 6px 2px;color:#4f8f68}
+.eg-stat.err{color:#c1685c}
+.eg-stat:empty{display:none}
+.eg-line input[readonly]{background:#f3f0e8;color:#6d6657}
+.cf-box{background:#f7f4ec;border:1px dashed #d9cfb5;border-radius:9px;padding:8px 10px;margin-bottom:12px}
+.cf-title{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8f6c2a;margin-bottom:4px}
+.cf-row{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;padding:3px 0;color:#3a352c}
+.cf-row .cf-d{color:#8a8372;font-size:11.5px;flex:1;min-width:0}
+.cf-row .cf-v{font-weight:700;white-space:nowrap}
+.cf-note{font-size:11px;color:#9a9285;margin-top:4px}
 
 /* ---------- costos falta/completo ---------- */
 .sheet-plus.estado-falta{background:#f8dcd8;border-color:#c1685c;color:#a13f38}
@@ -443,7 +474,7 @@ body.role-admin .doctype-btns button.pago{display:block}
         <th><input class="sheet-filter" id="pf-fecha" placeholder="Fecha" oninput="applySheetFilters('presu')"></th>
         <th><input class="sheet-filter" id="pf-fechaEvento" placeholder="Fecha evento" oninput="applySheetFilters('presu')"></th>
         <th><input class="sheet-filter" id="pf-celular" placeholder="Celular" oninput="applySheetFilters('presu')"></th>
-        <th><input class="sheet-filter" id="pf-producto" placeholder="Producto" oninput="applySheetFilters('presu')"></th>
+        <th><input class="sheet-filter" id="pf-producto" placeholder="Prenda" oninput="applySheetFilters('presu')"></th>
         <th>Notas</th>
         <th>Convertido</th>
         <th><input class="sheet-filter" id="pf-valorEfvo" placeholder="Valor $" oninput="applySheetFilters('presu')"></th>
@@ -479,7 +510,7 @@ body.role-admin .doctype-btns button.pago{display:block}
         <th><input class="sheet-filter" id="vf-fecha" placeholder="Fecha" oninput="applySheetFilters('venta')"></th>
         <th><input class="sheet-filter" id="vf-pventa" placeholder="P. Venta" oninput="applySheetFilters('venta')"></th>
         <th><input class="sheet-filter" id="vf-fevento" placeholder="F. Evento" oninput="applySheetFilters('venta')"></th>
-        <th><input class="sheet-filter" id="vf-producto" placeholder="Producto" oninput="applySheetFilters('venta')"></th>
+        <th><input class="sheet-filter" id="vf-producto" placeholder="Prenda" oninput="applySheetFilters('venta')"></th>
         <th>Notas</th>
         <th>Costos</th>
         <th><input class="sheet-filter" id="vf-cant" placeholder="Cant." oninput="applySheetFilters('venta')"></th>
@@ -496,6 +527,44 @@ body.role-admin .doctype-btns button.pago{display:block}
   <div id="venta-footer" class="sheet-footer"></div>
 </div>
 
+<!-- ============ PLANILLA: EGRESOS (solo administrador) ============ -->
+<div id="screen-egresos-sheet" class="screen hidden">
+  <div class="topbar topbar-3col">
+    <div class="brand">LASVASKAS</div>
+    <div class="actions topbar-center main-nav"></div>
+    <div class="topbar-right"><button class="icon-btn" onclick="doLogout()" title="Salir"><i class="fa-solid fa-right-from-bracket"></i></button></div>
+  </div>
+  <div class="sheet-monthbar">
+    <button class="icon-btn" onclick="shiftMonth('egresos',-1)"><i class="fa-solid fa-chevron-left"></i></button>
+    <div id="egresos-month-label" class="sheet-month-label"></div>
+    <button class="icon-btn" onclick="shiftMonth('egresos',1)"><i class="fa-solid fa-chevron-right"></i></button>
+  </div>
+  <div class="eg-toolbar"><button class="btn btn-primary btn-sm" onclick="openEgresoModal()"><i class="fa-solid fa-plus"></i> Cargar egreso</button></div>
+  <div class="sheet-wrap">
+    <table class="sheet-table" id="egresos-table">
+      <colgroup>
+        <col style="width:26px"><col style="width:56px"><col style="width:60px"><col style="width:130px"><col style="width:48px"><col style="width:210px"><col style="width:120px"><col style="width:86px"><col style="width:86px"><col style="width:96px"><col style="width:96px"><col style="width:104px">
+      </colgroup>
+      <thead><tr>
+        <th></th>
+        <th><input class="sheet-filter" id="ef-fecha" placeholder="Fecha" oninput="applySheetFilters('egresos')"></th>
+        <th><input class="sheet-filter" id="ef-codigo" placeholder="Código" oninput="applySheetFilters('egresos')"></th>
+        <th><input class="sheet-filter" id="ef-clienta" placeholder="Clienta" oninput="applySheetFilters('egresos')"></th>
+        <th><input class="sheet-filter" id="ef-cant" placeholder="Cant." oninput="applySheetFilters('egresos')"></th>
+        <th><input class="sheet-filter" id="ef-prenda" placeholder="Prenda" oninput="applySheetFilters('egresos')"></th>
+        <th><input class="sheet-filter" id="ef-proveedor" placeholder="Proveedor" oninput="applySheetFilters('egresos')"></th>
+        <th><input class="sheet-filter" id="ef-precio" placeholder="Precio unit." oninput="applySheetFilters('egresos')"></th>
+        <th><input class="sheet-filter" id="ef-subtotal" placeholder="Subtotal" oninput="applySheetFilters('egresos')"></th>
+        <th><input class="sheet-filter" id="ef-total" placeholder="Total" oninput="applySheetFilters('egresos')"></th>
+        <th><input class="sheet-filter" id="ef-estado" placeholder="Estado" oninput="applySheetFilters('egresos')"></th>
+        <th><input class="sheet-filter" id="ef-fechapago" placeholder="Fecha de pago" oninput="applySheetFilters('egresos')"></th>
+      </tr></thead>
+      <tbody id="egresos-sheet-body"><tr><td colspan="12" class="sheet-empty">Cargando...</td></tr></tbody>
+    </table>
+  </div>
+  <div id="egresos-footer" class="sheet-footer"></div>
+</div>
+
 <!-- ============ MODAL: COSTOS ============ -->
 <div id="modal-costos" class="modal-overlay hidden">
   <div class="modal">
@@ -505,6 +574,7 @@ body.role-admin .doctype-btns button.pago{display:block}
     <input type="hidden" id="costos-cliente-id">
     <input type="hidden" id="costos-producto-index">
     <input type="hidden" id="costos-estado" value="">
+    <div id="costos-fijos"></div>
     <div id="costos-container"></div>
     <div class="add-row-btn" onclick="addCostoRow()"><i class="fa-solid fa-plus"></i> Agregar línea</div>
     <div class="costos-totals">
@@ -563,11 +633,11 @@ body.role-admin .doctype-btns button.pago{display:block}
         </select>
       </div>
     </div>
-    <div class="section-label">Productos</div>
+    <div class="section-label">Prendas</div>
     <div id="prod-head" class="prod-head"></div>
     <div id="productos-container"></div>
     <div class="add-pills">
-      <button type="button" class="add-pill pill-prod" onclick="addProductoRow()"><i class="fa-solid fa-plus"></i> Producto</button>
+      <button type="button" class="add-pill pill-prod" onclick="addProductoRow()"><i class="fa-solid fa-plus"></i> Prenda</button>
       <button type="button" id="add-arreglo-btn" class="add-pill pill-arr hidden" onclick="addArregloRow()"><i class="fa-solid fa-plus"></i> Arreglos/otros</button>
     </div>
     <div id="doc-live-total" class="live-total hidden"></div>
@@ -604,6 +674,28 @@ body.role-admin .doctype-btns button.pago{display:block}
     <button class="btn btn-primary" id="pago-save-btn" style="width:100%" onclick="savePago()">Guardar pago</button>
     <div id="pago-delete-row" class="hidden" style="text-align:center;margin-top:14px">
       <button class="btn-danger" style="font-size:13px" onclick="deletePago()">Eliminar pago</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: EGRESO ============ -->
+<div id="modal-egreso" class="modal-overlay hidden">
+  <div class="modal modal-eg">
+    <button class="modal-close" onclick="closeModal('modal-egreso')">✕</button>
+    <h2 id="eg-title">Cargar egreso</h2>
+    <input type="hidden" id="eg-id"><input type="hidden" id="eg-modal-estado" value="pendiente">
+    <div class="field"><label>Fecha</label><input type="date" id="eg-fecha"></div>
+    <div id="eg-lineas"></div>
+    <div class="add-row-btn" onclick="addEgresoLinea()"><i class="fa-solid fa-plus"></i> Agregar línea</div>
+    <div class="live-total">Total: <span id="eg-total">$0</span></div>
+    <div class="estado-toggle-row">
+      <div class="estado-toggle" id="eg-btn-pendiente" onclick="setEgEstado('pendiente')">Pendiente</div>
+      <div class="estado-toggle" id="eg-btn-pagado" onclick="setEgEstado('pagado')">Pagado</div>
+    </div>
+    <div class="field" style="margin-top:12px"><label>Fecha de pago</label><input type="date" id="eg-fechapago"></div>
+    <button class="btn btn-primary" style="width:100%;margin-top:6px" onclick="saveEgreso()">Guardar egreso</button>
+    <div id="eg-delete-row" class="hidden" style="text-align:center;margin-top:14px">
+      <button class="btn-danger" style="font-size:13px" onclick="deleteEgreso()">Eliminar egreso</button>
     </div>
   </div>
 </div>
@@ -750,7 +842,8 @@ function waLink(tel){
   return 'https://wa.me/54' + t.replace(/^0/,'').replace(/^15/,'9');
 }
 function normalize(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
-function todayISO(){ return new Date().toISOString().slice(0,10); }
+// Fecha de HOY en hora local (toISOString usa UTC y de noche en Argentina daría el día siguiente)
+function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function fmtDate(iso){ if(!iso) return ''; const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`; }
 // Sin ceros a la izquierda y sin año (para textos chicos tipo "1/10")
 function fmtDateCorto(iso){ if(!iso) return ''; const [y,m,d]=iso.split('-'); return `${parseInt(d,10)}/${parseInt(m,10)}`; }
@@ -762,10 +855,11 @@ const NAV_ITEMS = [
   {key:'clientas', label:'Clientas', icon:'fa-users', go:'goBackToClientas()'},
   {key:'venta-sheet', label:'Ventas', icon:'fa-receipt', go:'openVentasSheet()'},
   {key:'presu-sheet', label:'Presupuestos', icon:'fa-file-lines', go:'openPresupuestosSheet()'},
-  {key:'deudas', label:'Deudoras', icon:'fa-hand-holding-dollar', go:'openDeudas()', badge:true}
+  {key:'deudas', label:'Deudoras', icon:'fa-hand-holding-dollar', go:'openDeudas()', badge:true},
+  {key:'egresos-sheet', label:'Egresos', icon:'fa-money-bill-transfer', go:'openEgresosSheet()', admin:true}
 ];
 function buildNav(){
-  const html = NAV_ITEMS.map(n=>`<button type="button" class="chip-btn" data-nav="${n.key}" onclick="${n.go}"><i class="fa-solid ${n.icon} nav-ic"></i> ${n.label}${n.badge?'<span class="debt-badge deudas-count hidden">0</span>':''}</button>`).join('');
+  const html = NAV_ITEMS.map(n=>`<button type="button" class="chip-btn${n.admin?' nav-admin':''}" data-nav="${n.key}" onclick="${n.go}"><i class="fa-solid ${n.icon} nav-ic"></i> ${n.label}${n.badge?'<span class="debt-badge deudas-count hidden">0</span>':''}</button>`).join('');
   document.querySelectorAll('.main-nav').forEach(el=>{ el.innerHTML = html; });
 }
 function setNavActive(name){
@@ -781,7 +875,7 @@ function showScreen(name){
   window.scrollTo(0,0);
 }
 // Escuchas en vivo de las planillas y deudoras: solo están activas mientras se ve esa pantalla.
-const liveUnsubs = {'venta-sheet':null, 'presu-sheet':null, 'deudas':null};
+const liveUnsubs = {'venta-sheet':null, 'presu-sheet':null, 'deudas':null, 'egresos-sheet':null};
 function stopLive(key){ const u = liveUnsubs[key]; if(u){ u.forEach(f=>f()); liveUnsubs[key]=null; } }
 function stopLiveExcept(name){ Object.keys(liveUnsubs).forEach(k=>{ if(k!==name) stopLive(k); }); }
 function stopAllLive(){ Object.keys(liveUnsubs).forEach(stopLive); }
@@ -1190,7 +1284,7 @@ function openDocModal(tipo, existing){
   document.getElementById('add-arreglo-btn').classList.toggle('hidden', tipo!=='venta');
   const hd = document.getElementById('prod-head');
   hd.className = 'prod-head' + (tipo==='presupuesto'? ' presu' : '');
-  hd.innerHTML = tipo==='presupuesto'? '<span>Producto</span><span>$</span><span>Efectivo</span><span>Tarjeta</span><span></span>' : '<span>Producto</span><span>$</span><span>Cant.</span><span>Precio</span><span>Total</span><span></span>';
+  hd.innerHTML = tipo==='presupuesto'? '<span>Prenda</span><span>$</span><span>Efectivo</span><span>Tarjeta</span><span></span>' : '<span>Prenda</span><span>$</span><span>Cant.</span><span>Precio</span><span>Total</span><span></span>';
   document.getElementById('doc-live-total').classList.toggle('hidden', tipo!=='venta');
   document.getElementById('doc-fechapago').value = existing? (existing.fechaPago||'') : '';
 
@@ -1252,7 +1346,7 @@ function addProductoRow(p){
   if(editingDocTipo==='presupuesto'){
     row.className='prod-row pr-presu';
     row.innerHTML = `
-      <div class="field c-desc"><textarea class="pd-desc" rows="1" placeholder="Producto">${esc(p.desc||'')}</textarea></div>
+      <div class="field c-desc"><textarea class="pd-desc" rows="1" placeholder="Prenda">${esc(p.desc||'')}</textarea></div>
       <div class="field c-mon">${monedaSelectHTML('pd-moneda', p)}</div>
       <div class="field c-v"><input class="pd-efvo" placeholder="Efectivo" inputmode="numeric" value="${fmtMoney(p.efvo)}"></div>
       <div class="field c-tot"><input class="pd-tarj" placeholder="Tarjeta" value="${fmtMoney(p.tarj)}" readonly tabindex="-1"></div>
@@ -1268,7 +1362,7 @@ function addProductoRow(p){
   } else {
     row.className='prod-row pr-venta';
     row.innerHTML = `
-      <div class="field c-desc"><textarea class="pd-desc" rows="1" placeholder="Producto">${esc(p.desc||'')}</textarea></div>
+      <div class="field c-desc"><textarea class="pd-desc" rows="1" placeholder="Prenda">${esc(p.desc||'')}</textarea></div>
       <div class="field c-mon">${monedaSelectHTML('pd-moneda', p)}</div>
       <div class="field c-cant"><input class="pd-cant" placeholder="1" inputmode="numeric" value="${esc(p.cant||'')}"></div>
       <div class="field c-v"><input class="pd-valorunit" placeholder="Precio" inputmode="numeric" value="${fmtMoney(p.valorUnit)}"></div>
@@ -1480,7 +1574,7 @@ function saveDoc(){
       if(moneda==='ARS') totalARS += total; else totalUSD += total;
     }
   });
-  if(!productos.length){ alert('Agregá al menos un producto con descripción.'); return; }
+  if(!productos.length){ alert('Agregá al menos una prenda con descripción.'); return; }
 
   let data = {tipo, fecha, fechaEvento, notas, productos,
     clienteNombre: currentClienteData.nombre, clienteApellido: currentClienteData.apellido,
@@ -2183,7 +2277,6 @@ function addCostoRow(c){
   row.className='costo-row';
   row.innerHTML = `
     <div class="field co-tipo-wrap"><select class="co-tipo">
-      <option value="Avíos" ${c.tipo==='Avíos'?'selected':''}>Avíos</option>
       <option value="Telas" ${c.tipo==='Telas'?'selected':''}>Telas</option>
       <option value="Rufina nuevo" ${c.tipo==='Rufina nuevo'?'selected':''}>Rufina nuevo</option>
       <option value="Rufina arreglos" ${c.tipo==='Rufina arreglos'?'selected':''}>Rufina arreglos</option>
@@ -2215,6 +2308,7 @@ function recalcCostosTotals(){
     if(tipo==='Rufina arreglos'){ totalArreglos += cant; }
     else { const valor = num(row.querySelector('.co-valor').value)||0; totalCostos += cant*valor; }
   });
+  totalCostos += costosFijosTotal; // avíos automáticos + costos cargados en Egresos
   document.getElementById('costos-total-costos').textContent = fmtARS(totalCostos);
   document.getElementById('costos-total-arreglos').textContent = totalArreglos;
 }
@@ -2227,7 +2321,42 @@ function setCostosEstado(v){
 }
 // productoIndex identifica a qué producto de la venta pertenecen estos costos (cada producto tiene los suyos,
 // y por lo tanto cada botón "+" de la planilla puede tener su propio color falta/completo).
-function openCostosModal(clienteId, ventaId, productoIndex, existingCostos, existingEstado){
+// Costos que no se cargan a mano: $5.000 de avíos por prenda (automático) + lo cargado en Egresos para esa prenda
+const AVIOS_UNIT = 5000;
+let costosFijosTotal = 0;
+function egresoLineaApuntaA(l, productos){
+  const i = l.prendaIdx;
+  if(i!=null && productos[i] && (!l.prenda || productos[i].desc===l.prenda)) return i;
+  const j = productos.findIndex(p=>p.desc===l.prenda);
+  if(j>-1) return j;
+  return (i!=null && productos[i]) ? i : -1;
+}
+function costosFijosDeProducto(d, i){
+  const productos = d.productos||[], p = productos[i], out = [];
+  if(!p) return out;
+  if(!p.esArreglo && !p.texto && p.puntoVenta!=='CC'){
+    const cant = numDec(p.cant);
+    if(cant>0) out.push({tipo:'Avíos', detalle:`Automático · ${cant.toLocaleString('es-AR')} × ${fmtARS(AVIOS_UNIT)}`, total:cant*AVIOS_UNIT});
+  }
+  egresosAll.forEach(e=>{
+    (e.lineas||[]).forEach(l=>{
+      if(l.ventaId!==d.id || egresoLineaApuntaA(l, productos)!==i) return;
+      const t = (numDec(l.cant)||0)*(l.valor||0);
+      out.push({tipo:l.proveedor||'Egreso', detalle:`Egresos · ${numDec(l.cant).toLocaleString('es-AR')} × ${fmtARS(l.valor||0)} · ${e.estado==='pagado'?'Pagado':'Pendiente'}`, total:t});
+    });
+  });
+  return out;
+}
+function openCostosModal(clienteId, ventaId, productoIndex){
+  const dRaw = ventaSheetDocsRaw.find(x=>x.id===ventaId) || {};
+  const pRaw = (dRaw.productos||[])[productoIndex] || {};
+  const existingCostos = (pRaw.costos||[]).filter(c=>c.tipo!=='Avíos'); // los avíos ahora son automáticos
+  const existingEstado = pRaw.estadoCostos||'';
+  const fijos = costosFijosDeProducto({...dRaw, id:ventaId}, productoIndex);
+  costosFijosTotal = fijos.reduce((t,f)=>t+f.total,0);
+  document.getElementById('costos-fijos').innerHTML = fijos.length ? `<div class="cf-box"><div class="cf-title">Se suman solos</div>${
+    fijos.map(f=>`<div class="cf-row"><b>${esc(f.tipo)}</b><span class="cf-d">${esc(f.detalle)}</span><span class="cf-v">${fmtARS(f.total)}</span></div>`).join('')
+  }<div class="cf-note">Los costos de proveedores se cargan y editan en Egresos.</div></div>` : '';
   document.getElementById('costos-cliente-id').value = clienteId;
   document.getElementById('costos-venta-id').value = ventaId;
   document.getElementById('costos-producto-index').value = productoIndex;
@@ -2339,6 +2468,7 @@ function sheetOrderCmp(a,b){
   return (a.createdAt||0)-(b.createdAt||0);
 }
 function applySheetFilters(which){
+  if(which==='egresos'){ applyEgresosFilters(); return; }
   if(which==='presu') presuSheetDocsRaw.sort(sheetOrderCmp); else ventaSheetDocsRaw.sort(sheetOrderCmp);
   if(which==='presu'){
     const filtered = presuSheetDocsRaw.filter(d=>
@@ -2384,6 +2514,7 @@ function syncMonthArrows(screenId, d){
   if(b) b.style.visibility = mesIndex(d) <= mesIndex(MES_INICIAL) ? 'hidden' : 'visible';
 }
 function shiftMonth(which, delta){
+  if(which==='egresos'){ egresosMonth.setMonth(egresosMonth.getMonth()+delta); clampMes(egresosMonth); syncEgresosMonth(); applyEgresosFilters(); return; }
   if(which==='presu'){ presuMonth.setMonth(presuMonth.getMonth()+delta); clampMes(presuMonth); openPresupuestosSheet(); }
   else { ventaMonth.setMonth(ventaMonth.getMonth()+delta); clampMes(ventaMonth); openVentasSheet(); }
 }
@@ -2476,6 +2607,8 @@ function openVentasSheet(){
     body.innerHTML = '<tr><td colspan="16" class="sheet-empty">Error al cargar. Revisá la consola.</td></tr>';
   });
   liveUnsubs['venta-sheet'] = [unsub];
+  // Los costos cargados en Egresos se leen en vivo (solo quienes ven la columna Costos)
+  if(currentUserRole!=='limitado') liveUnsubs['venta-sheet'].push(listenEgresos());
 }
 // Etiquetas cortas para la planilla (evita repetir "Transferencia" completo al lado del monto)
 const METODO_SHEET_LABEL = {EFVO_ARS:'Efectivo', EFVO_USD:'Efectivo', TRBF:'Transf. BF', TRBF_USD:'Transf. BF', TRVF:'Transf. VF', TARJ:'Tarjeta'};
@@ -2550,7 +2683,7 @@ function renderVentaSheet(docs){
         html += `<td class="vmid">-</td><td>-</td><td>-</td><td class="vmid tot-cell">-</td>`;
       } else {
         const estadoClass = p.estadoCostos==='falta'?'estado-falta':(p.estadoCostos==='completo'?'estado-completo':'');
-        html += `<td class="vmid plus-cell"><span class="sheet-plus ${estadoClass}" onclick="openCostosModal('${d.clienteId}','${d.id}', ${i}, ${JSON.stringify(p.costos||[]).replace(/"/g,'&quot;')}, '${p.estadoCostos||''}')">+</span></td>`;
+        html += `<td class="vmid plus-cell"><span class="sheet-plus ${estadoClass}" onclick="openCostosModal('${d.clienteId}','${d.id}', ${i})">+</span></td>`;
         const f = p.moneda==='USD'?fmtUSD:fmtARS;
         if(p.texto || p.puntoVenta==='CC'){ html += `<td>-</td><td>-</td>`; } // CC: en movimientos solo texto en Producto
         else {
@@ -2632,6 +2765,309 @@ function renderPresuFooter(filtered){
       ${row(m)}
     </div>`;
 }
+
+/* =================== EGRESOS (solo administrador) =================== */
+const PROVEEDORES = ['Rufina arreglo','Rufina nuevo','Compra Telas'];
+let egresosAll = [];          // todos los egresos, en vivo (las planillas los filtran por mes)
+let egresosMonth = new Date(); egresosMonth.setDate(1);
+const EG_COLS = ['fecha','codigo','clienta','cant','prenda','proveedor','precio','subtotal','total','estado','fechapago'];
+function listenEgresos(){
+  return db.collection('egresos').onSnapshot(SNAP_META, snap=>{
+    if(snapIncierto(snap)) return;
+    egresosAll = snap.docs.map(d=>({id:d.id,...d.data()}));
+    if(!document.getElementById('screen-egresos-sheet').classList.contains('hidden')) renderSheetSeguro('egresos');
+  }, err=>{ console.error('Error cargando egresos:', err);
+    const b = document.getElementById('egresos-sheet-body');
+    if(b && !document.getElementById('screen-egresos-sheet').classList.contains('hidden')) b.innerHTML = '<tr><td colspan="12" class="sheet-empty">Error al cargar. Revisá la consola.</td></tr>';
+  });
+}
+function egLineaSubtotal(l){ return Math.round((numDec(l.cant)||0)*(l.valor||0)); }
+function egTotal(e){ return (e.lineas||[]).reduce((t,l)=>t+egLineaSubtotal(l),0); }
+function syncEgresosMonth(){
+  document.getElementById('egresos-month-label').textContent = monthLabel(egresosMonth);
+  syncMonthArrows('screen-egresos-sheet', egresosMonth);
+}
+function openEgresosSheet(){
+  if(currentUserRole!=='admin') return;
+  clampMes(egresosMonth);
+  showScreen('egresos-sheet');
+  syncEgresosMonth();
+  document.getElementById('egresos-sheet-body').innerHTML = '<tr><td colspan="12" class="sheet-empty">Cargando...</td></tr>';
+  document.getElementById('egresos-footer').innerHTML = '';
+  stopLive('egresos-sheet');
+  liveUnsubs['egresos-sheet'] = [listenEgresos()];
+}
+function egColText(e, col){
+  const L = e.lineas||[];
+  switch(col){
+    case 'fecha': return `${fmtDateSheet(e.fecha)} ${fmtDate(e.fecha)}`;
+    case 'codigo': return L.map(l=>l.codigo||'').join(' ');
+    case 'clienta': return L.map(l=>l.clienta||'').join(' ');
+    case 'cant': return L.map(l=>l.cant||'').join(' ');
+    case 'prenda': return L.map(l=>l.prenda||'').join(' ');
+    case 'proveedor': return L.map(l=>l.proveedor||'').join(' ');
+    case 'precio': return L.map(l=>String(l.valor||'')).join(' ');
+    case 'subtotal': return L.map(l=>String(egLineaSubtotal(l))).join(' ');
+    case 'total': return String(egTotal(e));
+    case 'estado': return e.estado==='pagado'?'pagado':'pendiente';
+    case 'fechapago': return e.fechaPago? `${fmtDateSheet(e.fechaPago)} ${fmtDate(e.fechaPago)}` : '';
+  }
+  return '';
+}
+function applyEgresosFilters(){
+  const {start,end} = monthRange(egresosMonth);
+  egresosAll.sort(sheetOrderCmp);
+  const delMes = egresosAll.filter(e=>e.fecha>=start && e.fecha<=end);
+  const filtered = delMes.filter(e=>EG_COLS.every(col=>{
+    const el = document.getElementById('ef-'+col);
+    const q = el? normalize(el.value) : '';
+    return !q || normalize(egColText(e,col)).includes(q);
+  }));
+  renderEgresosSheet(filtered);
+  renderEgresosFooter(filtered, delMes);
+}
+function renderEgresosSheet(docs){
+  const body = document.getElementById('egresos-sheet-body');
+  closeNotaPop();
+  if(!docs.length){ body.innerHTML = '<tr><td colspan="12" class="sheet-empty">Sin egresos este mes.</td></tr>'; return; }
+  let html = '';
+  docs.forEach((e, gi)=>{
+    const zebra = gi%2===1? ' zebra' : '';
+    const L = (e.lineas&&e.lineas.length)? e.lineas : [{}];
+    const rowspan = L.length;
+    const pag = e.estado==='pagado';
+    L.forEach((l,i)=>{
+      html += `<tr class="${i===0?'group-first':''}${zebra}">`;
+      if(i===0){
+        html += `<td class="vmid edit-cell" rowspan="${rowspan}"><span class="sheet-pencil" onclick="openEgresoModal('${e.id}')"><i class="fa-solid fa-pen"></i></span></td>`;
+        html += `<td class="vmid" rowspan="${rowspan}">${fmtDateSheet(e.fecha)}</td>`;
+      }
+      html += `<td>${esc(l.codigo||'-')}</td>`;
+      html += `<td class="cli-cell">${l.clienteId? `<b class="sheet-client-link" onclick="goToClienteFromSheet('${esc(l.clienteId)}')">${esc(l.clienta||'')}</b>` : esc(l.clienta||'')}</td>`;
+      html += `<td>${l.cant!=null && l.cant!==''? esc(numDec(l.cant).toLocaleString('es-AR')) : ''}</td>`;
+      html += `<td class="prod-cell">${esc(l.prenda||'')}</td>`;
+      html += `<td>${esc(l.proveedor||'')}</td>`;
+      html += `<td>${l.valor? fmtARS(l.valor) : ''}</td>`;
+      html += `<td>${l.valor? fmtARS(egLineaSubtotal(l)) : ''}</td>`;
+      if(i===0){
+        html += `<td class="vmid tot-cell" rowspan="${rowspan}">${fmtARS(egTotal(e))}</td>`;
+        html += `<td class="vmid" rowspan="${rowspan}"><select class="sheet-inline-input eg-estado ${pag?'pag':'pend'}" onchange="egSetEstado('${e.id}',this.value)"><option value="pendiente"${pag?'':' selected'}>Pendiente</option><option value="pagado"${pag?' selected':''}>Pagado</option></select></td>`;
+        html += `<td class="vmid" rowspan="${rowspan}"><input type="date" class="sheet-inline-input eg-fp" value="${esc(e.fechaPago||'')}" onchange="egSetFechaPago('${e.id}',this.value)"></td>`;
+      }
+      html += `</tr>`;
+    });
+  });
+  body.innerHTML = html;
+}
+function renderEgresosFooter(filtered, delMes){
+  const el = document.getElementById('egresos-footer'); if(!el) return;
+  const sum = arr => { let tot=0, pend=0, pag=0; arr.forEach(e=>{ const t=egTotal(e); tot+=t; if(e.estado==='pagado') pag+=t; else pend+=t; }); return {tot,pend,pag}; };
+  const row = c => `<div class="sf-row">
+        <div class="sf-item"><span class="sf-l">Total egresos</span><b>${fmtARS(c.tot)}</b></div>
+        <div class="sf-item"><span class="sf-l">Pendiente de pago</span><b>${fmtARS(c.pend)}</b></div>
+        <div class="sf-item"><span class="sf-l">Pagado</span><b>${fmtARS(c.pag)}</b></div>
+      </div>`;
+  el.innerHTML = `
+    <div class="sf-card">
+      <div class="sf-title">Totales en esta vista</div>
+      ${row(sum(filtered))}
+      <div class="sf-sep"></div>
+      <div class="sf-title">Resumen del mes · ${esc(monthLabel(egresosMonth))}</div>
+      ${row(sum(delMes))}
+    </div>`;
+}
+// Estado y fecha de pago se cambian directo desde la planilla
+function egUpdate(id, upd){
+  const e = egresosAll.find(x=>x.id===id); if(!e) return;
+  db.collection('egresos').doc(id).update(upd).catch(err=>{ console.error(err); alert('No se pudo guardar el cambio. Revisá la consola.'); });
+  markSaving();
+}
+function egSetEstado(id, val){
+  const e = egresosAll.find(x=>x.id===id); if(!e) return;
+  const upd = {estado:val};
+  if(val==='pagado') upd.fechaPago = e.fechaPago || todayISO(); else upd.fechaPago = null;
+  egUpdate(id, upd);
+}
+function egSetFechaPago(id, val){
+  if(val) egUpdate(id, {fechaPago:val, estado:'pagado'});
+  else egUpdate(id, {fechaPago:null});
+}
+
+/* ---- formulario de egreso ---- */
+const ventaPorCodigoCache = new Map();
+async function buscarVentaPorCodigo(cod){
+  cod = String(cod||'').trim();
+  if(!cod) return null;
+  if(ventaPorCodigoCache.has(cod)) return ventaPorCodigoCache.get(cod);
+  const snap = await db.collection('ventas').where('codigo','==',cod).get();
+  const docs = snap.docs.map(d=>({id:d.id,...d.data()}))
+    .filter(d=>!d.esSaldoMovimiento && !esCC(d) && (d.productos||[]).some(p=>!p.texto))
+    .sort((a,b)=>String(b.fecha||'').localeCompare(String(a.fecha||'')) || (b.createdAt||0)-(a.createdAt||0));
+  const v = docs[0] || null;
+  if(v) ventaPorCodigoCache.set(cod, v);
+  return v;
+}
+function egRow(el){ return el.closest('.eg-line'); }
+function recalcEgresoTotal(){
+  let t = 0;
+  document.querySelectorAll('#eg-lineas .eg-line').forEach(r=>{
+    const sub = Math.round((numDec(r.querySelector('.eg-cant').value)||0)*(num(r.querySelector('.eg-valor').value)||0));
+    r.querySelector('.eg-sub b').textContent = fmtARS(sub);
+    t += sub;
+  });
+  document.getElementById('eg-total').textContent = fmtARS(t);
+}
+// Completa la fila según el código: trae la clienta de la venta y arma el desplegable de prendas.
+// Sin código (o si no existe) la clienta y la prenda se escriben a mano.
+function resolverCodigoEgreso(row, pre){
+  const cod = row.querySelector('.eg-codigo').value.trim();
+  const tok = row._tok = (row._tok||0)+1;
+  const cli = row.querySelector('.eg-clienta'), stat = row.querySelector('.eg-stat');
+  const sel = row.querySelector('.eg-prenda-sel'), txt = row.querySelector('.eg-prenda-txt');
+  const manual = (msg)=>{
+    row.dataset.ventaId = ''; row.dataset.clienteId = '';
+    cli.readOnly = false;
+    sel.classList.add('hidden'); sel.innerHTML=''; txt.classList.remove('hidden');
+    stat.textContent = msg||''; stat.className = 'eg-stat'+(msg?' err':'');
+  };
+  if(!cod){ manual(''); return Promise.resolve(); }
+  const p = buscarVentaPorCodigo(cod).then(v=>{
+    if(row._tok!==tok) return;
+    if(!v){ manual('No hay ninguna venta con ese código'); return; }
+    row.dataset.ventaId = v.id; row.dataset.clienteId = v.clienteId||'';
+    cli.value = `${v.clienteNombre||''} ${v.clienteApellido||''}`.trim(); cli.readOnly = true;
+    const opts = [];
+    (v.productos||[]).forEach((pr,i)=>{ if(pr.texto || pr.puntoVenta==='CC') return; opts.push(`<option value="${i}">${esc(pr.desc||('Prenda '+(i+1)))}${pr.esArreglo?' (arreglo)':''}</option>`); });
+    sel.innerHTML = opts.join('');
+    let idx = pre && pre.prendaIdx!=null ? egresoLineaApuntaA(pre, v.productos||[]) : -1;
+    if(idx>-1 && sel.querySelector(`option[value="${idx}"]`)) sel.value = String(idx);
+    sel.classList.remove('hidden'); txt.classList.add('hidden');
+    stat.textContent = `✓ Venta del ${fmtDateSheet(v.fecha)} · ${(v.productos||[]).filter(x=>!x.texto&&x.puntoVenta!=='CC').length} prenda(s)`; stat.className = 'eg-stat';
+    row._venta = v;
+    if(!(pre && pre.prendaIdx!=null)) egAutoCant(row);
+  }).catch(err=>{ console.error(err); if(row._tok===tok) manual('No se pudo buscar el código'); });
+  row._p = p;
+  return p;
+}
+function egAutoCant(row){
+  const v = row._venta, sel = row.querySelector('.eg-prenda-sel'), c = row.querySelector('.eg-cant');
+  if(!v || (c.value.trim() && c.dataset.auto!=='1')) return; // no pisa lo que se escribió a mano
+  const pr = (v.productos||[])[parseInt(sel.value,10)];
+  c.value = (pr && !pr.esArreglo && pr.cant) ? pr.cant : '';
+  c.dataset.auto = '1';
+  recalcEgresoTotal();
+}
+function addEgresoLinea(l){
+  l = l||{};
+  const row = document.createElement('div');
+  row.className = 'eg-line';
+  row.innerHTML = `
+    <div class="eg-l1">
+      <div class="field eg-cod"><input class="eg-codigo" placeholder="Código" inputmode="numeric" value="${esc(l.codigo||'')}"></div>
+      <div class="field eg-cli"><input class="eg-clienta" placeholder="Clienta" value="${esc(l.clienta||'')}"></div>
+      <div class="rm-row">✕</div>
+    </div>
+    <div class="eg-stat"></div>
+    <div class="eg-l2">
+      <div class="field"><select class="eg-prenda-sel hidden"></select><input class="eg-prenda-txt" placeholder="Prenda" value="${esc(l.prenda||'')}"></div>
+      <div class="field"><select class="eg-prov"><option value="">Proveedor</option>${PROVEEDORES.map(p=>`<option value="${esc(p)}"${l.proveedor===p?' selected':''}>${esc(p)}</option>`).join('')}</select></div>
+    </div>
+    <div class="eg-l3">
+      <div class="field eg-c"><input class="eg-cant" placeholder="Cant." inputmode="decimal" value="${esc(l.cant||'')}"></div>
+      <div class="field eg-v"><input class="eg-valor" placeholder="Precio unit. $" inputmode="numeric" value="${fmtMoney(l.valor)}"></div>
+      <div class="eg-sub">Subtotal <b>$0</b></div>
+    </div>`;
+  document.getElementById('eg-lineas').appendChild(row);
+  attachMoneyInput(row.querySelector('.eg-valor'));
+  const cod = row.querySelector('.eg-codigo');
+  let t = null;
+  cod.addEventListener('input', ()=>{ clearTimeout(t); t = setTimeout(()=>resolverCodigoEgreso(row), 350); });
+  cod.addEventListener('blur', ()=>{ clearTimeout(t); resolverCodigoEgreso(row); });
+  row.querySelector('.eg-prenda-sel').addEventListener('change', ()=>egAutoCant(row));
+  row.querySelector('.eg-cant').addEventListener('input', e=>{ e.target.dataset.auto=''; recalcEgresoTotal(); });
+  row.querySelector('.eg-valor').addEventListener('input', recalcEgresoTotal);
+  row.querySelector('.rm-row').addEventListener('click', ()=>{
+    if(document.querySelectorAll('#eg-lineas .eg-line').length<=1) return; // siempre queda al menos una línea
+    row.remove(); recalcEgresoTotal();
+  });
+  if(l.codigo) resolverCodigoEgreso(row, l); else if(l.prenda!=null){ /* sin código: ya está el texto */ }
+  recalcEgresoTotal();
+}
+function setEgEstado(v){
+  document.getElementById('eg-btn-pendiente').classList.toggle('sel-falta', v==='pendiente');
+  document.getElementById('eg-btn-pagado').classList.toggle('sel-completo', v==='pagado');
+  const fp = document.getElementById('eg-fechapago');
+  if(v==='pagado' && !fp.value) fp.value = todayISO();
+  if(v==='pendiente') fp.value = '';
+  document.getElementById('eg-modal-estado').value = v;
+}
+function openEgresoModal(id){
+  if(currentUserRole!=='admin') return;
+  ventaPorCodigoCache.clear();
+  const e = id ? egresosAll.find(x=>x.id===id) : null;
+  if(id && !e){ alert('Este egreso ya no existe.'); return; }
+  document.getElementById('eg-id').value = id||'';
+  document.getElementById('eg-title').textContent = e? 'Editar egreso' : 'Cargar egreso';
+  document.getElementById('eg-fecha').value = e? (e.fecha||todayISO()) : todayISO();
+  document.getElementById('eg-lineas').innerHTML = '';
+  (e && e.lineas && e.lineas.length ? e.lineas : [{}]).forEach(l=>addEgresoLinea(l));
+  document.getElementById('eg-fechapago').value = e? (e.fechaPago||'') : '';
+  setEgEstado(e && e.estado==='pagado' ? 'pagado' : 'pendiente');
+  if(e) document.getElementById('eg-fechapago').value = e.fechaPago||document.getElementById('eg-fechapago').value;
+  document.getElementById('eg-delete-row').classList.toggle('hidden', !e);
+  openModal('modal-egreso');
+}
+let egGuardando = false;
+async function saveEgreso(){
+  if(egGuardando || currentUserRole!=='admin') return;
+  egGuardando = true;
+  try{
+    const rows = [...document.querySelectorAll('#eg-lineas .eg-line')];
+    await Promise.all(rows.map(r=>r._p).filter(Boolean)); // por si todavía se está buscando algún código
+    const fecha = document.getElementById('eg-fecha').value;
+    if(!fecha){ alert('Completá la fecha.'); return; }
+    const lineas = [];
+    for(const r of rows){
+      const codigo = r.querySelector('.eg-codigo').value.trim();
+      const ventaId = r.dataset.ventaId||'', clienteId = r.dataset.clienteId||'';
+      const selVis = !r.querySelector('.eg-prenda-sel').classList.contains('hidden');
+      const sel = r.querySelector('.eg-prenda-sel');
+      const prenda = selVis ? (sel.selectedOptions[0] ? sel.selectedOptions[0].textContent.replace(/ \(arreglo\)$/,'') : '') : r.querySelector('.eg-prenda-txt').value.trim();
+      const proveedor = r.querySelector('.eg-prov').value;
+      const cant = numDec(r.querySelector('.eg-cant').value)||0;
+      const valor = num(r.querySelector('.eg-valor').value)||0;
+      const clienta = r.querySelector('.eg-clienta').value.trim();
+      if(!codigo && !clienta && !prenda && !proveedor && !cant && !valor) continue; // línea vacía
+      if(codigo && !ventaId){ alert(`El código ${codigo} no corresponde a ninguna venta. Corregilo o dejalo vacío para escribir la clienta a mano.`); return; }
+      if(!proveedor){ alert('Elegí el proveedor en cada línea.'); return; }
+      if(!(cant>0)){ alert('Completá la cantidad en cada línea.'); return; }
+      if(!(valor>0)){ alert('Completá el precio unitario en cada línea.'); return; }
+      const lin = {codigo, clienta, prenda, proveedor, cant, valor};
+      if(ventaId){ lin.ventaId = ventaId; lin.clienteId = clienteId; lin.prendaIdx = parseInt(sel.value,10); }
+      lineas.push(lin);
+    }
+    if(!lineas.length){ alert('Cargá al menos una línea con proveedor, cantidad y precio.'); return; }
+    const estado = document.getElementById('eg-modal-estado').value==='pagado' ? 'pagado' : 'pendiente';
+    let fechaPago = document.getElementById('eg-fechapago').value || null;
+    if(estado==='pagado' && !fechaPago) fechaPago = todayISO();
+    if(estado==='pendiente') fechaPago = null;
+    const id = document.getElementById('eg-id').value;
+    const data = {fecha, lineas, total: lineas.reduce((t,l)=>t+Math.round(l.cant*l.valor),0), estado, fechaPago};
+    closeModal('modal-egreso');
+    const p = id ? db.collection('egresos').doc(id).update(data)
+                 : db.collection('egresos').doc().set({...data, createdAt:Date.now()});
+    markSaving();
+    p.catch(err=>{ console.error(err); alert('No se pudo guardar el egreso. Revisá la consola.'); });
+  } finally { egGuardando = false; }
+}
+function deleteEgreso(){
+  const id = document.getElementById('eg-id').value; if(!id || currentUserRole!=='admin') return;
+  if(!confirm('¿Eliminar este egreso? Su costo también se va a quitar de la planilla de Ventas.')) return;
+  closeModal('modal-egreso');
+  db.collection('egresos').doc(id).delete().catch(err=>{ console.error(err); alert('No se pudo eliminar el egreso. Revisá la consola.'); });
+  markSaving();
+}
+
 function esCC(d){ return String(d.puntoVenta||'').split(' + ').map(x=>x.trim()).includes('CC'); }
 // Totales de lo que se está viendo (se actualizan al filtrar) + resumen del mes completo (no depende de los filtros)
 function renderVentaFooter(filtered){

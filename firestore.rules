@@ -35,6 +35,14 @@ service cloud.firestore {
       allow read, write: if esUsuarioDelSistema();
     }
 
+    // Egresos: solo el administrador los carga/edita; "admin" y "full" los leen (los costos se muestran en Ventas).
+    match /egresos/{id} {
+      allow read: if esUsuarioDelSistema()
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol in ['admin','full'];
+      allow write: if esUsuarioDelSistema()
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
+    }
+
     // Todo lo demás, cerrado.
     match /{document=**} {
       allow read, write: if false;
