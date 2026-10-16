@@ -558,7 +558,7 @@ body.role-admin .doctype-btns button.pago{display:block}
     </table>
   </div>
   <div id="egresos-footer" class="sheet-footer"></div>
-  <button class="fab" onclick="openEgresoModal()" title="Cargar egreso">+</button>
+  <button class="fab" onclick="openEgresoModal()" title="Cargar telas/arreglos">+</button>
 </div>
 
 <!-- ============ MODAL: COSTOS ============ -->
@@ -677,7 +677,7 @@ body.role-admin .doctype-btns button.pago{display:block}
 <div id="modal-egreso" class="modal-overlay hidden">
   <div class="modal modal-eg">
     <button class="modal-close" onclick="closeModal('modal-egreso')">✕</button>
-    <h2 id="eg-title">Cargar egreso</h2>
+    <h2 id="eg-title">Cargar telas/arreglos</h2>
     <input type="hidden" id="eg-id"><input type="hidden" id="eg-modal-estado" value="pendiente">
     <div class="field"><label>Fecha</label><input type="date" id="eg-fecha"></div>
     <div id="eg-lineas"></div>
@@ -688,9 +688,9 @@ body.role-admin .doctype-btns button.pago{display:block}
       <div class="estado-toggle" id="eg-btn-pagado" onclick="setEgEstado('pagado')">Pagado</div>
     </div>
     <div class="field" style="margin-top:12px"><label>Fecha de pago</label><input type="date" id="eg-fechapago"></div>
-    <button class="btn btn-primary" style="width:100%;margin-top:6px" onclick="saveEgreso()">Guardar egreso</button>
+    <button class="btn btn-primary" style="width:100%;margin-top:6px" onclick="saveEgreso()">Guardar</button>
     <div id="eg-delete-row" class="hidden" style="text-align:center;margin-top:14px">
-      <button class="btn-danger" style="font-size:13px" onclick="deleteEgreso()">Eliminar egreso</button>
+      <button class="btn-danger" style="font-size:13px" onclick="deleteEgreso()">Eliminar</button>
     </div>
   </div>
 </div>
@@ -851,7 +851,7 @@ const NAV_ITEMS = [
   {key:'venta-sheet', label:'Ventas', icon:'fa-receipt', go:'openVentasSheet()'},
   {key:'presu-sheet', label:'Presupuestos', icon:'fa-file-lines', go:'openPresupuestosSheet()'},
   {key:'deudas', label:'Deudoras', icon:'fa-hand-holding-dollar', go:'openDeudas()', badge:true},
-  {key:'egresos-sheet', label:'Egresos', icon:'fa-money-bill-transfer', go:'openEgresosSheet()', admin:true}
+  {key:'egresos-sheet', label:'Telas/Arreglos', icon:'fa-money-bill-transfer', go:'openEgresosSheet()', admin:true}
 ];
 function buildNav(){
   const html = NAV_ITEMS.map(n=>`<button type="button" class="chip-btn${n.admin?' nav-admin':''}" data-nav="${n.key}" onclick="${n.go}"><i class="fa-solid ${n.icon} nav-ic"></i> ${n.label}${n.badge?'<span class="debt-badge deudas-count hidden">0</span>':''}</button>`).join('');
@@ -2346,7 +2346,7 @@ function costosDeEgresos(d, i){
 function addCostoFijoRow(c){
   const row = document.createElement('div');
   row.className = 'costo-row costo-row-fijo';
-  row.title = 'Viene de Egresos (se edita allí)';
+  row.title = 'Viene de Telas/Arreglos (se edita allí)';
   const arr = c.tipo==='Rufina arreglos';
   row.innerHTML = `
     <div class="field co-tipo-wrap"><select class="co-tipo" disabled><option>${esc(c.tipo)}</option></select></div>
@@ -2839,7 +2839,7 @@ function applyEgresosFilters(){
 function renderEgresosSheet(docs){
   const body = document.getElementById('egresos-sheet-body');
   closeNotaPop();
-  if(!docs.length){ body.innerHTML = '<tr><td colspan="12" class="sheet-empty">Sin egresos este mes.</td></tr>'; return; }
+  if(!docs.length){ body.innerHTML = '<tr><td colspan="12" class="sheet-empty">Sin movimientos este mes.</td></tr>'; return; }
   let html = '';
   docs.forEach((e, gi)=>{
     const zebra = gi%2===1? ' zebra' : '';
@@ -2873,7 +2873,7 @@ function renderEgresosFooter(filtered, delMes){
   const el = document.getElementById('egresos-footer'); if(!el) return;
   const sum = arr => { let tot=0, pend=0, pag=0; arr.forEach(e=>{ const t=egTotal(e); tot+=t; if(e.estado==='pagado') pag+=t; else pend+=t; }); return {tot,pend,pag}; };
   const row = c => `<div class="sf-row">
-        <div class="sf-item"><span class="sf-l">Total egresos</span><b>${fmtARS(c.tot)}</b></div>
+        <div class="sf-item"><span class="sf-l">Total</span><b>${fmtARS(c.tot)}</b></div>
         <div class="sf-item"><span class="sf-l">Pendiente de pago</span><b>${fmtARS(c.pend)}</b></div>
         <div class="sf-item"><span class="sf-l">Pagado</span><b>${fmtARS(c.pag)}</b></div>
       </div>`;
@@ -3017,9 +3017,9 @@ function openEgresoModal(id){
   if(currentUserRole!=='admin') return;
   ventaPorCodigoCache.clear();
   const e = id ? egresosAll.find(x=>x.id===id) : null;
-  if(id && !e){ alert('Este egreso ya no existe.'); return; }
+  if(id && !e){ alert('Este registro ya no existe.'); return; }
   document.getElementById('eg-id').value = id||'';
-  document.getElementById('eg-title').textContent = e? 'Editar egreso' : 'Cargar egreso';
+  document.getElementById('eg-title').textContent = e? 'Editar telas/arreglos' : 'Cargar telas/arreglos';
   document.getElementById('eg-fecha').value = e? (e.fecha||todayISO()) : todayISO();
   document.getElementById('eg-lineas').innerHTML = '';
   (e && e.lineas && e.lineas.length ? e.lineas : [{}]).forEach(l=>addEgresoLinea(l));
@@ -3070,14 +3070,14 @@ async function saveEgreso(){
     const p = id ? db.collection('egresos').doc(id).update(data)
                  : db.collection('egresos').doc().set({...data, createdAt:Date.now()});
     markSaving();
-    p.catch(err=>{ console.error(err); alert('No se pudo guardar el egreso. Revisá la consola.'); });
+    p.catch(err=>{ console.error(err); alert('No se pudo guardar. Revisá la consola.'); });
   } finally { egGuardando = false; }
 }
 function deleteEgreso(){
   const id = document.getElementById('eg-id').value; if(!id || currentUserRole!=='admin') return;
-  if(!confirm('¿Eliminar este egreso? Su costo también se va a quitar de la planilla de Ventas.')) return;
+  if(!confirm('¿Eliminar este registro? Su costo también se va a quitar de la planilla de Ventas.')) return;
   closeModal('modal-egreso');
-  db.collection('egresos').doc(id).delete().catch(err=>{ console.error(err); alert('No se pudo eliminar el egreso. Revisá la consola.'); });
+  db.collection('egresos').doc(id).delete().catch(err=>{ console.error(err); alert('No se pudo eliminar. Revisá la consola.'); });
   markSaving();
 }
 
