@@ -69,7 +69,12 @@ label{font-size:12px;color:#9a9285;display:block;margin-bottom:4px;letter-spacin
 .debt-badge{background:#c1685c;color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 6px;margin-left:4px}
 
 .container{max-width:640px;margin:0 auto;padding:16px}
-.searchbar{margin-bottom:14px}
+.searchbar{margin-bottom:14px;display:flex;gap:8px;align-items:stretch}
+.searchbar input{flex:1;min-width:0}
+.sort-wrap{position:relative;flex:0 0 auto;display:flex;align-items:center}
+.sort-wrap select{appearance:none;-webkit-appearance:none;width:auto;height:100%;padding:11px 12px 11px 32px;border-radius:8px;font-size:13px;font-weight:600;background:#f2eee3;border:1px solid #e3ddd0;color:#3a352c;cursor:pointer}
+.sort-wrap .sort-ic{position:absolute;left:11px;font-size:12px;color:#8f6c2a;pointer-events:none}
+@media(max-width:520px){.sort-wrap select{font-size:12px;padding-right:8px}}
 .searchbar input{padding:11px 14px}
 
 .card{background:#fff;border:1px solid #ece6d8;border-radius:10px;padding:14px 16px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;transition:border-color .15s}
@@ -366,7 +371,16 @@ body.role-admin .doctype-btns button.pago{display:block}
     <div class="topbar-right"><button class="icon-btn" onclick="doLogout()" title="Salir"><i class="fa-solid fa-right-from-bracket"></i></button></div>
   </div>
   <div class="container">
-    <div class="searchbar"><input id="search-input" placeholder="Buscar clienta..." oninput="renderClientasList()"></div>
+    <div class="searchbar">
+      <input id="search-input" placeholder="Buscar clienta..." oninput="renderClientasList()">
+      <div class="sort-wrap"><i class="fa-solid fa-arrow-down-short-wide sort-ic"></i>
+        <select id="sort-select" onchange="setClientasSort(this.value)" title="Ordenar clientas">
+          <option value="creacion">Última creada</option>
+          <option value="nombre">Nombre (A-Z)</option>
+          <option value="apellido">Apellido (A-Z)</option>
+        </select>
+      </div>
+    </div>
     <div id="clientas-list"></div>
   </div>
   <button class="fab" onclick="openClientaModal()">+</button>
@@ -921,10 +935,25 @@ function fmtDebtObj(o){
   return (o.ars>0?fmtARS(o.ars):'') + (o.ars>0&&o.usd>0?' + ':'') + (o.usd>0?fmtUSD(o.usd):'');
 }
 function goBackToClientas(){ showScreen('clientas'); renderClientasList(); }
+// Orden de la lista de clientas: por creación (la última creada arriba), por nombre o por apellido. Se recuerda en este dispositivo.
+let clientasSort = 'creacion';
+try{ const sv = localStorage.getItem('lv_clientas_sort'); if(sv==='nombre'||sv==='apellido'||sv==='creacion') clientasSort = sv; }catch(e){}
+function setClientasSort(v){
+  clientasSort = v;
+  try{ localStorage.setItem('lv_clientas_sort', v); }catch(e){}
+  renderClientasList();
+}
+function clientasCmp(a,b){
+  const al = (x,y)=> String(x||'').localeCompare(String(y||''),'es',{sensitivity:'base'});
+  if(clientasSort==='nombre') return al(a.nombre,b.nombre) || al(a.apellido,b.apellido);
+  if(clientasSort==='apellido') return al(a.apellido,b.apellido) || al(a.nombre,b.nombre);
+  return (b.createdAt||0)-(a.createdAt||0) || al(a.apellido,b.apellido);
+}
 function renderClientasList(){
+  const sel = document.getElementById('sort-select'); if(sel && sel.value!==clientasSort) sel.value = clientasSort;
   const q = normalize(document.getElementById('search-input').value);
   const list = document.getElementById('clientas-list');
-  const filtered = clientasCache.filter(c=> !q || normalize(c.nombre+' '+c.apellido).includes(q));
+  const filtered = clientasCache.filter(c=> !q || normalize(c.nombre+' '+c.apellido).includes(q)).sort(clientasCmp);
   if(!filtered.length){ list.innerHTML = '<div class="empty">No hay clientas todavía.<br>Tocá el + para agregar la primera.</div>'; return; }
   list.innerHTML = filtered.map(c=>{
     const debt = (c.deudaARS>0||c.deudaUSD>0) ? {ars:c.deudaARS||0, usd:c.deudaUSD||0} : null;
