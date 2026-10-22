@@ -705,7 +705,7 @@ body.role-admin .doctype-btns button.pago{display:block}
       <div class="estado-toggle" id="eg-btn-pagado" onclick="setEgEstado('pagado')">Pagado</div>
     </div>
     <div class="field" style="margin-top:12px"><label>Fecha de pago</label><input type="date" id="eg-fechapago"></div>
-    <button class="btn btn-primary" style="width:100%;margin-top:6px" onclick="saveEgreso()">Guardar</button>
+    <button class="btn btn-primary" style="width:100%;margin-top:6px" id="eg-guardar" onclick="saveEgreso()">Guardar</button>
     <div id="eg-delete-row" class="hidden" style="text-align:center;margin-top:14px">
       <button class="btn-danger" style="font-size:13px" onclick="deleteEgreso()">Eliminar</button>
     </div>
@@ -3071,15 +3071,6 @@ function addEgresoLinea(l){
   row.querySelector('.eg-prenda-sel').addEventListener('change', ()=>{ if(egModo()==='rufina') egAplicarTipo(row,true); });
   row.querySelector('.eg-cant').addEventListener('input', e=>{ e.target.dataset.auto=''; recalcEgresoTotal(); });
   row.querySelector('.eg-valor').addEventListener('input', recalcEgresoTotal);
-  // Tab en el valor de la última línea: abre otra línea y pasa directo a su código (carga rápida con el teclado)
-  row.querySelector('.eg-valor').addEventListener('keydown', e=>{
-    if(e.key!=='Tab' || e.shiftKey) return;
-    if(row!==document.querySelector('#eg-lineas .eg-line:last-child')) return;
-    const ca = row.querySelector('.eg-cant');
-    if((!ca.value.trim() || ca.dataset.auto==='1') && !row.querySelector('.eg-valor').value.trim()) return; // línea todavía vacía
-    e.preventDefault();
-    addEgresoLinea().querySelector('.eg-codigo').focus();
-  });
   row.querySelector('.rm-row').addEventListener('click', ()=>{
     if(document.querySelectorAll('#eg-lineas .eg-line').length<=1) return; // siempre queda al menos una línea
     row.remove(); recalcEgresoTotal();
@@ -3088,6 +3079,51 @@ function addEgresoLinea(l){
   recalcEgresoTotal();
   return row;
 }
+// Tab en el formulario de Telas/Arreglos: baja por la columna (todos los códigos, después todas las prendas, detalles, etc.)
+// y recién al terminar una columna pasa a la siguiente. Shift+Tab hace el camino inverso.
+const EG_TAB_COLS = ['codigo','clienta','prenda','tipo','detalle','cant','valor'];
+function egColEl(row, ci){
+  const k = EG_TAB_COLS[ci];
+  if(k==='prenda'){ const sl=row.querySelector('.eg-prenda-sel'), tx=row.querySelector('.eg-prenda-txt'); return sl.classList.contains('hidden')? tx : sl; }
+  return row.querySelector('.eg-'+k);
+}
+function egTabbable(el){ return !!el && el.offsetParent!==null && el.tabIndex>=0 && !el.disabled; }
+function egColIndex(el){
+  if(el.classList.contains('eg-prenda-sel') || el.classList.contains('eg-prenda-txt')) return 2;
+  return EG_TAB_COLS.findIndex(k=>el.classList.contains('eg-'+k));
+}
+function egLineaVacia(row){
+  const ca = row.querySelector('.eg-cant');
+  return ['.eg-codigo','.eg-clienta','.eg-prenda-txt','.eg-detalle','.eg-valor'].every(q=>!row.querySelector(q).value.trim()) && (!ca.value.trim() || ca.dataset.auto==='1');
+}
+function egSiguiente(rows, ci, ri, back){
+  const n = rows.length;
+  if(!back){
+    for(let r=ri+1;r<n;r++){ const el=egColEl(rows[r],ci); if(egTabbable(el)) return el; }
+    for(let c=ci+1;c<EG_TAB_COLS.length;c++) for(let r=0;r<n;r++){ const el=egColEl(rows[r],c); if(egTabbable(el)) return el; }
+  } else {
+    for(let r=ri-1;r>=0;r--){ const el=egColEl(rows[r],ci); if(egTabbable(el)) return el; }
+    for(let c=ci-1;c>=0;c--) for(let r=n-1;r>=0;r--){ const el=egColEl(rows[r],c); if(egTabbable(el)) return el; }
+  }
+  return null;
+}
+document.getElementById('eg-lineas').addEventListener('keydown', e=>{
+  if(e.key!=='Tab') return;
+  const el = e.target, row = el.closest && el.closest('.eg-line'); if(!row) return;
+  const ci = egColIndex(el); if(ci<0) return;
+  const rows = [...document.querySelectorAll('#eg-lineas .eg-line')];
+  let ri = rows.indexOf(row);
+  const ult = ri===rows.length-1;
+  if(!e.shiftKey && ci===0 && ult){
+    // código cargado en la última línea: se abre otra debajo para seguir con los códigos
+    if(el.value.trim()){ e.preventDefault(); const nr = addEgresoLinea(); nr.querySelector('.eg-codigo').focus(); return; }
+    // línea sobrante vacía al terminar la columna de códigos: se descarta
+    if(rows.length>1 && egLineaVacia(row)){ row.remove(); rows.pop(); ri = rows.length; recalcEgresoTotal(); }
+  }
+  const sig = egSiguiente(rows, ci, ri, e.shiftKey);
+  if(sig){ e.preventDefault(); sig.focus(); if(sig.select && sig.tagName==='INPUT') sig.select(); }
+  else if(!e.shiftKey){ e.preventDefault(); document.getElementById('eg-guardar').focus(); } // terminó la última columna
+});
 function setEgEstado(v){
   document.getElementById('eg-btn-pendiente').classList.toggle('sel-falta', v==='pendiente');
   document.getElementById('eg-btn-pagado').classList.toggle('sel-completo', v==='pagado');
