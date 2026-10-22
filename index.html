@@ -168,6 +168,7 @@ table.p-detail thead th{background:#3d3d3d;color:#fff;text-align:left;font-size:
 table.p-detail thead th.num{text-align:right}
 table.p-detail tbody td{padding:7px 5px;font-size:11.5px;border-bottom:1px dotted #ccc;vertical-align:top;word-wrap:break-word}
 table.p-detail tbody td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+table.p-detail tbody tr.remitonote td{font-size:11px;color:#444;padding-top:9px;line-height:1.35;border-bottom:none}
 table.p-detail tbody tr.notesrow td{font-size:10.5px;color:#555;font-style:italic;padding-top:10px}
 table.p-detail tfoot td{padding:3px 5px;font-size:11.5px}
 table.p-detail tfoot tr.rule td{padding:0;border-top:2px solid #2b2b2b}
@@ -647,7 +648,8 @@ body.role-admin .doctype-btns button.pago{display:block}
       <button type="button" id="add-arreglo-btn" class="add-pill pill-arr hidden" onclick="addArregloRow()"><i class="fa-solid fa-plus"></i> Arreglos/otros</button>
     </div>
     <div id="doc-live-total" class="live-total hidden"></div>
-    <div class="field"><label>Notas</label><textarea id="doc-notas" rows="2"></textarea></div>
+    <div class="field"><label>Nota visible en remito</label><textarea id="doc-nota-remito" rows="2" placeholder="Aparece en el remito, debajo de la última prenda"></textarea></div>
+    <div class="field"><label>Nota interna</label><textarea id="doc-notas" rows="2" placeholder="Solo la ve el equipo (ojito en las planillas)"></textarea></div>
     <div id="pagos-section" class="hidden">
       <div class="section-label">Pagos</div>
       <div id="pagos-container"></div>
@@ -1291,6 +1293,7 @@ function openDocModal(tipo, existing){
   document.getElementById('doc-fecha').value = existing? existing.fecha : todayISO();
   document.getElementById('doc-fechaevento').value = existing? (existing.fechaEvento||'') : '';
   document.getElementById('doc-notas').value = existing? (existing.notas||'') : '';
+  document.getElementById('doc-nota-remito').value = existing? (existing.notaRemito||'') : '';
   document.getElementById('doc-modal-title').textContent = (existing?'Editar ':'Nuevo ') + (tipo==='presupuesto'?'presupuesto':'recibo de venta');
   document.getElementById('pagos-section').classList.toggle('hidden', tipo!=='venta');
   document.getElementById('pventa-section').classList.toggle('hidden', tipo!=='venta');
@@ -1549,6 +1552,7 @@ function saveDoc(){
   const fecha = document.getElementById('doc-fecha').value || todayISO();
   const fechaEvento = document.getElementById('doc-fechaevento').value.trim();
   const notas = document.getElementById('doc-notas').value.trim();
+  const notaRemito = document.getElementById('doc-nota-remito').value.trim();
 
   let productos = [], totalEfvoARS=0, totalTarjARS=0, totalEfvoUSD=0, totalTarjUSD=0, totalARS=0, totalUSD=0;
   let currentPV = tipo==='venta'? document.getElementById('doc-puntoventa').value : null;
@@ -1589,7 +1593,7 @@ function saveDoc(){
   });
   if(!productos.length){ alert('Agregá al menos una prenda con descripción.'); return; }
 
-  let data = {tipo, fecha, fechaEvento, notas, productos,
+  let data = {tipo, fecha, fechaEvento, notas, notaRemito, productos,
     clienteNombre: currentClienteData.nombre, clienteApellido: currentClienteData.apellido,
     clienteTelefono: currentClienteData.telefono||'', clienteDni: currentClienteData.dni||''};
   if(!id){
@@ -2144,6 +2148,8 @@ function buildPaperHTML(d, c, includeNotes){
     totalsHTML = rows;
   }
 
+  // Nota visible en remito: va debajo de la última prenda, antes de los totales
+  const remitoNoteHTML = d.notaRemito ? `<tr class="remitonote"><td colspan="3">${nl2br(d.notaRemito)}</td></tr>` : '';
   const notesHTML = (includeNotes && d.notas)? `<tr class="notesrow"><td colspan="3"><b>Notas:</b> ${nl2br(d.notas)}</td></tr>` : '';
 
   const termsHTML = isPresu ? `
@@ -2182,7 +2188,7 @@ function buildPaperHTML(d, c, includeNotes){
     <table class="p-detail">
       <colgroup><col><col class="c2"><col class="c3"></colgroup>
       <thead><tr>${theadCols}</tr></thead>
-      <tbody>${rowsHTML}${notesHTML}</tbody>
+      <tbody>${rowsHTML}${remitoNoteHTML}${notesHTML}</tbody>
       <tfoot>${totalsHTML}</tfoot>
     </table>
     <div class="p-terms">${termsHTML}</div>
