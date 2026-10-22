@@ -532,6 +532,12 @@ with sync_playwright() as p:
     ok('Ficha: con la misma fecha va primero el último cargado', ev("[...document.querySelectorAll('#docs-list .doc-card')].filter(c=>c.innerText.includes('23/09/2026')).map(c=>c.innerText.includes('$2'))")[0]==True)
     ev("Object.keys(window.__store).filter(k=>/clientas\/c2\/documentos\/o\d$/.test(k)).forEach(k=>delete window.__store[k])")
     ev("goBackToClientas()"); wait(100)
+
+    # ================= Presupuesto sin valor: casillero vacío, sin "$0" =================
+    h=ev("buildPaperHTML({tipo:'presupuesto',fecha:'2026-09-24',productos:[{desc:'sin valor',moneda:'ARS',efvo:0,tarj:0},{desc:'con valor',moneda:'ARS',efvo:1000,tarj:1250}]}, {nombre:'A',apellido:'B'}, false)")
+    ok('Presupuesto: sin valor no aparece "$0" (con valor sí)', '$0' not in h and '$1.000' in h and '$1.250' in h)
+    ev("presuSheetDocsRaw=[{id:'pz1',clienteId:'c1',clienteNombre:'A',clienteApellido:'B',fecha:'2026-10-02',createdAt:1,productos:[{desc:'sin valor',moneda:'ARS',efvo:0,tarj:0}]}]; renderPresuSheet(presuSheetDocsRaw)")
+    ok('Planilla presupuestos: sin valor queda vacío', '$0' not in txt('#presu-sheet-body'))
     ev("doLogout()"); wait(100)
     for r in res: print(*r)
     print('ERRORS',errs); b.close()

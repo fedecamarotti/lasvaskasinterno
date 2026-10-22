@@ -2115,7 +2115,7 @@ function buildPaperHTML(d, c, includeNotes){
     theadCols = `<th>Detalle</th><th class="num">Efectivo</th><th class="num">Tarjeta</th>`;
     rowsHTML = d.productos.map(p=>{
       const f = p.moneda==='USD'?fmtUSD:fmtARS;
-      return `<tr><td>${esc(p.desc)}</td><td class="num">${f(p.efvo)}</td><td class="num">${f(p.tarj)}</td></tr>`;
+      return `<tr><td>${esc(p.desc)}</td><td class="num">${p.efvo? f(p.efvo) : ''}</td><td class="num">${p.tarj? f(p.tarj) : ''}</td></tr>`; // sin valor: casillero vacío (no "$0")
     }).join('');
     let rows = `<tr class="rule"><td colspan="3"></td></tr>`;
     if(d.totalEfvoARS||d.totalTarjARS) rows += `<tr class="totalrow"><td>Total</td><td class="num">${fmtARS(d.totalEfvoARS||0)}</td><td class="num">${fmtARS(d.totalTarjARS||0)}</td></tr>`;
@@ -2623,7 +2623,7 @@ function renderPresuSheet(docs){
       if(i===0) html += `<td class="vmid" rowspan="${rowspan}">${d.notas? `<span class="sheet-plus nota-btn" title="Ver nota" onclick="showNotaPop(this,'${d.id}')"><svg class="eye-ic" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg></span>` : ''}</td>`;
       // Convertido: un solo botón (check) centrado en toda la fila; al marcarlo la fila toma un verde pastel suave
       if(i===0) html += `<td class="vmid" rowspan="${rowspan}"><span class="sheet-plus conv-btn${d.convertido?' on':''}" title="${d.convertido?'Convertido en venta (tocar para desmarcar)':'Marcar como convertido en venta'}" onclick="toggleConvertido('${d.clienteId}','${d.id}')"><svg class="eye-ic" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M4.5 12.5l5 5L19.5 7"/></svg></span></td>`;
-      html += `<td>${f(p.efvo)}</td><td>${f(p.tarj)}</td></tr>`;
+      html += `<td>${p.efvo? f(p.efvo) : ''}</td><td>${p.tarj? f(p.tarj) : ''}</td></tr>`;
     });
   });
   closeNotaPop();
