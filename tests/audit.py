@@ -165,6 +165,7 @@ with sync_playwright() as p:
     ev("ventaMonth=new Date(2026,8,1); presuMonth=new Date(); presuMonth.setDate(1); openPresupuestosSheet()"); wait(300)
     # deudas
     ev("openDeudas()"); wait(300)
+    ok('Deudoras: el cartelito cuenta lo mismo que las tarjetas de la lista', int(ev("document.querySelector('.deudas-count').textContent"))==ev("document.querySelectorAll('#deudas-list .card').length"))
     ok('deudoras muestra', 'Arana' in txt('#deudas-list') or 'Amherdt' in txt('#deudas-list') or '$' in txt('#deudas-list'))
     # eliminar venta
     ev("openClienteDetail('c1')"); wait()

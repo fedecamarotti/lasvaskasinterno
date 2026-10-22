@@ -652,8 +652,8 @@ body.role-admin .doctype-btns button.pago{display:block}
       <button type="button" id="add-arreglo-btn" class="add-pill pill-arr hidden" onclick="addArregloRow()"><i class="fa-solid fa-plus"></i> Arreglos/otros</button>
     </div>
     <div id="doc-live-total" class="live-total hidden"></div>
-    <div class="field"><label>Nota visible en remito</label><textarea id="doc-nota-remito" rows="2" placeholder="Aparece en el remito, debajo de la última prenda"></textarea></div>
-    <div class="field"><label>Nota interna</label><textarea id="doc-notas" rows="2" placeholder="Solo la ve el equipo (ojito en las planillas)"></textarea></div>
+    <div class="field"><label>Nota visible en remito</label><textarea id="doc-nota-remito" rows="2"></textarea></div>
+    <div class="field"><label>Nota interna</label><textarea id="doc-notas" rows="2"></textarea></div>
     <div id="pagos-section" class="hidden">
       <div class="section-label">Pagos</div>
       <div id="pagos-container"></div>
@@ -959,6 +959,7 @@ auth.onAuthStateChanged(user=>{
     currentUserRole = null; currentUserUid = null;
     document.body.classList.remove('role-limited','role-admin');
     if(unsubClientas){ unsubClientas(); unsubClientas=null; }
+    deudasBadgeUnsubs.forEach(u=>u()); deudasBadgeUnsubs=[]; deudasBadgeIds={ars:null,usd:null};
     if(unsubDocs){ unsubDocs(); unsubDocs=null; }
     stopAllLive();
     clientasCache = []; docsCache = []; docsCacheClienteId = null;
@@ -972,6 +973,7 @@ function loadClientas(){
   // Listener en tiempo real: refleja al instante lo que se guarda en este dispositivo (sin esperar al servidor)
   // y también lo que cargan los demás usuarios, y evita que una respuesta tardía pise lo recién cargado.
   if(unsubClientas) unsubClientas();
+  listenDeudasBadge();
   unsubClientas = db.collection('clientas').orderBy('apellido').onSnapshot(SNAP_META, snap=>{
     if(snapIncierto(snap)) return;
     clientasCache = snap.docs.map(d=>({id:d.id, ...d.data()}));
@@ -986,11 +988,20 @@ function loadClientas(){
     document.getElementById('clientas-list').innerHTML = '<div class="empty">No se pudieron cargar las clientas. Revisá la consola.</div>';
   });
 }
+let deudasBadgeUnsubs = [], deudasBadgeIds = {ars:null, usd:null};
 function updateDeudasBadge(){
-  const count = clientasCache.filter(c=>(c.deudaARS>0)||(c.deudaUSD>0)).length;
+  let count;
+  if(deudasBadgeIds.ars && deudasBadgeIds.usd){ count = new Set([...deudasBadgeIds.ars, ...deudasBadgeIds.usd]).size; }
+  else count = clientasCache.filter(c=>(c.deudaARS>0)||(c.deudaUSD>0)).length;
   document.querySelectorAll('.deudas-count').forEach(el=>{
     if(count>0){ el.textContent=count; el.classList.remove('hidden'); } else { el.classList.add('hidden'); }
   });
+}
+// El cartelito cuenta lo mismo que la lista de Deudoras: una por cada venta con saldo pendiente.
+function listenDeudasBadge(){
+  deudasBadgeUnsubs.forEach(u=>u()); deudasBadgeUnsubs = []; deudasBadgeIds = {ars:null, usd:null};
+  const on = (k, q)=> q.onSnapshot(SNAP_META, sn=>{ if(snapIncierto(sn)) return; deudasBadgeIds[k] = sn.docs.map(d=>d.id); updateDeudasBadge(); }, e=>console.error(e));
+  deudasBadgeUnsubs = [ on('ars', db.collection('ventas').where('aPagarARS','>',0)), on('usd', db.collection('ventas').where('aPagarUSD','>',0)) ];
 }
 // Recalcula la deuda total de una clienta (suma de sus ventas pendientes) y la guarda en su ficha,
 // consultando Firestore directamente. Se usa como respaldo cuando docsCache no corresponde a esta clienta
