@@ -1025,9 +1025,11 @@ function refreshClienteDeudaFast(clienteId){
   db.collection('clientas').doc(clienteId).update({deudaARS, deudaUSD}).catch(()=>{});
 }
 // Inserta o reemplaza un documento en docsCache y refresca la lista, sin volver a consultar Firestore.
-// Orden de la ficha: lo más nuevo arriba (por la fecha de cada tarjeta) y, si coinciden, el último cargado primero
+// Orden de la ficha: lo más nuevo arriba (por la fecha de cada tarjeta); si coinciden, el último cargado primero
 function sortDocsFicha(arr){
-  return arr.sort((a,b)=>String(b.fecha||'').localeCompare(String(a.fecha||'')) || (b.createdAt||0)-(a.createdAt||0));
+  // Con la misma fecha, el presupuesto siempre queda debajo de la venta (y de lo demás)
+  const rk = d=> d.tipo==='presupuesto' ? 0 : 1;
+  return arr.sort((a,b)=>String(b.fecha||'').localeCompare(String(a.fecha||'')) || rk(b)-rk(a) || (b.createdAt||0)-(a.createdAt||0));
 }
 function upsertDocInCache(doc){
   if(docsCacheClienteId!==currentClienteId){ loadDocs(); return; }

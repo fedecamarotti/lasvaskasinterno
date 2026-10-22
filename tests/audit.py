@@ -538,6 +538,16 @@ with sync_playwright() as p:
     ok('Presupuesto: sin valor no aparece "$0" (con valor sí)', '$0' not in h and '$1.000' in h and '$1.250' in h)
     ev("presuSheetDocsRaw=[{id:'pz1',clienteId:'c1',clienteNombre:'A',clienteApellido:'B',fecha:'2026-10-02',createdAt:1,productos:[{desc:'sin valor',moneda:'ARS',efvo:0,tarj:0}]}]; renderPresuSheet(presuSheetDocsRaw)")
     ok('Planilla presupuestos: sin valor queda vacío', '$0' not in txt('#presu-sheet-body'))
+
+    # misma fecha: el presupuesto siempre debajo de la venta, aunque se haya cargado después
+    ev("""(()=>{const s=window.__store,b='clientas/c2/documentos/';
+      s[b+'q1']={tipo:'presupuesto',fecha:'2026-10-05',createdAt:9000,productos:[],totalEfvoARS:7,totalTarjARS:7};
+      s[b+'q2']={tipo:'venta',fecha:'2026-10-05',createdAt:100,productos:[],totalARS:1,totalUSD:0,aPagarARS:0,aPagarUSD:0,pagos:[]};})()""")
+    ev("openClienteDetail('c2')"); wait(400)
+    tg=ev("[...document.querySelectorAll('#docs-list .doc-card')].filter(c=>c.innerText.includes('05/10/2026')).map(c=>c.querySelector('.tag-mini').innerText.trim().toLowerCase())")
+    ok('Ficha: misma fecha -> el presupuesto queda debajo de la venta', tg==['recibo de venta','presupuesto'])
+    ev("Object.keys(window.__store).filter(k=>/clientas\/c2\/documentos\/q\d$/.test(k)).forEach(k=>delete window.__store[k])")
+    ev("goBackToClientas()"); wait(100)
     ev("doLogout()"); wait(100)
     for r in res: print(*r)
     print('ERRORS',errs); b.close()
