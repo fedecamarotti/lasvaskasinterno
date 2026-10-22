@@ -312,7 +312,6 @@ body.role-limited #venta-table colgroup col:nth-child(9){display:none}
 .co-cant-wrap input{text-align:center;padding:9px 4px}
 .co-valor-wrap{flex:0 0 84px}
 .co-valor-wrap input{text-align:right;padding:9px 6px}
-@media(max-width:480px){ .eg-l1 .eg-pv{flex:0 0 106px} .eg-l1 .eg-cod{flex:0 0 56px} .eg-l1 select,.eg-l1 input{padding-left:6px;padding-right:4px} }
 @media(max-width:400px){
   .co-tipo-wrap{flex:0 0 104px}
   .co-valor-wrap{flex:0 0 74px}
@@ -334,24 +333,25 @@ table.sheet-table tbody td.tot-cell{font-weight:700}
 .eg-estado.pend{background:#f8dcd8;color:#a13f38}
 .eg-estado.pag{background:#d9f0e1;color:#2f6b45}
 .eg-fp{font-family:'Montserrat',sans-serif;min-width:0}
-.modal-eg{max-width:560px}
-.eg-line{border:1px solid #ece6d8;border-radius:10px;padding:10px;margin-bottom:10px;background:#fcfbf8}
-.eg-line .field{margin-bottom:0}
-.eg-l1,.eg-l2{display:flex;gap:6px;align-items:center;margin-bottom:6px}
-.eg-l1 .eg-pv{flex:0 0 150px}
-.eg-l1 .eg-cod{flex:0 0 74px}
-.eg-l1 .eg-cli{flex:1;min-width:0}
-.eg-l2 .eg-pren{flex:0 0 118px;min-width:0}
-.eg-l2 .eg-det{flex:1;min-width:0}
-.eg-l2 .eg-c{flex:0 0 52px}
-.eg-l2 .eg-v{flex:0 0 84px}
-.eg-l2 .eg-c input{text-align:center;padding-left:4px;padding-right:4px}
-.eg-l2 .eg-v input{text-align:right;padding-left:6px;padding-right:6px}
-.eg-l2 select,.eg-l2 .eg-pren input,.eg-l2 .eg-det input{padding-left:8px;padding-right:6px}
-@media(max-width:480px){ .eg-l2{flex-wrap:wrap} .eg-l2 .eg-det{flex:1 1 40%} .eg-sub{flex:1 0 100%;text-align:right} }
-.eg-sub{flex:0 0 auto;font-size:12px;color:#8a8375;white-space:nowrap}
+.modal-eg{max-width:1040px}
+.eg-line{display:flex;flex-wrap:wrap;gap:6px;align-items:center;border:1px solid #ece6d8;border-radius:10px;padding:8px 10px;margin-bottom:8px;background:#fcfbf8}
+.eg-line .field{margin-bottom:0;min-width:0}
+.eg-line input,.eg-line select{padding:9px 7px;font-size:13px}
+.eg-cod{flex:0 0 68px}
+.eg-cli{flex:1 1 120px}
+.eg-tp{flex:0 0 96px}
+.eg-pren{flex:1 1 150px}
+.eg-det{flex:1.3 1 150px}
+.eg-c{flex:0 0 58px}
+.eg-v{flex:0 0 90px}
+.eg-c input{text-align:center;padding-left:4px;padding-right:4px}
+.eg-v input{text-align:right}
+.eg-line .rm-row{flex:0 0 22px;text-align:center}
+.eg-modos{margin:2px 0 14px}
+.estado-toggle.sel-modo{background:#f0e6d0;border-color:#c9a86a;color:#8f6c2a}
+.eg-sub{flex:0 0 78px;text-align:right;font-size:13px;color:#8a8375;white-space:nowrap}
 .eg-sub b{color:#3a352c}
-.eg-stat{font-size:11px;min-height:0;margin:-2px 0 6px 2px;color:#4f8f68}
+.eg-stat{flex:1 0 100%;font-size:11px;min-height:0;margin:-2px 0 0 2px;color:#4f8f68}
 .eg-stat.err{color:#c1685c}
 .eg-stat:empty{display:none}
 .eg-line input[readonly]{background:#f3f0e8;color:#6d6657}
@@ -691,8 +691,12 @@ body.role-admin .doctype-btns button.pago{display:block}
   <div class="modal modal-eg">
     <button class="modal-close" onclick="closeModal('modal-egreso')">✕</button>
     <h2 id="eg-title">Cargar telas/arreglos</h2>
-    <input type="hidden" id="eg-id"><input type="hidden" id="eg-modal-estado" value="pendiente">
+    <input type="hidden" id="eg-id"><input type="hidden" id="eg-modal-estado" value="pendiente"><input type="hidden" id="eg-modo" value="telas">
     <div class="field"><label>Fecha</label><input type="date" id="eg-fecha"></div>
+    <div class="estado-toggle-row eg-modos">
+      <div class="estado-toggle" id="eg-modo-telas" onclick="setEgModo('telas')">Compra telas</div>
+      <div class="estado-toggle" id="eg-modo-rufina" onclick="setEgModo('rufina')">Rufina</div>
+    </div>
     <div id="eg-lineas"></div>
     <div class="add-row-btn" onclick="addEgresoLinea()"><i class="fa-solid fa-plus"></i> Agregar línea</div>
     <div class="live-total">Total: <span id="eg-total">$0</span></div>
@@ -2963,6 +2967,36 @@ function recalcEgresoTotal(){
   });
   document.getElementById('eg-total').textContent = fmtARS(t);
 }
+// Compra telas / Rufina: modo del egreso. En Rufina cada línea es "nuevo" o "arreglo" (se deduce de la prenda elegida).
+function egModo(){ return document.getElementById('eg-modo').value; }
+function egTipoOptions(modo){
+  const list = modo==='telas' ? [['Telas','Telas']] : modo==='rufina' ? [['Rufina nuevo','Nuevo'],['Rufina arreglos','Arreglo']] : [['Telas','Telas'],['Rufina nuevo','Nuevo'],['Rufina arreglos','Arreglo']];
+  return list.map(([v,t])=>`<option value="${v}">${t}</option>`).join('');
+}
+function egInferirTipo(row){
+  const v = row._venta, sel = row.querySelector('.eg-prenda-sel');
+  if(!v || sel.classList.contains('hidden')) return null;
+  const pr = (v.productos||[])[parseInt(sel.value,10)];
+  return pr && pr.esArreglo ? 'Rufina arreglos' : 'Rufina nuevo';
+}
+function egAplicarTipo(row, inferir){
+  const modo = egModo(), sel = row.querySelector('.eg-tipo'), wrap = sel.closest('.eg-tp');
+  const actual = sel.value;
+  sel.innerHTML = egTipoOptions(modo);
+  if(modo==='telas'){ sel.value = 'Telas'; wrap.classList.add('hidden'); return; }
+  wrap.classList.remove('hidden');
+  let v = [...sel.options].some(o=>o.value===actual) ? actual : 'Rufina nuevo';
+  if(modo==='rufina' && (inferir || actual==='Telas')){ const inf = egInferirTipo(row); if(inf) v = inf; }
+  sel.value = v;
+  // si el tipo se deduce de la prenda no hace falta pasar por él con el teclado
+  sel.tabIndex = (modo==='rufina' && egInferirTipo(row)) ? -1 : 0;
+}
+function setEgModo(m){
+  document.getElementById('eg-modo').value = m;
+  document.getElementById('eg-modo-telas').classList.toggle('sel-modo', m==='telas');
+  document.getElementById('eg-modo-rufina').classList.toggle('sel-modo', m==='rufina');
+  document.querySelectorAll('#eg-lineas .eg-line').forEach(r=>egAplicarTipo(r,false));
+}
 // Completa la fila según el código: trae la clienta de la venta y arma el desplegable de prendas.
 // Sin código (o si no existe) la clienta y la prenda se escriben a mano.
 function resolverCodigoEgreso(row, pre){
@@ -2971,25 +3005,30 @@ function resolverCodigoEgreso(row, pre){
   const cli = row.querySelector('.eg-clienta'), stat = row.querySelector('.eg-stat');
   const sel = row.querySelector('.eg-prenda-sel'), txt = row.querySelector('.eg-prenda-txt');
   const manual = (msg)=>{
-    row.dataset.ventaId = ''; row.dataset.clienteId = '';
-    cli.readOnly = false;
+    row.dataset.ventaId = ''; row.dataset.clienteId = ''; row._venta = null;
+    cli.readOnly = false; cli.tabIndex = 0;
     sel.classList.add('hidden'); sel.innerHTML=''; txt.classList.remove('hidden');
     stat.textContent = msg||''; stat.className = 'eg-stat'+(msg?' err':'');
+    egAplicarTipo(row,false);
   };
   if(!cod){ manual(''); return Promise.resolve(); }
   const p = buscarVentaPorCodigo(cod).then(v=>{
     if(row._tok!==tok) return;
     if(!v){ manual('No hay ninguna venta con ese código'); return; }
     row.dataset.ventaId = v.id; row.dataset.clienteId = v.clienteId||'';
-    cli.value = `${v.clienteNombre||''} ${v.clienteApellido||''}`.trim(); cli.readOnly = true;
+    cli.value = `${v.clienteNombre||''} ${v.clienteApellido||''}`.trim(); cli.readOnly = true; cli.tabIndex = -1;
     const opts = [];
     (v.productos||[]).forEach((pr,i)=>{ if(pr.texto || pr.puntoVenta==='CC') return; opts.push(`<option value="${i}">${esc(pr.desc||('Prenda '+(i+1)))}${pr.esArreglo?' (arreglo)':''}</option>`); });
     sel.innerHTML = opts.join('');
     let idx = pre && pre.prendaIdx!=null ? egresoLineaApuntaA(pre, v.productos||[]) : -1;
     if(idx>-1 && sel.querySelector(`option[value="${idx}"]`)) sel.value = String(idx);
+    row._venta = v;
     sel.classList.remove('hidden'); txt.classList.add('hidden');
     stat.textContent = ''; stat.className = 'eg-stat';
-    row._venta = v;
+    egAplicarTipo(row, !pre); // en una línea nueva, el tipo (nuevo/arreglo) se deduce de la prenda
+    // si se pasó al casillero de prenda con Tab mientras se buscaba, el foco sigue en el desplegable
+    if(row._tabbed && (document.activeElement===txt || document.activeElement===document.body)) sel.focus();
+    row._tabbed = false;
   }).catch(err=>{ console.error(err); if(row._tok===tok) manual('No se pudo buscar el código'); });
   row._p = p;
   return p;
@@ -2998,36 +3037,47 @@ function addEgresoLinea(l){
   l = l||{};
   const row = document.createElement('div');
   row.className = 'eg-line';
-  const provSel = provNorm(l.proveedor) || 'Telas';
   row.innerHTML = `
-    <div class="eg-l1">
-      <div class="field eg-pv"><select class="eg-prov">${PROVEEDORES.map(p=>`<option value="${esc(p)}"${provSel===p?' selected':''}>${esc(p)}</option>`).join('')}</select></div>
-      <div class="field eg-cod"><input class="eg-codigo" placeholder="Código" inputmode="numeric" value="${esc(l.codigo||'')}"></div>
-      <div class="field eg-cli"><input class="eg-clienta" placeholder="Clienta" value="${esc(l.clienta||'')}"></div>
-      <div class="rm-row">✕</div>
-    </div>
-    <div class="eg-stat"></div>
-    <div class="eg-l2">
-      <div class="field eg-pren"><select class="eg-prenda-sel hidden"></select><input class="eg-prenda-txt" placeholder="Prenda" value="${esc(l.prenda||'')}"></div>
-      <div class="field eg-det"><input class="eg-detalle" placeholder="Detalle" value="${esc(l.detalle||'')}"></div>
-      <div class="field eg-c"><input class="eg-cant" placeholder="Cant." inputmode="decimal" value="${esc(String(l.cant==null?'':l.cant).replace('.',','))}"></div>
-      <div class="field eg-v"><input class="eg-valor" placeholder="Valor $" inputmode="numeric" value="${fmtMoney(l.valor)}"></div>
-      <div class="eg-sub"><b>$0</b></div>
-    </div>`;
+    <div class="field eg-cod"><input class="eg-codigo" placeholder="Código" inputmode="numeric" value="${esc(l.codigo||'')}"></div>
+    <div class="field eg-cli"><input class="eg-clienta" placeholder="Clienta" value="${esc(l.clienta||'')}"></div>
+    <div class="field eg-pren"><select class="eg-prenda-sel hidden"></select><input class="eg-prenda-txt" placeholder="Prenda" value="${esc(l.prenda||'')}"></div>
+    <div class="field eg-tp"><select class="eg-tipo"></select></div>
+    <div class="field eg-det"><input class="eg-detalle" placeholder="Detalle" value="${esc(l.detalle||'')}"></div>
+    <div class="field eg-c"><input class="eg-cant" placeholder="Cant." inputmode="decimal" value="${esc(String(l.cant==null?'':l.cant).replace('.',','))}"></div>
+    <div class="field eg-v"><input class="eg-valor" placeholder="Valor $" inputmode="numeric" value="${fmtMoney(l.valor)}"></div>
+    <div class="eg-sub" title="Total de la línea"><b>$0</b></div>
+    <div class="rm-row">✕</div>
+    <div class="eg-stat"></div>`;
   document.getElementById('eg-lineas').appendChild(row);
+  const tipo = row.querySelector('.eg-tipo');
+  tipo.innerHTML = egTipoOptions(egModo());
+  tipo.value = provNorm(l.proveedor) || (egModo()==='telas' ? 'Telas' : 'Rufina nuevo');
+  egAplicarTipo(row,false);
+  if(l.codigo) row.querySelector('.eg-clienta').tabIndex = -1;
   attachMoneyInput(row.querySelector('.eg-valor'));
   const cod = row.querySelector('.eg-codigo');
   let t = null;
-  cod.addEventListener('input', ()=>{ clearTimeout(t); t = setTimeout(()=>resolverCodigoEgreso(row), 350); });
+  cod.addEventListener('input', ()=>{ clearTimeout(t); row.querySelector('.eg-clienta').tabIndex = cod.value.trim() ? -1 : 0; t = setTimeout(()=>resolverCodigoEgreso(row), 350); });
+  cod.addEventListener('keydown', e=>{ if(e.key==='Tab' && !e.shiftKey) row._tabbed = true; });
   cod.addEventListener('blur', ()=>{ clearTimeout(t); resolverCodigoEgreso(row); });
+  row.querySelector('.eg-prenda-sel').addEventListener('change', ()=>{ if(egModo()==='rufina') egAplicarTipo(row,true); });
   row.querySelector('.eg-cant').addEventListener('input', recalcEgresoTotal);
   row.querySelector('.eg-valor').addEventListener('input', recalcEgresoTotal);
+  // Tab en el valor de la última línea: abre otra línea y pasa directo a su código (carga rápida con el teclado)
+  row.querySelector('.eg-valor').addEventListener('keydown', e=>{
+    if(e.key!=='Tab' || e.shiftKey) return;
+    if(row!==document.querySelector('#eg-lineas .eg-line:last-child')) return;
+    if(!row.querySelector('.eg-cant').value.trim() && !row.querySelector('.eg-valor').value.trim()) return;
+    e.preventDefault();
+    addEgresoLinea().querySelector('.eg-codigo').focus();
+  });
   row.querySelector('.rm-row').addEventListener('click', ()=>{
     if(document.querySelectorAll('#eg-lineas .eg-line').length<=1) return; // siempre queda al menos una línea
     row.remove(); recalcEgresoTotal();
   });
-  if(l.codigo) resolverCodigoEgreso(row, l); else if(l.prenda!=null){ /* sin código: ya está el texto */ }
+  if(l.codigo) resolverCodigoEgreso(row, l);
   recalcEgresoTotal();
+  return row;
 }
 function setEgEstado(v){
   document.getElementById('eg-btn-pendiente').classList.toggle('sel-falta', v==='pendiente');
@@ -3046,6 +3096,9 @@ function openEgresoModal(id){
   document.getElementById('eg-title').textContent = e? 'Editar telas/arreglos' : 'Cargar telas/arreglos';
   document.getElementById('eg-fecha').value = e? (e.fecha||todayISO()) : todayISO();
   document.getElementById('eg-lineas').innerHTML = '';
+  // modo según lo cargado: todo telas / todo Rufina; si hay mezcla (datos viejos) ninguno queda marcado y cada línea muestra su tipo
+  const provs = e && e.lineas ? e.lineas.map(l=>provNorm(l.proveedor)) : [];
+  setEgModo(!provs.length || provs.every(p=>p==='Telas') ? 'telas' : (provs.every(p=>p!=='Telas') ? 'rufina' : ''));
   (e && e.lineas && e.lineas.length ? e.lineas : [{}]).forEach(l=>addEgresoLinea(l));
   document.getElementById('eg-fechapago').value = e? (e.fechaPago||'') : '';
   setEgEstado(e && e.estado==='pagado' ? 'pagado' : 'pendiente');
@@ -3069,7 +3122,7 @@ async function saveEgreso(){
       const selVis = !r.querySelector('.eg-prenda-sel').classList.contains('hidden');
       const sel = r.querySelector('.eg-prenda-sel');
       const prenda = selVis ? (sel.selectedOptions[0] ? sel.selectedOptions[0].textContent.replace(/ \(arreglo\)$/,'') : '') : r.querySelector('.eg-prenda-txt').value.trim();
-      const proveedor = r.querySelector('.eg-prov').value;
+      const proveedor = r.querySelector('.eg-tipo').value;
       const cant = numDec(r.querySelector('.eg-cant').value)||0;
       const valor = num(r.querySelector('.eg-valor').value)||0;
       const clienta = r.querySelector('.eg-clienta').value.trim();
