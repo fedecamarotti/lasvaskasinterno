@@ -52,14 +52,14 @@ with sync_playwright() as p:
     pg.fill('#clienta-telefono','9999'); ev("saveClienta()"); wait()
     ok('editar clienta', '9999' in txt('#client-header-box'))
     # presupuesto
-    ev("openDocModal('presupuesto')"); wait(100)
+    ev("openDocModal('presupuesto')"); wait(100); ev("addProductoRow()")
     pg.fill('.pd-desc','copa'); pg.fill('.pd-efvo','10000'); ev("document.querySelector('.pd-efvo').dispatchEvent(new Event('input'))")
     ev("saveDoc()"); wait(400)
     ok('presupuesto en ficha', 'copa' in txt('#docs-list') or 'PRESUPUESTO' in txt('#docs-list').upper())
     ok('presupuesto global', ev("Object.keys(window.__store).some(k=>k.startsWith('presupuestos/'))"))
     ev("closeModal('modal-preview')")
     # venta con pago parcial
-    ev("openDocModal('venta')"); wait(100)
+    ev("openDocModal('venta')"); wait(100); ev("addProductoRow()")
     pg.fill('#doc-fecha','2026-09-02'); pg.fill('.pd-desc','vaso'); pg.fill('.pd-cant','2'); pg.fill('.pd-valorunit','50000')
     ev("document.querySelector('.pd-valorunit').dispatchEvent(new Event('input'))")
     ev("addPagoRow()"); ev("document.querySelector('#pagos-container select').value='EFVO_ARS'")
@@ -176,7 +176,7 @@ with sync_playwright() as p:
     ok('clienta eliminada', 'Cosentino' not in txt('#clientas-list'))
     # CC: remito normal con totales; en movimientos solo texto en Producto
     ev("openClienteDetail('c1')"); wait()
-    ev("openDocModal('venta')"); wait(100)
+    ev("openDocModal('venta')"); wait(100); ev("addProductoRow()")
     pg.fill('#doc-fecha','2026-09-06'); pg.select_option('#doc-puntoventa','CC')
     ok('CC: el formulario mantiene cant/precio/total', ev("getComputedStyle(document.querySelector('.prod-row .c-cant')).display")!='none')
     ok('no existe el boton + Punto de venta', ev("!document.getElementById('add-pv-btn') && ![...document.querySelectorAll('.add-pill')].some(b=>/Punto de venta/.test(b.innerText))"))
@@ -194,7 +194,7 @@ with sync_playwright() as p:
     ok('planilla: CC muestra el texto y guiones en cant/unit/total', fila and ' - - -' in fila.replace('arreglo cc','').replace('\t',' ') or (fila and fila.count('-')>=3))
     # layout: producto en una sola linea en escritorio
     ev("openClienteDetail('c1')"); wait()
-    ev("openDocModal('venta')"); wait(100)
+    ev("openDocModal('venta')"); wait(100); ev("addProductoRow()")
     ys=ev("(()=>{const r=document.querySelector('.prod-row');return [...r.querySelectorAll('input,select')].map(e=>Math.round(e.getBoundingClientRect().top))})()")
     ok('producto en una sola linea (escritorio)', max(ys)-min(ys)<=2)
     ev("closeModal('modal-doc')")
@@ -264,7 +264,7 @@ with sync_playwright() as p:
             ok('editar desde planilla conserva el orden', orden==orden2)
     # Cotizacion: deuda en USD, pago en pesos (y al reves)
     def nueva_venta(fecha, moneda, cant, precio, metodo, monto, cot=None):
-        ev("openDocModal('venta')"); wait(100)
+        ev("openDocModal('venta')"); wait(100); ev("addProductoRow()")
         pg.fill('#doc-fecha',fecha); pg.select_option('.pd-moneda',moneda); pg.fill('.pd-desc','cot test '+moneda); pg.fill('.pd-cant',str(cant)); pg.fill('.pd-valorunit',str(precio))
         ev("document.querySelector('.pd-valorunit').dispatchEvent(new Event('input'))")
         ev("addPagoRow()"); pg.select_option('#pagos-container .pg-metodo',metodo); pg.fill('#pagos-container .pg-monto',str(monto))
@@ -322,7 +322,7 @@ with sync_playwright() as p:
     ok('XSS: no se inyecta HTML', not ev("!!document.getElementById('xss1')||!!document.getElementById('xss2')"))
     ok('XSS: el texto se ve literal', '<img' in txt('#client-header-box'))
     # doble clic en Guardar venta Belgrano -> una sola venta
-    ev("openDocModal('venta')"); wait(100)
+    ev("openDocModal('venta')"); wait(100); ev("addProductoRow()")
     pg.fill('#doc-fecha','2026-09-05'); pg.fill('.pd-desc','doble'); pg.fill('.pd-cant','1'); pg.fill('.pd-valorunit','1000')
     ev("document.querySelector('.pd-valorunit').dispatchEvent(new Event('input'))")
     ev("addPagoRow(); document.querySelector('#pagos-container select').value='EFVO_ARS'; document.querySelector('#pagos-container input').value='1.000'; document.querySelector('#pagos-container input').dispatchEvent(new Event('input'))")
@@ -496,6 +496,28 @@ with sync_playwright() as p:
         ev("openClienteDetail('c1')"); wait(100)
     # limpieza
     ev("Object.keys(window.__store).filter(k=>k.startsWith('egresos/')||k.endsWith('/ev1')||k==='ventas/ev1').forEach(k=>delete window.__store[k])")
+
+    # ================= Venta nueva sin prenda precargada / Limpiar filtros =================
+    ev("openClienteDetail('c1')"); wait(150)
+    ev("openDocModal('venta')"); wait(100)
+    ok('Venta nueva: sin ninguna prenda precargada', ev("document.querySelectorAll('#productos-container .prod-row, #productos-container > *').length")==0)
+    n=len(errs); ev("saveDoc()"); wait(150)
+    ok('Venta nueva: sin prendas no guarda y avisa', any('al menos una prenda' in e for e in errs[n:]))
+    ev("addProductoRow()"); wait(50)
+    ok('Venta nueva: + Prenda agrega la primera', ev("document.querySelectorAll('#productos-container .pd-desc').length")==1)
+    ev("closeModal('modal-doc')") if ev("!!document.getElementById('modal-doc')") else None
+    ev("openDocModal('presupuesto')"); wait(100)
+    ok('Presupuesto nuevo: sin prenda precargada', ev("document.querySelectorAll('#productos-container .pd-desc').length")==0)
+    ev("closeModal('modal-doc')") if ev("!!document.getElementById('modal-doc')") else None
+    for which,fn,inp in (('venta','openVentasSheet','vf-clienta'),('presu','openPresupuestosSheet','pf-clienta')):
+        ev(f"{'ventaMonth' if which=='venta' else 'presuMonth'}=new Date(); {'ventaMonth' if which=='venta' else 'presuMonth'}.setDate(1); {fn}()"); wait(400)
+        sel=f"#screen-{which}-sheet .clear-filters"
+        vis=lambda: ev(f"(()=>{{const b=document.querySelector('{sel}'); return !!b && getComputedStyle(b).display!=='none'}})()")
+        ok(f'{which}: "Limpiar filtros" no se ve sin filtros', not vis())
+        pg.fill('#'+inp,'zzz'); wait(150)
+        ok(f'{which}: al filtrar aparece "Limpiar filtros" a la izquierda del mes', vis() and ev(f"document.querySelector('{sel}').getBoundingClientRect().right")<ev(f"document.querySelector('#{which}-month-label').getBoundingClientRect().left"))
+        ev(f"document.querySelector('{sel}').click()"); wait(150)
+        ok(f'{which}: al limpiar se vacían los filtros y el botón desaparece', ev(f"document.getElementById('{inp}').value")=='' and not vis())
     ev("doLogout()"); wait(100)
     for r in res: print(*r)
     print('ERRORS',errs); b.close()
