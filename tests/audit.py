@@ -356,7 +356,7 @@ with sync_playwright() as p:
     if role=='admin':
         ev("openEgresosSheet()"); wait(300)
         ok('Egresos: planilla abierta, Egresos resaltado en el menú', ev("!document.getElementById('screen-egresos-sheet').classList.contains('hidden')") and ev("document.querySelector('#screen-egresos-sheet .main-nav [data-nav=egresos-sheet]').classList.contains('active')"))
-        ok('Egresos: columnas pedidas', all(c in ev("[...document.querySelectorAll('#egresos-table thead input')].map(i=>i.placeholder).join('|')") for c in ['Fecha','Código','Clienta','Cant.','Prenda','Proveedor','Precio unit.','Subtotal','Total','Estado','Fecha de pago']) )
+        ok('Egresos: columnas pedidas', all(c in ev("[...document.querySelectorAll('#egresos-table thead input')].map(i=>i.placeholder).join('|')") for c in ['Fecha','Código','Clienta','Cant.','Detalle','Proveedor','Precio unit.','Subtotal','Total','Estado','Fecha de pago']) )
         ev("openEgresoModal()"); wait(150)
         pg.fill('#eg-lineas .eg-codigo','0919'); ev("document.querySelector('#eg-lineas .eg-codigo').blur()"); wait(500)
         ok('Egresos: el código trae la clienta', ev("document.querySelector('#eg-lineas .eg-clienta').value")=='Lola Arana' and ev("document.querySelector('#eg-lineas .eg-clienta').readOnly"))
@@ -386,7 +386,7 @@ with sync_playwright() as p:
         ok('Egresos: línea sin código con clienta a mano', l1['clienta']=='Showroom' and l1['codigo']=='' and 'ventaId' not in l1)
         eid=eg[0]['id']
         t=txt('#egresos-sheet-body')
-        ok('Egresos: aparece en la planilla (subtotales y total)', 'saco lino' in t and 'Showroom' in t and '$30.000' in t and '$90.000' in t and '$120.000' in t)
+        ok('Egresos: aparece en la planilla (subtotales y total)', 'Showroom' in t and '$30.000' in t and '$90.000' in t and '$120.000' in t)
         ok('Egresos: un solo Total / Estado / Fecha de pago por compra', ev("[...document.querySelectorAll('#egresos-sheet-body td.tot-cell')].length")==1 and ev("document.querySelectorAll('#egresos-sheet-body select.eg-estado').length")==1)
         ok('Egresos: estado Pendiente en rojo', ev("document.querySelector('#egresos-sheet-body select.eg-estado').classList.contains('pend')"))
         ok('Egresos: footer con totales', '$120.000' in txt('#egresos-footer'))

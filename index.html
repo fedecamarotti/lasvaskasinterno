@@ -384,6 +384,10 @@ body.role-admin .doctype-btns button.pago{display:block}
 
 /* ---------- pago cliqueable ---------- */
 .doc-card.pago-card:hover{border-color:#ddd3ba}
+.prov-pill{display:inline-block;padding:2px 12px;border-radius:999px;font-size:12px;font-weight:500;letter-spacing:.2px;white-space:nowrap;background:#eee;color:#666}
+.prov-pill.telas{background:#e3eefa;color:#4a6f99}
+.prov-pill.rnuevo{background:#e4d6f0;color:#6d4a8c}
+.prov-pill.rarreglo{background:#f1e8f8;color:#8a6aa6}
 </style>
 </head>
 <body>
@@ -558,7 +562,7 @@ body.role-admin .doctype-btns button.pago{display:block}
         <th><input class="sheet-filter" id="ef-codigo" placeholder="Código" oninput="applySheetFilters('egresos')"></th>
         <th><input class="sheet-filter" id="ef-clienta" placeholder="Clienta" oninput="applySheetFilters('egresos')"></th>
         <th><input class="sheet-filter" id="ef-cant" placeholder="Cant." oninput="applySheetFilters('egresos')"></th>
-        <th><input class="sheet-filter" id="ef-prenda" placeholder="Prenda" oninput="applySheetFilters('egresos')"></th>
+        <th><input class="sheet-filter" id="ef-prenda" placeholder="Detalle" oninput="applySheetFilters('egresos')"></th>
         <th><input class="sheet-filter" id="ef-proveedor" placeholder="Proveedor" oninput="applySheetFilters('egresos')"></th>
         <th><input class="sheet-filter" id="ef-precio" placeholder="Precio unit." oninput="applySheetFilters('egresos')"></th>
         <th><input class="sheet-filter" id="ef-subtotal" placeholder="Subtotal" oninput="applySheetFilters('egresos')"></th>
@@ -2854,7 +2858,7 @@ function egColText(e, col){
     case 'codigo': return L.map(l=>l.codigo||'').join(' ');
     case 'clienta': return L.map(l=>l.clienta||'').join(' ');
     case 'cant': return L.map(l=>l.cant||'').join(' ');
-    case 'prenda': return L.map(l=>l.prenda||'').join(' ');
+    case 'prenda': return L.map(l=>(l.detalle||'')+' '+(l.prenda||'')).join(' ');
     case 'proveedor': return L.map(l=>provNorm(l.proveedor)).join(' ');
     case 'precio': return L.map(l=>String(l.valor||'')).join(' ');
     case 'subtotal': return L.map(l=>String(egLineaSubtotal(l))).join(' ');
@@ -2895,8 +2899,9 @@ function renderEgresosSheet(docs){
       html += `<td>${esc(l.codigo||'-')}</td>`;
       html += `<td class="cli-cell">${l.clienteId? `<b class="sheet-client-link" onclick="goToClienteFromSheet('${esc(l.clienteId)}')">${esc(l.clienta||'')}</b>` : esc(l.clienta||'')}</td>`;
       html += `<td>${l.cant!=null && l.cant!==''? esc(numDec(l.cant).toLocaleString('es-AR')) : ''}</td>`;
-      html += `<td class="prod-cell">${esc(l.prenda||'')}</td>`;
-      html += `<td>${esc(provNorm(l.proveedor))}</td>`;
+      html += `<td class="prod-cell">${esc(l.detalle||'')}</td>`;
+      const pv = provNorm(l.proveedor), pvc = pv==='Telas'?'telas':(pv==='Rufina nuevo'?'rnuevo':(pv==='Rufina arreglos'?'rarreglo':''));
+      html += `<td>${pv? `<span class="prov-pill ${pvc}">${esc(pv)}</span>` : ''}</td>`;
       html += `<td>${l.valor? fmtARS(l.valor) : ''}</td>`;
       html += `<td>${l.valor? fmtARS(egLineaSubtotal(l)) : ''}</td>`;
       if(i===0){
