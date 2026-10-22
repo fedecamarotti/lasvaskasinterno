@@ -384,10 +384,16 @@ body.role-admin .doctype-btns button.pago{display:block}
 
 /* ---------- pago cliqueable ---------- */
 .doc-card.pago-card:hover{border-color:#ddd3ba}
-.prov-pill{display:inline-block;padding:2px 12px;border-radius:999px;font-size:12px;font-weight:500;letter-spacing:.2px;white-space:nowrap;background:#eee;color:#666}
-.prov-pill.telas{background:#e3eefa;color:#4a6f99}
-.prov-pill.rnuevo{background:#e4d6f0;color:#6d4a8c}
-.prov-pill.rarreglo{background:#f1e8f8;color:#8a6aa6}
+#egresos-table tbody td{padding-top:2px;padding-bottom:2px;font-size:12px;line-height:1.2}
+#egresos-table tbody td.prod-cell{padding-top:2px;padding-bottom:2px}
+#egresos-table tbody td.cli-cell{line-height:1.2}
+.prov-pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:500;letter-spacing:.2px;white-space:nowrap;color:#6b645a;background:none}
+.prov-pill::before{content:'';width:7px;height:7px;border-radius:50%;background:#ccc;flex-shrink:0}
+.prov-pill.telas::before{background:#8fb3d9}
+.prov-pill.rnuevo{color:#6d4a8c}
+.prov-pill.rnuevo::before{background:#8e63b5}
+.prov-pill.rarreglo{color:#a8587f}
+.prov-pill.rarreglo::before{background:#e3a0bf}
 </style>
 </head>
 <body>
