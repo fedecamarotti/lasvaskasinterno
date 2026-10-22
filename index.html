@@ -2995,7 +2995,14 @@ function setEgModo(m){
   document.getElementById('eg-modo').value = m;
   document.getElementById('eg-modo-telas').classList.toggle('sel-modo', m==='telas');
   document.getElementById('eg-modo-rufina').classList.toggle('sel-modo', m==='rufina');
-  document.querySelectorAll('#eg-lineas .eg-line').forEach(r=>egAplicarTipo(r,false));
+  document.querySelectorAll('#eg-lineas .eg-line').forEach(r=>{ egAplicarTipo(r,false); egCantRufina(r); });
+}
+// En Rufina la cantidad viene precargada en 1 (casi nunca es otra); en Compra telas queda vacía para completar
+function egCantRufina(row){
+  const c = row.querySelector('.eg-cant');
+  if(egModo()==='rufina'){ if(!c.value.trim()){ c.value = '1'; c.dataset.auto = '1'; } }
+  else if(c.dataset.auto==='1'){ c.value = ''; c.dataset.auto = ''; }
+  recalcEgresoTotal();
 }
 // Completa la fila según el código: trae la clienta de la venta y arma el desplegable de prendas.
 // Sin código (o si no existe) la clienta y la prenda se escriben a mano.
@@ -3053,6 +3060,7 @@ function addEgresoLinea(l){
   tipo.innerHTML = egTipoOptions(egModo());
   tipo.value = provNorm(l.proveedor) || (egModo()==='telas' ? 'Telas' : 'Rufina nuevo');
   egAplicarTipo(row,false);
+  if(l.cant==null || l.cant==='') egCantRufina(row);
   if(l.codigo) row.querySelector('.eg-clienta').tabIndex = -1;
   attachMoneyInput(row.querySelector('.eg-valor'));
   const cod = row.querySelector('.eg-codigo');
@@ -3061,13 +3069,14 @@ function addEgresoLinea(l){
   cod.addEventListener('keydown', e=>{ if(e.key==='Tab' && !e.shiftKey) row._tabbed = true; });
   cod.addEventListener('blur', ()=>{ clearTimeout(t); resolverCodigoEgreso(row); });
   row.querySelector('.eg-prenda-sel').addEventListener('change', ()=>{ if(egModo()==='rufina') egAplicarTipo(row,true); });
-  row.querySelector('.eg-cant').addEventListener('input', recalcEgresoTotal);
+  row.querySelector('.eg-cant').addEventListener('input', e=>{ e.target.dataset.auto=''; recalcEgresoTotal(); });
   row.querySelector('.eg-valor').addEventListener('input', recalcEgresoTotal);
   // Tab en el valor de la última línea: abre otra línea y pasa directo a su código (carga rápida con el teclado)
   row.querySelector('.eg-valor').addEventListener('keydown', e=>{
     if(e.key!=='Tab' || e.shiftKey) return;
     if(row!==document.querySelector('#eg-lineas .eg-line:last-child')) return;
-    if(!row.querySelector('.eg-cant').value.trim() && !row.querySelector('.eg-valor').value.trim()) return;
+    const ca = row.querySelector('.eg-cant');
+    if((!ca.value.trim() || ca.dataset.auto==='1') && !row.querySelector('.eg-valor').value.trim()) return; // línea todavía vacía
     e.preventDefault();
     addEgresoLinea().querySelector('.eg-codigo').focus();
   });
@@ -3123,10 +3132,12 @@ async function saveEgreso(){
       const sel = r.querySelector('.eg-prenda-sel');
       const prenda = selVis ? (sel.selectedOptions[0] ? sel.selectedOptions[0].textContent.replace(/ \(arreglo\)$/,'') : '') : r.querySelector('.eg-prenda-txt').value.trim();
       const proveedor = r.querySelector('.eg-tipo').value;
-      const cant = numDec(r.querySelector('.eg-cant').value)||0;
+      const cantEl = r.querySelector('.eg-cant');
+      const cant = numDec(cantEl.value)||0;
+      const cantSolaPrecargada = cantEl.dataset.auto==='1';
       const valor = num(r.querySelector('.eg-valor').value)||0;
       const clienta = r.querySelector('.eg-clienta').value.trim();
-      if(!codigo && !clienta && !prenda && !cant && !valor && !r.querySelector('.eg-detalle').value.trim()) continue; // línea vacía (el proveedor siempre viene elegido)
+      if(!codigo && !clienta && !prenda && (!cant || cantSolaPrecargada) && !valor && !r.querySelector('.eg-detalle').value.trim()) continue; // línea vacía (el proveedor siempre viene elegido)
       if(codigo && !ventaId){ alert(`El código ${codigo} no corresponde a ninguna venta. Corregilo o dejalo vacío para escribir la clienta a mano.`); return; }
       if(!proveedor){ alert('Elegí el proveedor en cada línea.'); return; }
       if(!(cant>0)){ alert('Completá la cantidad en cada línea.'); return; }
