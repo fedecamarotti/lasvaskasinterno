@@ -1025,10 +1025,15 @@ function refreshClienteDeudaFast(clienteId){
   db.collection('clientas').doc(clienteId).update({deudaARS, deudaUSD}).catch(()=>{});
 }
 // Inserta o reemplaza un documento en docsCache y refresca la lista, sin volver a consultar Firestore.
+// Orden de la ficha: lo más nuevo arriba (por la fecha de cada tarjeta) y, si coinciden, el último cargado primero
+function sortDocsFicha(arr){
+  return arr.sort((a,b)=>String(b.fecha||'').localeCompare(String(a.fecha||'')) || (b.createdAt||0)-(a.createdAt||0));
+}
 function upsertDocInCache(doc){
   if(docsCacheClienteId!==currentClienteId){ loadDocs(); return; }
   const idx = docsCache.findIndex(x=>x.id===doc.id);
-  if(idx>-1) docsCache[idx] = doc; else docsCache.unshift(doc);
+  if(idx>-1) docsCache[idx] = doc; else docsCache.push(doc);
+  sortDocsFicha(docsCache);
   renderDocsList();
 }
 function removeDocFromCache(id){
@@ -1207,9 +1212,9 @@ function loadDocs(){
   const cid = currentClienteId;
   if(unsubDocs) unsubDocs();
   // Listener en tiempo real sobre los documentos de la clienta abierta: lo que se guarda aparece al instante.
-  unsubDocs = db.collection('clientas').doc(cid).collection('documentos').orderBy('createdAt','desc').onSnapshot(snap=>{
+  unsubDocs = db.collection('clientas').doc(cid).collection('documentos').onSnapshot(snap=>{
     if(cid!==currentClienteId) return;
-    docsCache = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    docsCache = sortDocsFicha(snap.docs.map(d=>({id:d.id, ...d.data()})));
     docsCacheClienteId = cid;
     renderDocsList();
   }, err=>{
@@ -3156,8 +3161,7 @@ function editSaldoFromSheet(clienteId, pagoId){
     currentClienteData = c;
     if(docsCacheClienteId===clienteId){ abrir(); return; }
     db.collection('clientas').doc(clienteId).collection('documentos').get().then(snap=>{
-      docsCache = snap.docs.map(d=>({id:d.id, ...d.data()}))
-        .sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+      docsCache = sortDocsFicha(snap.docs.map(d=>({id:d.id, ...d.data()})));
       docsCacheClienteId = clienteId;
       abrir();
     }).catch(err=>{ console.error(err); alert('No se pudo abrir el pago. Revisá la consola.'); });

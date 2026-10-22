@@ -518,6 +518,20 @@ with sync_playwright() as p:
         ok(f'{which}: al filtrar aparece "Limpiar filtros" a la izquierda del mes', vis() and ev(f"document.querySelector('{sel}').getBoundingClientRect().right")<ev(f"document.querySelector('#{which}-month-label').getBoundingClientRect().left"))
         ev(f"document.querySelector('{sel}').click()"); wait(150)
         ok(f'{which}: al limpiar se vacían los filtros y el botón desaparece', ev(f"document.getElementById('{inp}').value")=='' and not vis())
+
+    # ================= Orden de la ficha: más nuevo arriba =================
+    ev("""(()=>{const s=window.__store, b='clientas/c2/documentos/';
+      s[b+'o1']={tipo:'presupuesto',fecha:'2026-09-23',createdAt:300,productos:[],totalEfvoARS:1,totalTarjARS:1};
+      s[b+'o2']={tipo:'pago',fecha:'2026-10-13',createdAt:100,metodo:'EFVO_ARS',monto:5,lineas:[{metodo:'EFVO_ARS',monto:5}],refVentaId:null};
+      s[b+'o3']={tipo:'venta',fecha:'2026-09-29',createdAt:200,productos:[],totalARS:1,totalUSD:0,aPagarARS:0,aPagarUSD:0,pagos:[]};
+      s[b+'o4']={tipo:'nota',fecha:'2026-10-20',createdAt:50,texto:'nota vieja de carga'};
+      s[b+'o5']={tipo:'presupuesto',fecha:'2026-09-23',createdAt:900,productos:[],totalEfvoARS:2,totalTarjARS:2};})()""")
+    ev("openClienteDetail('c2')"); wait(400)
+    orden=ev("[...document.querySelectorAll('#docs-list .doc-card')].map(c=>c.querySelector('.tag-mini').innerText.trim().toLowerCase())")
+    ok('Ficha: orden de más nuevo a más viejo (nota 20/10, pago 13/10, venta 29/9, presupuestos 23/9)', orden[:4]==['nota','pago','recibo de venta','presupuesto'] and len(orden)>=5)
+    ok('Ficha: con la misma fecha va primero el último cargado', ev("[...document.querySelectorAll('#docs-list .doc-card')].filter(c=>c.innerText.includes('23/09/2026')).map(c=>c.innerText.includes('$2'))")[0]==True)
+    ev("Object.keys(window.__store).filter(k=>/clientas\/c2\/documentos\/o\d$/.test(k)).forEach(k=>delete window.__store[k])")
+    ev("goBackToClientas()"); wait(100)
     ev("doLogout()"); wait(100)
     for r in res: print(*r)
     print('ERRORS',errs); b.close()
