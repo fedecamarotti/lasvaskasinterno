@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=0.25, maximum-scale=5">
 <title>LASVASKAS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -397,6 +397,8 @@ body.role-admin .doctype-btns button.pago{display:block}
 
 /* ---------- pago cliqueable ---------- */
 .doc-card.pago-card:hover{border-color:#ddd3ba}
+/* iPhone: con letra menor a 16px Safari hace zoom solo al tocar un casillero; en esos casilleros se evita */
+@supports (-webkit-touch-callout:none){ .modal input,.modal select,.modal textarea,.sheet-filter,#screen-login input{font-size:16px} }
 #egresos-table tbody td{height:31px} /* mismo alto de fila que Presupuestos y Ventas */
 .prov-pill{display:inline-block;font-size:11px;font-weight:500;letter-spacing:.2px;white-space:nowrap;border:1px solid #ddd;border-radius:4px;padding:0 7px;background:#fff;color:#6b645a}
 .prov-pill.telas{color:#6f8fb3;border-color:#c9d9ec}
