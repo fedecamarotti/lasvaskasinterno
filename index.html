@@ -340,6 +340,10 @@ table.sheet-table tbody td.tot-cell{font-weight:700}
 .eg-cod{flex:0 0 68px}
 .eg-cli{flex:1 1 120px}
 .eg-tp{flex:0 0 96px}
+.eg-tipo{font-weight:500}
+.eg-tipo[data-prov="Telas"]{color:#6f8fb3;border-color:#c9d9ec;background:#f6f9fd}
+.eg-tipo[data-prov="Rufina nuevo"]{color:#7a4f9c;border-color:#cdb6e0;background:#f8f4fb}
+.eg-tipo[data-prov="Rufina arreglos"]{color:#b35c85;border-color:#efc3d6;background:#fdf5f8}
 .eg-pren{flex:1 1 150px}
 .eg-det{flex:1.3 1 150px}
 .eg-c{flex:0 0 58px}
@@ -3053,15 +3057,17 @@ function egInferirTipo(row){
   const pr = (v.productos||[])[parseInt(sel.value,10)];
   return pr && pr.esArreglo ? 'Rufina arreglos' : 'Rufina nuevo';
 }
+function egPintaTipo(sel){ sel.dataset.prov = sel.value; }
+document.getElementById('eg-lineas').addEventListener('change', e=>{ if(e.target.classList.contains('eg-tipo')) egPintaTipo(e.target); });
 function egAplicarTipo(row, inferir){
   const modo = egModo(), sel = row.querySelector('.eg-tipo'), wrap = sel.closest('.eg-tp');
   const actual = sel.value;
   sel.innerHTML = egTipoOptions(modo);
-  if(modo==='telas'){ sel.value = 'Telas'; wrap.classList.add('hidden'); return; }
+  if(modo==='telas'){ sel.value = 'Telas'; egPintaTipo(sel); wrap.classList.add('hidden'); return; }
   wrap.classList.remove('hidden');
   let v = [...sel.options].some(o=>o.value===actual) ? actual : 'Rufina nuevo';
   if(modo==='rufina' && (inferir || actual==='Telas')){ const inf = egInferirTipo(row); if(inf) v = inf; }
-  sel.value = v;
+  sel.value = v; egPintaTipo(sel);
   // si el tipo se deduce de la prenda no hace falta pasar por él con el teclado
   sel.tabIndex = (modo==='rufina' && egInferirTipo(row)) ? -1 : 0;
 }
