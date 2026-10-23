@@ -3065,11 +3065,10 @@ function egAplicarTipo(row, inferir){
   sel.innerHTML = egTipoOptions(modo);
   if(modo==='telas'){ sel.value = 'Telas'; egPintaTipo(sel); wrap.classList.add('hidden'); return; }
   wrap.classList.remove('hidden');
-  let v = [...sel.options].some(o=>o.value===actual) ? actual : 'Rufina nuevo';
-  if(modo==='rufina' && (inferir || actual==='Telas')){ const inf = egInferirTipo(row); if(inf) v = inf; }
+  // siempre arranca en "Nuevo" (se cambia a mano a "Arreglo"); un registro ya guardado conserva su tipo
+  const v = [...sel.options].some(o=>o.value===actual) ? actual : 'Rufina nuevo';
   sel.value = v; egPintaTipo(sel);
-  // si el tipo se deduce de la prenda no hace falta pasar por él con el teclado
-  sel.tabIndex = (modo==='rufina' && egInferirTipo(row)) ? -1 : 0;
+  sel.tabIndex = -1; // con Tab se pasa de largo: es "Nuevo" salvo que se cambie con el mouse
 }
 function setEgModo(m){
   document.getElementById('eg-modo').value = m;
@@ -3148,7 +3147,6 @@ function addEgresoLinea(l){
   cod.addEventListener('input', ()=>{ clearTimeout(t); row.querySelector('.eg-clienta').tabIndex = cod.value.trim() ? -1 : 0; t = setTimeout(()=>resolverCodigoEgreso(row), 350); });
   cod.addEventListener('keydown', e=>{ if(e.key==='Tab' && !e.shiftKey) row._tabbed = true; });
   cod.addEventListener('blur', ()=>{ clearTimeout(t); resolverCodigoEgreso(row); });
-  row.querySelector('.eg-prenda-sel').addEventListener('change', ()=>{ if(egModo()==='rufina') egAplicarTipo(row,true); });
   row.querySelector('.eg-cant').addEventListener('input', e=>{ e.target.dataset.auto=''; recalcEgresoTotal(); });
   row.querySelector('.eg-valor').addEventListener('input', recalcEgresoTotal);
   row.querySelector('.rm-row').addEventListener('click', ()=>{
