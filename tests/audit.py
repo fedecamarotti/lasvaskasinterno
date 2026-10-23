@@ -657,6 +657,19 @@ with sync_playwright() as p:
         ev("saveEgreso()"); wait(200)
         ok('Otros: sin detalle no deja guardar (avisa y el registro no cambia)', any('Completá el detalle en cada línea de "otros"' in e for e in errs) and len(ev(f"window.__store['egresos/{eid}']")['otros'])==1)
         ev("closeModal('modal-egreso')")
+        # precio unitario: "0" vale 0; vacío sigue pidiendo completar
+        ev("openEgresoModal()"); wait(100); ev("setEgModo('rufina')")
+        pg.fill('#eg-lineas .eg-clienta','Gratis'); pg.fill('#eg-lineas .eg-detalle','cero0'); pg.fill('#eg-lineas .eg-cant','1')
+        n0=len(errs); ev("saveEgreso()"); wait(200)
+        ok('Precio unitario vacío: avisa y no guarda', len(errs)>n0 and 'Completá el precio unitario' in errs[-1])
+        pg.fill('#eg-lineas .eg-valor','0'); ev("saveEgreso()"); wait(400)
+        g=ev("Object.entries(window.__store).filter(([k,v])=>k.startsWith('egresos/')&&v.lineas.some(l=>l.detalle==='cero0')).map(([k,v])=>v)[0]")
+        ok('Precio unitario 0: se guarda como 0', g and g['lineas'][0]['valor']==0 and g['total']==0)
+        ok('Precio unitario 0: la planilla muestra $0', '$0' in ev("[...document.querySelectorAll('#egresos-sheet-body tr')].filter(r=>r.innerText.includes('cero0')).map(r=>r.innerText)[0]"))
+        ek0=[k.split('/')[1] for k,v in ev("Object.entries(window.__store)") if k.startswith('egresos/') and any(l.get('detalle')=='cero0' for l in v['lineas'])][0]
+        ev(f"openEgresoModal('{ek0}')"); wait(150)
+        ok('Precio unitario 0: al editar sigue mostrando 0', ev("document.querySelector('#eg-lineas .eg-valor').value")=='0')
+        ev("closeModal('modal-egreso')")
         # filtro por línea: Rufina nuevo y Rufina arreglos se distinguen
         ev("""db.collection('egresos').doc('tf').set({fecha:todayISO(),lineas:[{codigo:'',clienta:'x',prenda:'',proveedor:'Rufina nuevo',detalle:'zzNUEVO',cant:1,valor:1000},{codigo:'',clienta:'x',prenda:'',proveedor:'Rufina arreglos',detalle:'zzARREGLO',cant:1,valor:2000},{codigo:'',clienta:'x',prenda:'',proveedor:'Telas',detalle:'zzTELA',cant:1,valor:3000}],otros:[{detalle:'zzOTRO',signo:'suma',valor:500}],total:6500,estado:'pendiente',fechaPago:null,createdAt:5})"""); wait(300)
         pg.fill('#ef-proveedor','nuevo'); wait(150)

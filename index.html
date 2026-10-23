@@ -2894,7 +2894,7 @@ function egColText(e, col){
     case 'cant': return L.map(l=>l.cant||'').join(' ');
     case 'prenda': return L.map(l=>(l.detalle||'')+' '+(l.prenda||'')).concat((e.otros||[]).map(o=>o.detalle||'')).join(' ');
     case 'proveedor': return L.map(l=>provNorm(l.proveedor)).join(' ');
-    case 'precio': return L.map(l=>String(l.valor||'')).join(' ');
+    case 'precio': return L.map(l=>String(l.valor==null?'':l.valor)).join(' ');
     case 'subtotal': return L.map(l=>String(egLineaSubtotal(l))).concat((e.otros||[]).map(o=>String(egOtroMonto(o)))).join(' ');
     case 'total': return String(egTotal(e));
     case 'estado': return e.estado==='pagado'?'pagado':'pendiente';
@@ -2951,8 +2951,8 @@ function renderEgresosSheet(docs){
       html += `<td class="prod-cell">${esc(l.detalle||'')}</td>`;
       const pv = provNorm(l.proveedor), pvc = pv==='Telas'?'telas':(pv==='Rufina nuevo'?'rnuevo':(pv==='Rufina arreglos'?'rarreglo':''));
       html += `<td>${pv? `<span class="prov-pill ${pvc}">${esc(pv)}</span>` : ''}</td>`;
-      html += `<td>${l.valor? fmtARS(l.valor) : ''}</td>`;
-      html += `<td>${l.valor? fmtARS(egLineaSubtotal(l)) : ''}</td>`;
+      html += `<td>${l.valor!=null && l.valor!=='' ? fmtARS(l.valor) : ''}</td>`;
+      html += `<td>${l.valor!=null && l.valor!=='' ? fmtARS(egLineaSubtotal(l)) : ''}</td>`;
       }
       if(i===0){
         html += `<td class="vmid tot-cell" rowspan="${rowspan}">${fmtARS(egTotal(e._full||e))}</td>`;
@@ -3130,7 +3130,7 @@ function addEgresoLinea(l){
     <div class="field eg-tp"><select class="eg-tipo"></select></div>
     <div class="field eg-det"><input class="eg-detalle" placeholder="Detalle" value="${esc(l.detalle||'')}"></div>
     <div class="field eg-c"><input class="eg-cant" placeholder="Cant." inputmode="decimal" value="${esc(String(l.cant==null?'':l.cant).replace('.',','))}"></div>
-    <div class="field eg-v"><input class="eg-valor" placeholder="Valor $" inputmode="numeric" value="${fmtMoney(l.valor)}"></div>
+    <div class="field eg-v"><input class="eg-valor" placeholder="Valor $" inputmode="numeric" value="${l.valor===0 ? '0' : fmtMoney(l.valor)}"></div>
     <div class="eg-sub" title="Total de la línea"><b>$0</b></div>
     <div class="rm-row">✕</div>
     <div class="eg-stat"></div>`;
@@ -3251,13 +3251,14 @@ async function saveEgreso(){
       const cantEl = r.querySelector('.eg-cant');
       const cant = numDec(cantEl.value)||0;
       const cantSolaPrecargada = cantEl.dataset.auto==='1';
-      const valor = num(r.querySelector('.eg-valor').value)||0;
+      const valorTxt = r.querySelector('.eg-valor').value.trim(); // vacío = falta completar; "0" = vale 0
+      const valor = num(valorTxt)||0;
       const clienta = r.querySelector('.eg-clienta').value.trim();
-      if(!codigo && !clienta && !prenda && (!cant || cantSolaPrecargada) && !valor && !r.querySelector('.eg-detalle').value.trim()) continue; // línea vacía (el proveedor siempre viene elegido)
+      if(!codigo && !clienta && !prenda && (!cant || cantSolaPrecargada) && !valorTxt && !r.querySelector('.eg-detalle').value.trim()) continue; // línea vacía (el proveedor siempre viene elegido)
       if(codigo && !ventaId){ alert(`El código ${codigo} no corresponde a ninguna venta. Corregilo o dejalo vacío para escribir la clienta a mano.`); return; }
       if(!proveedor){ alert('Elegí el proveedor en cada línea.'); return; }
       if(!(cant>0)){ alert('Completá la cantidad en cada línea.'); return; }
-      if(!(valor>0)){ alert('Completá el precio unitario en cada línea.'); return; }
+      if(!valorTxt){ alert('Completá el precio unitario en cada línea (si es gratis, poné 0).'); return; }
       const detalle = r.querySelector('.eg-detalle').value.trim();
       const lin = {codigo, clienta, prenda, proveedor, detalle, cant, valor};
       if(ventaId){ lin.ventaId = ventaId; lin.clienteId = clienteId; lin.prendaIdx = parseInt(sel.value,10); }
