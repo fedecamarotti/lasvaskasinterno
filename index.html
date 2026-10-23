@@ -2440,7 +2440,7 @@ function openCostosModal(clienteId, ventaId, productoIndex){
   document.getElementById('costos-container').innerHTML='';
   existingCostos.forEach(c=>addCostoRow(c));
   fijos.forEach(addCostoFijoRow);
-  addCostoRow({}); // línea vacía lista para el próximo costo
+  if(!existingCostos.length && !fijos.length) addCostoRow({}); // si no hay ningún costo, una línea para empezar; si no, se agrega con "Agregar línea"
   recalcCostosTotals();
   openModal('modal-costos');
 }
@@ -2902,11 +2902,20 @@ function applyEgresosFilters(){
   const {start,end} = monthRange(egresosMonth);
   egresosAll.sort(sheetOrderCmp);
   const delMes = egresosAll.filter(e=>e.fecha>=start && e.fecha<=end);
-  const filtered = delMes.filter(e=>EG_COLS.every(col=>{
-    const el = document.getElementById('ef-'+col);
-    const q = el? normalize(el.value) : '';
-    return !q || normalize(egColText(e,col)).includes(q);
-  }));
+  // Filtros por línea (código, clienta, cant., detalle, proveedor, precio, subtotal): se muestran solo las líneas que coinciden.
+  // Filtros del registro entero (fecha, total, estado, fecha de pago): se muestra el registro completo.
+  const LINE_COLS = ['codigo','clienta','cant','prenda','proveedor','precio','subtotal'];
+  const qs = {}; EG_COLS.forEach(col=>{ const el = document.getElementById('ef-'+col); qs[col] = el? normalize(el.value) : ''; });
+  const lineaActivos = LINE_COLS.filter(c=>qs[c]);
+  const filtered = [];
+  delMes.forEach(e=>{
+    if(!EG_COLS.filter(c=>!LINE_COLS.includes(c)).every(col=> !qs[col] || normalize(egColText(e,col)).includes(qs[col]))) return;
+    if(!lineaActivos.length){ filtered.push(e); return; }
+    const lineas = (e.lineas||[]).filter(l=> lineaActivos.every(col=> normalize(egColText({lineas:[l]},col)).includes(qs[col])));
+    const otros = (e.otros||[]).filter(o=> lineaActivos.every(col=> (col==='prenda' || col==='subtotal') && normalize(egColText({lineas:[], otros:[o]},col)).includes(qs[col])));
+    if(!lineas.length && !otros.length) return;
+    filtered.push({...e, lineas, otros, _full:e});
+  });
   renderEgresosSheet(filtered);
   renderEgresosFooter(filtered, delMes);
 }
@@ -2942,7 +2951,7 @@ function renderEgresosSheet(docs){
       html += `<td>${l.valor? fmtARS(egLineaSubtotal(l)) : ''}</td>`;
       }
       if(i===0){
-        html += `<td class="vmid tot-cell" rowspan="${rowspan}">${fmtARS(egTotal(e))}</td>`;
+        html += `<td class="vmid tot-cell" rowspan="${rowspan}">${fmtARS(egTotal(e._full||e))}</td>`;
         html += `<td class="vmid" rowspan="${rowspan}"><select class="sheet-inline-input eg-estado ${pag?'pag':'pend'}" onchange="egSetEstado('${e.id}',this.value)"><option value="pendiente"${pag?'':' selected'}>Pendiente</option><option value="pagado"${pag?' selected':''}>Pagado</option></select></td>`;
         html += `<td class="vmid" rowspan="${rowspan}"><input type="date" class="sheet-inline-input eg-fp" value="${esc(e.fechaPago||'')}" onchange="egSetFechaPago('${e.id}',this.value)"></td>`;
       }
