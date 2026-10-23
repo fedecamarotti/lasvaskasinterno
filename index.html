@@ -347,7 +347,16 @@ table.sheet-table tbody td.tot-cell{font-weight:700}
 .eg-c input{text-align:center;padding-left:4px;padding-right:4px}
 .eg-v input{text-align:right}
 .eg-line .rm-row{flex:0 0 22px;text-align:center}
-.eg-modos{margin:2px 0 14px}
+.eg-top{display:flex;align-items:flex-end;gap:14px;margin:0 0 12px}
+.eg-top .field{margin:0;width:150px;flex:none}
+.eg-mini-row{display:flex;gap:6px;align-items:center;height:38px}
+.eg-bottom{margin:6px 0 12px}
+.eg-bottom .eg-mini-row{order:0}
+.estado-toggle.mini{flex:none;padding:5px 13px;font-size:11.5px;font-weight:500;border-radius:999px;cursor:pointer}
+.eg-otro .eg-det{flex:1 1 200px}
+.eg-otro .eg-sg{flex:0 0 96px}
+#eg-otros .eg-line{margin-bottom:8px}
+.eg-modos{margin:0}
 .estado-toggle.sel-modo{background:#f0e6d0;border-color:#c9a86a;color:#8f6c2a}
 .eg-sub{flex:0 0 78px;text-align:right;font-size:13px;color:#8a8375;white-space:nowrap}
 .eg-sub b{color:#3a352c}
@@ -699,19 +708,25 @@ body.role-admin .doctype-btns button.pago{display:block}
     <button class="modal-close" onclick="closeModal('modal-egreso')">✕</button>
     <h2 id="eg-title">Cargar telas/arreglos</h2>
     <input type="hidden" id="eg-id"><input type="hidden" id="eg-modal-estado" value="pendiente"><input type="hidden" id="eg-modo" value="telas">
-    <div class="field"><label>Fecha</label><input type="date" id="eg-fecha"></div>
-    <div class="estado-toggle-row eg-modos">
-      <div class="estado-toggle" id="eg-modo-telas" onclick="setEgModo('telas')">Compra telas</div>
-      <div class="estado-toggle" id="eg-modo-rufina" onclick="setEgModo('rufina')">Rufina</div>
+    <div class="eg-top">
+      <div class="field"><label>Fecha</label><input type="date" id="eg-fecha"></div>
+      <div class="eg-mini-row eg-modos">
+        <div class="estado-toggle mini" id="eg-modo-telas" onclick="setEgModo('telas')">Compra telas</div>
+        <div class="estado-toggle mini" id="eg-modo-rufina" onclick="setEgModo('rufina')">Rufina</div>
+      </div>
     </div>
     <div id="eg-lineas"></div>
     <div class="add-row-btn" onclick="addEgresoLinea()"><i class="fa-solid fa-plus"></i> Agregar línea</div>
+    <div id="eg-otros"></div>
+    <div><div class="add-row-btn" onclick="addEgresoOtro()"><i class="fa-solid fa-plus"></i> Agregar otros</div></div>
     <div class="live-total">Total: <span id="eg-total">$0</span></div>
-    <div class="estado-toggle-row">
-      <div class="estado-toggle" id="eg-btn-pendiente" onclick="setEgEstado('pendiente')">Pendiente</div>
-      <div class="estado-toggle" id="eg-btn-pagado" onclick="setEgEstado('pagado')">Pagado</div>
+    <div class="eg-top eg-bottom">
+      <div class="eg-mini-row">
+        <div class="estado-toggle mini" id="eg-btn-pendiente" onclick="setEgEstado('pendiente')">Pendiente</div>
+        <div class="estado-toggle mini" id="eg-btn-pagado" onclick="setEgEstado('pagado')">Pagado</div>
+      </div>
+      <div class="field"><label>Fecha de pago</label><input type="date" id="eg-fechapago"></div>
     </div>
-    <div class="field" style="margin-top:12px"><label>Fecha de pago</label><input type="date" id="eg-fechapago"></div>
     <button class="btn btn-primary" style="width:100%;margin-top:6px" id="eg-guardar" onclick="saveEgreso()">Guardar</button>
     <div id="eg-delete-row" class="hidden" style="text-align:center;margin-top:14px">
       <button class="btn-danger" style="font-size:13px" onclick="deleteEgreso()">Eliminar</button>
@@ -2850,7 +2865,8 @@ function listenEgresos(){
   });
 }
 function egLineaSubtotal(l){ return Math.round((numDec(l.cant)||0)*(l.valor||0)); }
-function egTotal(e){ return (e.lineas||[]).reduce((t,l)=>t+egLineaSubtotal(l),0); }
+function egOtroMonto(o){ const v = Math.round(o.valor||0); return o.signo==='resta' ? -v : v; }
+function egTotal(e){ return (e.lineas||[]).reduce((t,l)=>t+egLineaSubtotal(l),0) + (e.otros||[]).reduce((t,o)=>t+egOtroMonto(o),0); }
 function syncEgresosMonth(){
   document.getElementById('egresos-month-label').textContent = monthLabel(egresosMonth);
   syncMonthArrows('screen-egresos-sheet', egresosMonth);
@@ -2872,10 +2888,10 @@ function egColText(e, col){
     case 'codigo': return L.map(l=>l.codigo||'').join(' ');
     case 'clienta': return L.map(l=>l.clienta||'').join(' ');
     case 'cant': return L.map(l=>l.cant||'').join(' ');
-    case 'prenda': return L.map(l=>(l.detalle||'')+' '+(l.prenda||'')).join(' ');
+    case 'prenda': return L.map(l=>(l.detalle||'')+' '+(l.prenda||'')).concat((e.otros||[]).map(o=>o.detalle||'')).join(' ');
     case 'proveedor': return L.map(l=>provNorm(l.proveedor)).join(' ');
     case 'precio': return L.map(l=>String(l.valor||'')).join(' ');
-    case 'subtotal': return L.map(l=>String(egLineaSubtotal(l))).join(' ');
+    case 'subtotal': return L.map(l=>String(egLineaSubtotal(l))).concat((e.otros||[]).map(o=>String(egOtroMonto(o)))).join(' ');
     case 'total': return String(egTotal(e));
     case 'estado': return e.estado==='pagado'?'pagado':'pendiente';
     case 'fechapago': return e.fechaPago? `${fmtDateSheet(e.fechaPago)} ${fmtDate(e.fechaPago)}` : '';
@@ -2902,14 +2918,20 @@ function renderEgresosSheet(docs){
   docs.forEach((e, gi)=>{
     const zebra = gi%2===1? ' zebra' : '';
     const L = (e.lineas&&e.lineas.length)? e.lineas : [{}];
-    const rowspan = L.length;
+    const OT = e.otros||[];
+    const rowspan = L.length + OT.length;
     const pag = e.estado==='pagado';
-    L.forEach((l,i)=>{
+    const filas = L.map(l=>({l})).concat(OT.map(o=>({o})));
+    filas.forEach((f,i)=>{
+      const l = f.l||{};
       html += `<tr class="${i===0?'group-first':''}${zebra}">`;
       if(i===0){
         html += `<td class="vmid edit-cell" rowspan="${rowspan}"><span class="sheet-pencil" onclick="openEgresoModal('${e.id}')"><i class="fa-solid fa-pen"></i></span></td>`;
         html += `<td class="vmid" rowspan="${rowspan}">${fmtDateSheet(e.fecha)}</td>`;
       }
+      if(f.o){
+        html += `<td>-</td><td class="cli-cell"></td><td></td><td class="prod-cell">${esc(f.o.detalle||'')}</td><td><span class="prov-pill">Otros</span></td><td></td><td>${egOtroMonto(f.o)<0? '-' : ''}${fmtARS(Math.abs(egOtroMonto(f.o)))}</td>`;
+      } else {
       html += `<td>${esc(l.codigo||'-')}</td>`;
       html += `<td class="cli-cell">${l.clienteId? `<b class="sheet-client-link" onclick="goToClienteFromSheet('${esc(l.clienteId)}')">${esc(l.clienta||'')}</b>` : esc(l.clienta||'')}</td>`;
       html += `<td>${l.cant!=null && l.cant!==''? esc(numDec(l.cant).toLocaleString('es-AR')) : ''}</td>`;
@@ -2918,6 +2940,7 @@ function renderEgresosSheet(docs){
       html += `<td>${pv? `<span class="prov-pill ${pvc}">${esc(pv)}</span>` : ''}</td>`;
       html += `<td>${l.valor? fmtARS(l.valor) : ''}</td>`;
       html += `<td>${l.valor? fmtARS(egLineaSubtotal(l)) : ''}</td>`;
+      }
       if(i===0){
         html += `<td class="vmid tot-cell" rowspan="${rowspan}">${fmtARS(egTotal(e))}</td>`;
         html += `<td class="vmid" rowspan="${rowspan}"><select class="sheet-inline-input eg-estado ${pag?'pag':'pend'}" onchange="egSetEstado('${e.id}',this.value)"><option value="pendiente"${pag?'':' selected'}>Pendiente</option><option value="pagado"${pag?' selected':''}>Pagado</option></select></td>`;
@@ -2984,7 +3007,30 @@ function recalcEgresoTotal(){
     r.querySelector('.eg-sub b').textContent = fmtARS(sub);
     t += sub;
   });
+  document.querySelectorAll('#eg-otros .eg-otro').forEach(r=>{
+    const v = num(r.querySelector('.eg-valor').value)||0;
+    t += r.querySelector('.eg-signo').value==='resta' ? -v : v;
+  });
   document.getElementById('eg-total').textContent = fmtARS(t);
+}
+// "Agregar otros": descuentos, impuestos, etc. que suman o restan al total
+function addEgresoOtro(o){
+  o = o||{};
+  const row = document.createElement('div');
+  row.className = 'eg-line eg-otro';
+  row.innerHTML = `
+    <div class="field eg-det"><input class="eg-detalle" placeholder="Detalle" value="${esc(o.detalle||'')}"></div>
+    <div class="field eg-sg"><select class="eg-signo"><option value="suma">Suma</option><option value="resta">Resta</option></select></div>
+    <div class="field eg-v"><input class="eg-valor" placeholder="Valor $" inputmode="numeric" value="${fmtMoney(o.valor)}"></div>
+    <div class="rm-row">✕</div>`;
+  document.getElementById('eg-otros').appendChild(row);
+  row.querySelector('.eg-signo').value = o.signo==='resta' ? 'resta' : 'suma';
+  attachMoneyInput(row.querySelector('.eg-valor'));
+  row.querySelector('.eg-valor').addEventListener('input', recalcEgresoTotal);
+  row.querySelector('.eg-signo').addEventListener('change', recalcEgresoTotal);
+  row.querySelector('.rm-row').addEventListener('click', ()=>{ row.remove(); recalcEgresoTotal(); });
+  recalcEgresoTotal();
+  return row;
 }
 // Compra telas / Rufina: modo del egreso. En Rufina cada línea es "nuevo" o "arreglo" (se deduce de la prenda elegida).
 function egModo(){ return document.getElementById('eg-modo').value; }
@@ -3160,10 +3206,12 @@ function openEgresoModal(id){
   document.getElementById('eg-title').textContent = e? 'Editar telas/arreglos' : 'Cargar telas/arreglos';
   document.getElementById('eg-fecha').value = e? (e.fecha||todayISO()) : todayISO();
   document.getElementById('eg-lineas').innerHTML = '';
+  document.getElementById('eg-otros').innerHTML = '';
   // modo según lo cargado: todo telas / todo Rufina; si hay mezcla (datos viejos) ninguno queda marcado y cada línea muestra su tipo
   const provs = e && e.lineas ? e.lineas.map(l=>provNorm(l.proveedor)) : [];
   setEgModo(!provs.length || provs.every(p=>p==='Telas') ? 'telas' : (provs.every(p=>p!=='Telas') ? 'rufina' : ''));
   (e && e.lineas && e.lineas.length ? e.lineas : [{}]).forEach(l=>addEgresoLinea(l));
+  (e && e.otros ? e.otros : []).forEach(o=>addEgresoOtro(o));
   document.getElementById('eg-fechapago').value = e? (e.fechaPago||'') : '';
   setEgEstado(e && e.estado==='pagado' ? 'pagado' : 'pendiente');
   if(e) document.getElementById('eg-fechapago').value = e.fechaPago||document.getElementById('eg-fechapago').value;
@@ -3203,12 +3251,20 @@ async function saveEgreso(){
       lineas.push(lin);
     }
     if(!lineas.length){ alert('Cargá al menos una línea con proveedor, cantidad y precio.'); return; }
+    const otros = [];
+    for(const r of document.querySelectorAll('#eg-otros .eg-otro')){
+      const detalle = r.querySelector('.eg-detalle').value.trim(), valor = num(r.querySelector('.eg-valor').value)||0;
+      if(!detalle && !valor) continue; // fila vacía
+      if(!detalle){ alert('Completá el detalle en cada línea de "otros".'); return; }
+      if(!(valor>0)){ alert('Completá el valor en cada línea de "otros".'); return; }
+      otros.push({detalle, signo: r.querySelector('.eg-signo').value==='resta' ? 'resta' : 'suma', valor});
+    }
     const estado = document.getElementById('eg-modal-estado').value==='pagado' ? 'pagado' : 'pendiente';
     let fechaPago = document.getElementById('eg-fechapago').value || null;
     if(estado==='pagado' && !fechaPago) fechaPago = todayISO();
     if(estado==='pendiente') fechaPago = null;
     const id = document.getElementById('eg-id').value;
-    const data = {fecha, lineas, total: lineas.reduce((t,l)=>t+Math.round(l.cant*l.valor),0), estado, fechaPago};
+    const data = {fecha, lineas, otros, total: egTotal({lineas, otros}), estado, fechaPago};
     closeModal('modal-egreso');
     const p = id ? db.collection('egresos').doc(id).update(data)
                  : db.collection('egresos').doc().set({...data, createdAt:Date.now()});
