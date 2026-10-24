@@ -3539,8 +3539,8 @@ function applyGastosFilters(){
 }
 // ---- Gráfico por áreas (torta con selección de conceptos)
 let gxGrafOpen = false, gxPorConcepto = {}, gxGrafOff = new Set();
-const GX_PASTEL = ['#f4a6b8','#b9a4e8','#8fd3c0','#9ccbf0','#f7e07f','#f08f8f','#7fd0d8','#c4e58f','#e7a0dc','#a3b4f2','#a9dca4','#d6b3f0'];
-const GX_FIJOS = {'retiro belu':'#3b5f9e','retiro viqui':'#f59e4b'};
+const GX_PASTEL = ['#f4a6b8','#b9a4e8','#8fd3c0','#9ccbf0','#f7e07f','#a8bfa3','#7fd0d8','#c4e58f','#e7a0dc','#a3b4f2','#a9dca4','#d6b3f0'];
+const GX_FIJOS = {'retiro belu':'#7ea6e6','retiro viqui':'#f59e4b','alquiler':'#e8736f'};
 function gxColorDe(c){ const fj = GX_FIJOS[normalize(c||'').trim()]; if(fj) return fj; const k = Object.keys(gxPorConcepto).filter(x=>!GX_FIJOS[normalize(x||'').trim()]).sort((a,b)=>a.localeCompare(b,'es')); const i = k.indexOf(c); return GX_PASTEL[(i<0?0:i) % GX_PASTEL.length]; }
 function gxToggleGrafico(){
   gxGrafOpen = !gxGrafOpen;
