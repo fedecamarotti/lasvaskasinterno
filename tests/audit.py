@@ -757,6 +757,23 @@ with sync_playwright() as p:
     pg.fill('#gf-concepto',''); pg.fill('#gf-medio','mp'); wait(100)
     ok('Medio de pago: el filtro funciona', 'Edenor' in txt('#gastos-sheet-body') and 'Compra telas' not in txt('#gastos-sheet-body'))
     pg.fill('#gf-medio',''); wait(100)
+    # centavos
+    ev("openGastoModal()"); wait(100)
+    ev("document.getElementById('gx-concepto').value='Monotributo Juli'")
+    pg.click('#gx-monto'); pg.keyboard.type('1234,567'); wait(50)
+    ok('Centavos: el monto se escribe con coma y tope de 2 decimales (1.234,56)', ev("document.getElementById('gx-monto').value")=='1.234,56')
+    pg.fill('#gx-monto',''); pg.keyboard.type('1234,5'); wait(50)
+    ok('Centavos: mientras se escribe se respeta la coma y el decimal (1.234,5)', ev("document.getElementById('gx-monto').value")=='1.234,5')
+    pg.fill('#gx-monto',''); pg.keyboard.type('1234,56'); ev("saveGasto()"); wait(300)
+    cg=[(k.split('/')[1],v) for k,v in ev("Object.entries(window.__store)") if k.startswith('gastos/') and v['concepto']=='Monotributo Juli']
+    ok('Centavos: se guarda con centavos (1234,56)', len(cg)==1 and cg[0][1]['monto']==1234.56)
+    t=txt('#gastos-sheet-body')
+    ok('Centavos: la planilla muestra $1.234,56 y el pie suma con centavos (105.000 + 16.500 + 1.234,56)', '$1.234,56' in t and '$122.734,56' in txt('#gastos-footer'))
+    ev(f"openGastoModal('{cg[0][0]}')"); wait(100)
+    ok('Centavos: al editar se vuelve a ver 1.234,56', ev("document.getElementById('gx-monto').value")=='1.234,56')
+    pg.fill('#gx-monto',''); pg.keyboard.type('0,50'); ev("saveGasto()"); wait(300)
+    ok('Centavos: se admite un monto menor a $1 (0,50)', ev(f"window.__store['gastos/{cg[0][0]}'].monto")==0.5 and '$0,50' in txt('#gastos-sheet-body'))
+    ev(f"openGastoModal('{cg[0][0]}')"); wait(100); ev("deleteGasto()"); wait(300)
     # Rufina: toma los pendientes y ofrece pasarlos a pagado
     ev("openGastoModal()"); wait(100)
     ev("(()=>{const s=document.getElementById('gx-concepto'); s.value='Rufina'; s.dispatchEvent(new Event('change'))})()"); wait(100)

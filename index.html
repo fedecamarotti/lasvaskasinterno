@@ -3398,6 +3398,25 @@ function deleteEgreso(){
 }
 
 /* =================== EGRESOS DEL MES (gastos) =================== */
+// Los egresos admiten centavos (coma como separador decimal, hasta 2 decimales)
+function numMonto(v){
+  const p = String(v||'').replace(/[^\d,]/g,'').split(',');
+  const ent = p[0]||'', dec = (p[1]||'').slice(0,2);
+  if(!ent && !dec) return 0;
+  return Math.round(parseFloat((ent||'0')+'.'+(dec||'0'))*100)/100;
+}
+function r2(n){ return Math.round(n*100)/100; }
+function fmtMoneyDec(n){ return n? Number(n).toLocaleString('es-AR',{minimumFractionDigits:Number.isInteger(n)?0:2, maximumFractionDigits:2}) : ''; }
+function fmtARSc(n){ return (n<0?'-':'') + '$' + Math.abs(n).toLocaleString('es-AR',{minimumFractionDigits:Number.isInteger(n)?0:2, maximumFractionDigits:2}); }
+function attachMoneyDecInput(el){
+  el.addEventListener('input', ()=>{
+    const raw = el.value.replace(/[^\d,]/g,'');
+    const i = raw.indexOf(',');
+    const ent = (i<0 ? raw : raw.slice(0,i)).replace(/^0+(?=\d)/,'');
+    const dec = i<0 ? null : raw.slice(i+1).replace(/,/g,'').slice(0,2);
+    el.value = (ent? Number(ent).toLocaleString('es-AR') : (dec!==null?'0':'')) + (dec!==null ? ','+dec : '');
+  });
+}
 // Colección "gastos": movimientos de plata que sale (retiros, impuestos, servicios...). Concepto "Rufina" toma los pendientes de
 // Telas/Arreglos; "Compra telas" se arma solo con lo pagado en Telas/Arreglos (no se carga a mano).
 const CONCEPTO_RUFINA = 'Rufina', CONCEPTO_TELAS = 'Compra telas';
@@ -3465,17 +3484,17 @@ function applyGastosFilters(){
     return !q || normalize(gxColText(f,col)).includes(q);
   }));
   renderGastosSheet(filtered);
-  const tot = arr => arr.reduce((t,f)=>t+f.monto,0);
+  const tot = arr => r2(arr.reduce((t,f)=>t+f.monto,0));
   const porConcepto = {};
-  delMes.forEach(f=>{ porConcepto[f.concepto] = (porConcepto[f.concepto]||0) + f.monto; });
+  delMes.forEach(f=>{ porConcepto[f.concepto] = r2((porConcepto[f.concepto]||0) + f.monto); });
   document.getElementById('gastos-footer').innerHTML = `
     <div class="sf-card">
       <div class="sf-title">Totales en vista filtrada</div>
-      <div class="sf-row"><div class="sf-item"><span class="sf-l">Total</span><b>${fmtARS(tot(filtered))}</b></div></div>
+      <div class="sf-row"><div class="sf-item"><span class="sf-l">Total</span><b>${fmtARSc(tot(filtered))}</b></div></div>
       <div class="sf-sep"></div>
       <div class="sf-title">Resumen del mes · ${esc(monthLabel(gastosMonth))}</div>
-      <div class="sf-row"><div class="sf-item"><span class="sf-l">Total</span><b>${fmtARS(tot(delMes))}</b></div>
-      ${Object.keys(porConcepto).sort().map(c=>`<div class="sf-item"><span class="sf-l">${esc(c||'Sin concepto')}</span><b>${fmtARS(porConcepto[c])}</b></div>`).join('')}</div>
+      <div class="sf-row"><div class="sf-item"><span class="sf-l">Total</span><b>${fmtARSc(tot(delMes))}</b></div>
+      ${Object.keys(porConcepto).sort().map(c=>`<div class="sf-item"><span class="sf-l">${esc(c||'Sin concepto')}</span><b>${fmtARSc(porConcepto[c])}</b></div>`).join('')}</div>
     </div>`;
 }
 function renderGastosSheet(filas){
@@ -3485,7 +3504,7 @@ function renderGastosSheet(filas){
     const lapiz = f.auto
       ? (currentUserRole==='admin' ? `<span class="sheet-pencil" title="Ver en Telas/Arreglos" onclick="openEgresoModal('${esc(f.egresoId)}')"><i class="fa-solid fa-pen"></i></span>` : '')
       : `<span class="sheet-pencil" onclick="openGastoModal('${esc(f.id)}')"><i class="fa-solid fa-pen"></i></span>`;
-    return `<tr class="${i%2===1?'zebra':''}"><td class="edit-cell">${lapiz}</td><td>${fmtDateSheet(f.fecha)}</td><td>${esc(f.concepto)}${f.auto?'<span class="gx-auto">automático</span>':''}</td><td class="prod-cell">${esc(f.detalle)}</td><td class="tot-cell">${fmtARS(f.monto)}</td><td>${f.medio? `<span class="medio-chip medio-${normalize(f.medio)}">${esc(f.medio)}</span>` : ''}</td></tr>`;
+    return `<tr class="${i%2===1?'zebra':''}"><td class="edit-cell">${lapiz}</td><td>${fmtDateSheet(f.fecha)}</td><td>${esc(f.concepto)}${f.auto?'<span class="gx-auto">automático</span>':''}</td><td class="prod-cell">${esc(f.detalle)}</td><td class="tot-cell">${fmtARSc(f.monto)}</td><td>${f.medio? `<span class="medio-chip medio-${normalize(f.medio)}">${esc(f.medio)}</span>` : ''}</td></tr>`;
   }).join('');
 }
 
@@ -3496,22 +3515,22 @@ function gxPendientesRufina(){
 }
 function gxSumaSeleccion(){
   let t = 0;
-  document.querySelectorAll('#gx-pend input[type=checkbox]:checked').forEach(c=>{ t += parseInt(c.dataset.total,10)||0; });
-  return t;
+  document.querySelectorAll('#gx-pend input[type=checkbox]:checked').forEach(c=>{ t += parseFloat(c.dataset.total)||0; });
+  return r2(t);
 }
 function gxRenderPend(){
   const box = document.getElementById('gx-pend');
   const pend = gxPendientesRufina();
   if(!pend.length){ box.innerHTML = '<div class="gx-pend-t">Rufina no tiene pendientes en Telas/Arreglos.</div>'; return; }
   box.innerHTML = `<div class="gx-pend-t">Pendientes de Rufina en Telas/Arreglos</div>` +
-    pend.map(e=>`<label><input type="checkbox" checked data-id="${esc(e.id)}" data-total="${egTotal(e)}" data-fecha="${esc(e.fecha||'')}" onchange="gxPendCambio()"> ${fmtDateSheet(e.fecha)} <b>${fmtARS(egTotal(e))}</b></label>`).join('') +
+    pend.map(e=>`<label><input type="checkbox" checked data-id="${esc(e.id)}" data-total="${egTotal(e)}" data-fecha="${esc(e.fecha||'')}" onchange="gxPendCambio()"> ${fmtDateSheet(e.fecha)} <b>${fmtARSc(egTotal(e))}</b></label>`).join('') +
     `<div class="gx-pend-sum"><span>Total seleccionado</span><span id="gx-pend-total">$0</span></div>`;
   gxPendCambio();
 }
 function gxPendCambio(){
   const t = gxSumaSeleccion();
-  const el = document.getElementById('gx-pend-total'); if(el) el.textContent = fmtARS(t);
-  document.getElementById('gx-monto').value = t ? fmtMoney(t) : '';
+  const el = document.getElementById('gx-pend-total'); if(el) el.textContent = fmtARSc(t);
+  document.getElementById('gx-monto').value = t ? fmtMoneyDec(t) : '';
   const fechas = [...document.querySelectorAll('#gx-pend input[type=checkbox]:checked')].map(c=>fmtDateCorto(c.dataset.fecha));
   const det = document.getElementById('gx-detalle');
   if(!det.dataset.manual) det.value = fechas.length ? 'Pendientes: ' + fechas.join(', ') : '';
@@ -3539,8 +3558,8 @@ function openGastoModal(id){
   det.value = g? (g.detalle||'') : ''; det.dataset.manual = g ? '1' : '';
   det.oninput = ()=>{ det.dataset.manual = det.value ? '1' : ''; };
   document.getElementById('gx-medio').value = g? (g.medio||'') : '';
-  const mo = document.getElementById('gx-monto'); mo.value = g? fmtMoney(g.monto) : '';
-  if(!mo._money){ attachMoneyInput(mo); mo._money = true; }
+  const mo = document.getElementById('gx-monto'); mo.value = g? fmtMoneyDec(g.monto) : '';
+  if(!mo._money){ attachMoneyDecInput(mo); mo._money = true; }
   document.getElementById('gx-pend').classList.add('hidden');
   document.getElementById('gx-delete-row').classList.toggle('hidden', !g);
   openModal('modal-gasto');
@@ -3554,7 +3573,7 @@ async function saveGasto(){
     const fecha = document.getElementById('gx-fecha').value;
     const concepto = document.getElementById('gx-concepto').value;
     const detalle = document.getElementById('gx-detalle').value.trim();
-    const monto = num(document.getElementById('gx-monto').value)||0;
+    const monto = numMonto(document.getElementById('gx-monto').value);
     const medio = document.getElementById('gx-medio').value;
     if(!fecha){ alert('Completá la fecha.'); return; }
     if(!concepto){ alert('Elegí un concepto (o agregalo con "+ Conceptos").'); return; }
@@ -3565,7 +3584,7 @@ async function saveGasto(){
     let pagarIds = [];
     if(concepto===CONCEPTO_RUFINA && !id){
       const marcados = [...document.querySelectorAll('#gx-pend input[type=checkbox]:checked')];
-      if(marcados.length && monto===gxSumaSeleccion()){
+      if(marcados.length && r2(monto)===gxSumaSeleccion()){
         if(confirm('¿Querés modificar a PAGADO los pendientes de Rufina seleccionados en Telas/Arreglos?')){
           pagarIds = marcados.map(c=>c.dataset.id);
           data.pagoIds = pagarIds;
