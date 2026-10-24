@@ -62,8 +62,6 @@ label{font-size:12px;color:#9a9285;display:block;margin-bottom:4px;letter-spacin
 @media(max-width:900px){
   .topbar-center,.topbar .actions,.main-nav{scrollbar-width:none;-ms-overflow-style:none;padding-bottom:6px}
   .topbar-center::-webkit-scrollbar,.topbar .actions::-webkit-scrollbar,.main-nav::-webkit-scrollbar{display:none}
-  /* ancho virtual: permite achicar la vista con dos dedos para ver mas columnas */
-  body::after{content:'';position:absolute;left:0;top:0;width:1000px;height:1px;pointer-events:none;visibility:hidden}
 }
 .chip-btn.active,.chip-btn.active:hover{background:#cfc19b;color:#2b261d}
 .chip-btn .nav-ic{display:inline}
@@ -3901,18 +3899,6 @@ function editSheetDoc(clienteId, docId, tipo){
 
 // Arranque: se ejecuta al final, cuando todo el código ya está definido.
 bootFromSession();
-
-// Pellizco para achicar (movil): al achicar la vista, el contenido se re-acomoda al ancho visible y muestra mas columnas
-(function(){
-  const vv = window.visualViewport; if(!vv) return;
-  let t = null;
-  function ajustar(){
-    const w = vv.scale < 0.97 ? Math.round(vv.width) : 0;
-    document.body.style.width = w ? w + 'px' : '';
-  }
-  function programar(){ clearTimeout(t); t = setTimeout(ajustar, 120); }
-  vv.addEventListener('resize', programar);
-})();
 </script>
 </body>
 </html>
