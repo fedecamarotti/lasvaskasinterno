@@ -3542,9 +3542,17 @@ function applyGastosFilters(){
 }
 // ---- Gráfico por áreas (torta con selección de conceptos)
 let gxGrafOpen = false, gxPorConcepto = {}, gxGrafOff = new Set();
-const GX_PASTEL = ['#f4a6b8','#b9a4e8','#8fd3c0','#9ccbf0','#a8bfa3','#7fd0d8','#c4e58f','#e7a0dc','#a3b4f2','#a9dca4','#d6b3f0'];
-const GX_FIJOS = {'retiro belu':'#7ea6e6','retiro viqui':'#f59e4b','alquiler':'#e8736f','honorarios + monotributo juli':'#f7e07f'};
-function gxColorDe(c){ const fj = GX_FIJOS[normalize(c||'').trim()]; if(fj) return fj; const k = Object.keys(gxPorConcepto).filter(x=>!GX_FIJOS[normalize(x||'').trim()]).sort((a,b)=>a.localeCompare(b,'es')); const i = k.indexOf(c); return GX_PASTEL[(i<0?0:i) % GX_PASTEL.length]; }
+// Colores fijos por concepto (los de octubre), iguales en todos los meses
+const GX_FIJOS = {'retiro belu':'#7ea6e6','retiro viqui':'#f59e4b','alquiler':'#e8736f','honorarios + monotributo juli':'#f7e07f',
+  'bordados nancy':'#f4a6b8','compra telas':'#b9a4e8','honorarios fede':'#8fd3c0','motos':'#9ccbf0','otros':'#a8bfa3','rufina':'#7fd0d8','servicios':'#c4e58f'};
+// Conceptos nuevos: color estable según el nombre (el mismo en cualquier mes)
+const GX_EXTRA = ['#e7a0dc','#a3b4f2','#a9dca4','#d6b3f0','#f2c4a0','#9fd9e8'];
+function gxColorDe(c){
+  const n = normalize(c||'').trim();
+  if(GX_FIJOS[n]) return GX_FIJOS[n];
+  let h = 0; for(const ch of n) h = (h*31 + ch.charCodeAt(0)) >>> 0;
+  return GX_EXTRA[h % GX_EXTRA.length];
+}
 function gxToggleGrafico(){
   gxGrafOpen = !gxGrafOpen;
   const box = document.getElementById('gx-graf'); if(box) box.style.display = gxGrafOpen? 'block':'none';
