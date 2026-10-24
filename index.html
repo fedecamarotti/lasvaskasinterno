@@ -377,6 +377,12 @@ table.sheet-table tbody td.tot-cell{font-weight:700}
 .gx-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid #e3ddd0;border-radius:999px;padding:4px 12px;font-size:12.5px;background:#fff;margin:0 6px 8px 0}
 .gx-chip.fijo{color:#8a8375;background:#f6f3ec}
 .gx-chip .x{color:#c1685c;cursor:pointer;font-size:14px;line-height:1}
+.medio-chip{display:inline-block;padding:1px 9px;border-radius:8px;font-size:10px;font-weight:600;white-space:nowrap}
+.medio-efectivo{background:#e3f3e9;color:#3f7a56}
+.medio-usd{background:#fbf0c9;color:#8a6a1f}
+.medio-mp{background:#d8eef6;color:#2f6f8a}
+.medio-banco{background:#dbe6fb;color:#3d5f96}
+.medio-tarjeta{background:#fbe3c7;color:#8a5a1f}
 .gx-auto{font-size:11px;color:#a49c8c;margin-left:4px}
 @media(max-width:700px){ .gx-conceptos-btn{right:8px;padding:7px 10px} }
 .estado-toggle.sel-modo{background:#f0e6d0;border-color:#c9a86a;color:#8f6c2a}
@@ -626,15 +632,16 @@ body.role-admin .doctype-btns button.pago{display:block}
   </div>
   <div class="sheet-wrap">
     <table class="sheet-table" id="gastos-table">
-      <colgroup><col style="width:26px"><col style="width:70px"><col style="width:200px"><col style="width:360px"><col style="width:130px"></colgroup>
+      <colgroup><col style="width:26px"><col style="width:70px"><col style="width:200px"><col style="width:360px"><col style="width:130px"><col style="width:110px"></colgroup>
       <thead><tr>
         <th></th>
         <th><input class="sheet-filter" id="gf-fecha" placeholder="Fecha" oninput="applySheetFilters('gastos')"></th>
         <th><input class="sheet-filter" id="gf-concepto" placeholder="Concepto" oninput="applySheetFilters('gastos')"></th>
         <th><input class="sheet-filter" id="gf-detalle" placeholder="Detalle" oninput="applySheetFilters('gastos')"></th>
         <th><input class="sheet-filter" id="gf-monto" placeholder="Monto" oninput="applySheetFilters('gastos')"></th>
+        <th><input class="sheet-filter" id="gf-medio" placeholder="Medio de pago" oninput="applySheetFilters('gastos')"></th>
       </tr></thead>
-      <tbody id="gastos-sheet-body"><tr><td colspan="5" class="sheet-empty">Cargando...</td></tr></tbody>
+      <tbody id="gastos-sheet-body"><tr><td colspan="6" class="sheet-empty">Cargando...</td></tr></tbody>
     </table>
   </div>
   <div id="gastos-footer" class="sheet-footer"></div>
@@ -798,7 +805,10 @@ body.role-admin .doctype-btns button.pago{display:block}
     </div>
     <div id="gx-pend" class="gx-pend hidden"></div>
     <div class="field"><label>Detalle</label><input id="gx-detalle" placeholder=""></div>
-    <div class="field"><label>Monto</label><input id="gx-monto" inputmode="numeric" placeholder="$"></div>
+    <div class="gx-row">
+      <div class="field"><label>Monto</label><input id="gx-monto" inputmode="numeric" placeholder="$"></div>
+      <div class="field"><label>Medio de pago</label><select id="gx-medio"><option value="">—</option><option>Efectivo</option><option>USD</option><option>MP</option><option>Banco</option><option>Tarjeta</option></select></div>
+    </div>
     <button class="btn btn-primary" style="width:100%;margin-top:6px" id="gx-guardar" onclick="saveGasto()">Guardar</button>
     <div id="gx-delete-row" class="hidden" style="text-align:center;margin-top:14px">
       <button class="btn-danger" style="font-size:13px" onclick="deleteGasto()">Eliminar</button>
@@ -3403,7 +3413,7 @@ function listenGastos(){
     if(!document.getElementById('screen-gastos-sheet').classList.contains('hidden')) renderSheetSeguro('gastos');
   }, err=>{ console.error('Error cargando egresos:', err);
     const b = document.getElementById('gastos-sheet-body');
-    if(b) b.innerHTML = '<tr><td colspan="5" class="sheet-empty">Error al cargar. Revisá la consola.</td></tr>';
+    if(b) b.innerHTML = '<tr><td colspan="6" class="sheet-empty">Error al cargar. Revisá la consola.</td></tr>';
   });
 }
 function listenConceptos(){
@@ -3422,27 +3432,28 @@ function openGastosSheet(){
   clampMes(gastosMonth);
   syncGastosMonth();
   showScreen('gastos-sheet');
-  document.getElementById('gastos-sheet-body').innerHTML = '<tr><td colspan="5" class="sheet-empty">Cargando...</td></tr>';
+  document.getElementById('gastos-sheet-body').innerHTML = '<tr><td colspan="6" class="sheet-empty">Cargando...</td></tr>';
   document.getElementById('gastos-footer').innerHTML = '';
   stopLive('gastos-sheet');
   liveUnsubs['gastos-sheet'] = [listenGastos(), listenEgresos(), listenConceptos()];
 }
 // Filas del mes: los egresos cargados + una fila automática "Compra telas" por cada registro de Telas/Arreglos ya pagado (con su fecha de pago)
 function gastosFilas(){
-  const filas = gastosAll.map(g=>({id:g.id, fecha:g.fecha, concepto:g.concepto||'', detalle:g.detalle||'', monto:g.monto||0, createdAt:g.createdAt||0, auto:false}));
+  const filas = gastosAll.map(g=>({id:g.id, fecha:g.fecha, concepto:g.concepto||'', detalle:g.detalle||'', monto:g.monto||0, medio:g.medio||'', createdAt:g.createdAt||0, auto:false}));
   egresosAll.forEach(e=>{
     if(e.estado!=='pagado' || !e.fechaPago || esRegistroRufina(e)) return;
-    filas.push({id:'auto-'+e.id, egresoId:e.id, fecha:e.fechaPago, concepto:CONCEPTO_TELAS, detalle:'', monto:egTotal(e), createdAt:e.createdAt||0, auto:true});
+    filas.push({id:'auto-'+e.id, egresoId:e.id, fecha:e.fechaPago, concepto:CONCEPTO_TELAS, detalle:'', monto:egTotal(e), medio:'', createdAt:e.createdAt||0, auto:true});
   });
   return filas;
 }
-const GX_COLS = ['fecha','concepto','detalle','monto'];
+const GX_COLS = ['fecha','concepto','detalle','monto','medio'];
 function gxColText(f,col){
   switch(col){
     case 'fecha': return `${fmtDateSheet(f.fecha)} ${fmtDate(f.fecha)}`;
     case 'concepto': return f.concepto;
     case 'detalle': return f.detalle;
     case 'monto': return String(f.monto);
+    case 'medio': return f.medio;
   }
   return '';
 }
@@ -3470,12 +3481,12 @@ function applyGastosFilters(){
 }
 function renderGastosSheet(filas){
   const body = document.getElementById('gastos-sheet-body');
-  if(!filas.length){ body.innerHTML = '<tr><td colspan="5" class="sheet-empty">Sin egresos este mes.</td></tr>'; return; }
+  if(!filas.length){ body.innerHTML = '<tr><td colspan="6" class="sheet-empty">Sin egresos este mes.</td></tr>'; return; }
   body.innerHTML = filas.map((f,i)=>{
     const lapiz = f.auto
       ? (currentUserRole==='admin' ? `<span class="sheet-pencil" title="Ver en Telas/Arreglos" onclick="openEgresoModal('${esc(f.egresoId)}')"><i class="fa-solid fa-pen"></i></span>` : '')
       : `<span class="sheet-pencil" onclick="openGastoModal('${esc(f.id)}')"><i class="fa-solid fa-pen"></i></span>`;
-    return `<tr class="${i%2===1?'zebra':''}"><td class="edit-cell">${lapiz}</td><td>${fmtDateSheet(f.fecha)}</td><td>${esc(f.concepto)}${f.auto?'<span class="gx-auto">automático</span>':''}</td><td class="prod-cell">${esc(f.detalle)}</td><td class="tot-cell">${fmtARS(f.monto)}</td></tr>`;
+    return `<tr class="${i%2===1?'zebra':''}"><td class="edit-cell">${lapiz}</td><td>${fmtDateSheet(f.fecha)}</td><td>${esc(f.concepto)}${f.auto?'<span class="gx-auto">automático</span>':''}</td><td class="prod-cell">${esc(f.detalle)}</td><td class="tot-cell">${fmtARS(f.monto)}</td><td>${f.medio? `<span class="medio-chip medio-${normalize(f.medio)}">${esc(f.medio)}</span>` : ''}</td></tr>`;
   }).join('');
 }
 
@@ -3528,6 +3539,7 @@ function openGastoModal(id){
   const det = document.getElementById('gx-detalle');
   det.value = g? (g.detalle||'') : ''; det.dataset.manual = g ? '1' : '';
   det.oninput = ()=>{ det.dataset.manual = det.value ? '1' : ''; };
+  document.getElementById('gx-medio').value = g? (g.medio||'') : '';
   const mo = document.getElementById('gx-monto'); mo.value = g? fmtMoney(g.monto) : '';
   if(!mo._money){ attachMoneyInput(mo); mo._money = true; }
   document.getElementById('gx-pend').classList.add('hidden');
@@ -3544,11 +3556,12 @@ async function saveGasto(){
     const concepto = document.getElementById('gx-concepto').value;
     const detalle = document.getElementById('gx-detalle').value.trim();
     const monto = num(document.getElementById('gx-monto').value)||0;
+    const medio = document.getElementById('gx-medio').value;
     if(!fecha){ alert('Completá la fecha.'); return; }
     if(!concepto){ alert('Elegí un concepto (o agregalo con "+ Conceptos").'); return; }
     if(!(monto>0)){ alert('Completá el monto.'); return; }
     const batch = db.batch();
-    const data = {fecha, concepto, detalle, monto};
+    const data = {fecha, concepto, detalle, monto, medio};
     // Rufina: si se paga justo el total de los pendientes elegidos, se ofrece pasarlos a PAGADO con la fecha de este egreso
     let pagarIds = [];
     if(concepto===CONCEPTO_RUFINA && !id){
