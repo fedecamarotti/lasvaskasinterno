@@ -384,6 +384,25 @@ table.sheet-table tbody td.tot-cell{font-weight:700}
 .medio-tarjeta{background:#fbe3c7;color:#8a5a1f}
 .gastos-angosto,#screen-gastos-sheet .sheet-wrap{max-width:920px;margin-left:auto;margin-right:auto}
 #gastos-footer{max-width:920px}
+.gx-gbtn{margin-left:10px;border:1px solid #c9b8f0;background:#f6f1ff;color:#6b55a8;border-radius:999px;padding:3px 12px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit}
+.gx-gbtn:hover{background:#ece3ff}
+.gx-graf{margin-top:12px;border-top:1px solid #ece6d8;padding-top:12px}
+.gx-gtop{display:flex;gap:6px;margin-bottom:10px}
+.gx-gtop button{border:1px solid #e3ddd0;background:#fff;border-radius:999px;padding:2px 11px;font-size:10.5px;font-weight:600;color:#6b55a8;cursor:pointer;font-family:inherit}
+.gx-gbody{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.gx-gtbl{flex:1 1 380px;min-width:300px;font-size:11.5px}
+.gx-gr{display:flex;align-items:center;gap:8px;padding:4px 2px;border-bottom:1px solid #f0ebdf;cursor:pointer;user-select:none}
+.gx-gr.off{opacity:.38}
+.gx-gcb{width:13px;height:13px;border-radius:4px;border:1.6px solid var(--c);flex:none}
+.gx-gr:not(.off) .gx-gcb{background:var(--c)}
+.gx-gn{width:120px;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gx-gbar{flex:1;height:8px;background:#f1eef6;border-radius:4px;overflow:hidden;min-width:40px}
+.gx-gbar i{display:block;height:100%;border-radius:4px}
+.gx-gp{width:34px;text-align:right;color:#8a8375}
+.gx-gm{width:92px;text-align:right;font-weight:600}
+.gx-gpie{flex:0 0 190px;text-align:center}
+.gx-gpie small{display:block;font-size:10.5px;color:#8a8375;margin-top:4px}
+.gx-gpie b{font-size:13px}
 #gastos-table tbody td.gx-bold{font-weight:700}
 .gx-medio-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
 .gx-medio-row select{flex:1 1 0;min-width:0}
@@ -3512,9 +3531,63 @@ function applyGastosFilters(){
       <div class="sf-row"><div class="sf-item"><span class="sf-l">Total</span><b>${fmtARSc(tot(filtered))}</b></div></div>
       <div class="sf-sep"></div>
       <div class="sf-title">Resumen del mes · ${esc(monthLabel(gastosMonth))}</div>
-      <div class="sf-row"><div class="sf-item"><span class="sf-l">Total</span><b>${fmtARSc(tot(delMes))}</b></div>
+      <div class="sf-row"><div class="sf-item"><span class="sf-l">Total</span><b>${fmtARSc(tot(delMes))}</b><button type="button" class="gx-gbtn" onclick="gxToggleGrafico()">${gxGrafOpen?'▴':'▾'} Gráfico por áreas</button></div>
       ${Object.keys(porConcepto).sort().map(c=>`<div class="sf-item"><span class="sf-l">${esc(c||'Sin concepto')}</span><b>${fmtARSc(porConcepto[c])}</b></div>`).join('')}</div>
+      <div id="gx-graf" class="gx-graf" style="display:${gxGrafOpen?'block':'none'}"></div>
     </div>`;
+  gxPorConcepto = porConcepto;
+  if(gxGrafOpen) gxRenderGrafico();
+}
+// ---- Gráfico por áreas (torta con selección de conceptos)
+let gxGrafOpen = false, gxPorConcepto = {}, gxGrafOff = new Set();
+const GX_PASTEL = ['#f4a6b8','#b9a4e8','#8fd3c0','#9ccbf0','#fbc08e','#f7e07f','#f08f8f','#7fd0d8','#c4e58f','#e7a0dc','#a3b4f2','#f3b09a','#a9dca4','#d6b3f0'];
+function gxColorDe(c){ const k = Object.keys(gxPorConcepto).sort((a,b)=>a.localeCompare(b,'es')); const i = k.indexOf(c); return GX_PASTEL[(i<0?0:i) % GX_PASTEL.length]; }
+function gxToggleGrafico(){
+  gxGrafOpen = !gxGrafOpen;
+  const box = document.getElementById('gx-graf'); if(box) box.style.display = gxGrafOpen? 'block':'none';
+  if(gxGrafOpen) gxRenderGrafico();
+  const b = document.querySelector('.gx-gbtn'); if(b) b.textContent = (gxGrafOpen?'▴':'▾')+' Gráfico por áreas';
+}
+function gxGrafSel(modo){
+  const ks = Object.keys(gxPorConcepto);
+  if(modo==='todos') gxGrafOff = new Set();
+  else if(modo==='ninguno') gxGrafOff = new Set(ks);
+  else if(modo==='retiros') gxGrafOff = new Set(ks.filter(k=>!/^retiro /i.test(k)));
+  gxRenderGrafico();
+}
+function gxGrafClick(i){
+  const k = Object.keys(gxPorConcepto).sort((a,b)=>gxPorConcepto[b]-gxPorConcepto[a])[i];
+  if(gxGrafOff.has(k)) gxGrafOff.delete(k); else gxGrafOff.add(k);
+  gxRenderGrafico();
+}
+function gxPieSvg(items){
+  const tot = items.reduce((t,x)=>t+x[1],0);
+  if(!(tot>0)) return '<div style="height:170px;display:flex;align-items:center;justify-content:center;color:#b2ab9b;font-size:11px">Sin selección</div>';
+  const cx=85, cy=85, r=80;
+  if(items.length===1) return `<svg width="170" height="170" viewBox="0 0 170 170"><circle cx="${cx}" cy="${cy}" r="${r}" fill="${gxColorDe(items[0][0])}"/></svg>`;
+  let a=-Math.PI/2, out='';
+  items.forEach(([k,v])=>{
+    const b = a + 2*Math.PI*v/tot, big = (b-a)>Math.PI?1:0;
+    const x1=cx+r*Math.cos(a), y1=cy+r*Math.sin(a), x2=cx+r*Math.cos(b), y2=cy+r*Math.sin(b);
+    out += `<path d="M${cx},${cy} L${x1.toFixed(2)},${y1.toFixed(2)} A${r},${r} 0 ${big} 1 ${x2.toFixed(2)},${y2.toFixed(2)}Z" fill="${gxColorDe(k)}" stroke="#fff" stroke-width="2"><title>${esc(k)}: ${fmtARSc(v)}</title></path>`;
+    a=b;
+  });
+  return `<svg width="170" height="170" viewBox="0 0 170 170">${out}</svg>`;
+}
+function gxRenderGrafico(){
+  const box = document.getElementById('gx-graf'); if(!box) return;
+  const ks = Object.keys(gxPorConcepto).sort((a,b)=>gxPorConcepto[b]-gxPorConcepto[a]);
+  gxGrafOff.forEach(k=>{ if(!(k in gxPorConcepto)) gxGrafOff.delete(k); });
+  const totAll = r2(ks.reduce((t,k)=>t+gxPorConcepto[k],0));
+  const sel = ks.filter(k=>!gxGrafOff.has(k)).map(k=>[k,gxPorConcepto[k]]);
+  const totSel = r2(sel.reduce((t,x)=>t+x[1],0));
+  const mx = Math.max(1, ...ks.map(k=>gxPorConcepto[k]));
+  box.innerHTML = `<div class="gx-gtop"><button type="button" onclick="gxGrafSel('todos')">Todos</button><button type="button" onclick="gxGrafSel('ninguno')">Ninguno</button><button type="button" onclick="gxGrafSel('retiros')">Solo retiros</button></div>
+    <div class="gx-gbody"><div class="gx-gtbl">${ks.map((k,i)=>{
+      const v = gxPorConcepto[k], off = gxGrafOff.has(k), c = gxColorDe(k);
+      return `<div class="gx-gr ${off?'off':''}" style="--c:${c}" onclick="gxGrafClick(${i})"><span class="gx-gcb"></span><span class="gx-gn" title="${esc(k||'Sin concepto')}">${esc(k||'Sin concepto')}</span><span class="gx-gbar"><i style="width:${(v/mx*100).toFixed(0)}%;background:${c}"></i></span><span class="gx-gp">${totAll>0? Math.round(v/totAll*100):0}%</span><span class="gx-gm">${fmtARSc(v)}</span></div>`;
+    }).join('')}</div>
+    <div class="gx-gpie">${gxPieSvg(sel)}<small>Seleccionado</small><b>${fmtARSc(totSel)}</b></div></div>`;
 }
 // Los retiros de Belu y Viqui se destacan en negrita (concepto y monto)
 function gxNegrita(f){ const c = normalize(f.concepto).trim(); return c==='retiro belu' || c==='retiro viqui'; }
