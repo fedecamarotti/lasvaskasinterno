@@ -784,6 +784,7 @@ body.role-admin .doctype-btns button.pago{display:block}
         <div class="estado-toggle mini" id="eg-btn-pagado" onclick="clickEgEstado('pagado')">Pagado</div>
       </div>
       <div class="field"><label>Fecha de pago</label><input type="date" id="eg-fechapago"></div>
+      <div class="field" id="eg-medio-wrap"><label>Medio de pago</label><select id="eg-medio"><option value="">—</option><option>Efectivo</option><option>USD</option><option>MP</option><option>Banco</option><option>Tarjeta</option></select></div>
     </div>
     <button class="btn btn-primary" style="width:100%;margin-top:6px" id="eg-guardar" onclick="saveEgreso()">Guardar</button>
     <div id="eg-delete-row" class="hidden" style="text-align:center;margin-top:14px">
@@ -3085,7 +3086,7 @@ function egUpdate(id, upd){
 function egSetEstado(id, val){
   const e = egresosAll.find(x=>x.id===id); if(!e) return;
   const upd = {estado:val};
-  if(val==='pagado') upd.fechaPago = e.fechaPago || todayISO(); else upd.fechaPago = null;
+  if(val==='pagado') upd.fechaPago = e.fechaPago || todayISO(); else { upd.fechaPago = null; upd.medioPago = ''; }
   egUpdate(id, upd);
 }
 function egSetFechaPago(id, val){
@@ -3193,6 +3194,7 @@ function resolverCodigoEgreso(row, pre){
   const cli = row.querySelector('.eg-clienta'), stat = row.querySelector('.eg-stat');
   const sel = row.querySelector('.eg-prenda-sel'), txt = row.querySelector('.eg-prenda-txt');
   const manual = (msg)=>{
+    if(row._venta) txt.value = ''; // la prenda sale siempre del código: sin código no hay prenda
     row.dataset.ventaId = ''; row.dataset.clienteId = ''; row._venta = null;
     cli.readOnly = false; cli.tabIndex = 0;
     sel.classList.add('hidden'); sel.innerHTML=''; txt.classList.remove('hidden');
@@ -3228,7 +3230,7 @@ function addEgresoLinea(l){
   row.innerHTML = `
     <div class="field eg-cod"><input class="eg-codigo" placeholder="Código" inputmode="numeric" value="${esc(l.codigo||'')}"></div>
     <div class="field eg-cli"><input class="eg-clienta" placeholder="Clienta" value="${esc(l.clienta||'')}"></div>
-    <div class="field eg-pren"><select class="eg-prenda-sel hidden"></select><input class="eg-prenda-txt" placeholder="Prenda" value="${esc(l.prenda||'')}"></div>
+    <div class="field eg-pren"><select class="eg-prenda-sel hidden"></select><input class="eg-prenda-txt" placeholder="Prenda (según código)" readonly tabindex="-1" value="${esc(l.prenda||'')}"></div>
     <div class="field eg-tp"><select class="eg-tipo"></select></div>
     <div class="field eg-det"><input class="eg-detalle" placeholder="Detalle" value="${esc(l.detalle||'')}"></div>
     <div class="field eg-c"><input class="eg-cant" placeholder="Cant." inputmode="decimal" value="${esc(String(l.cant==null?'':l.cant).replace('.',','))}"></div>
@@ -3311,6 +3313,8 @@ function setEgEstado(v){
   if(v==='pagado' && !fp.value) fp.value = todayISO();
   if(v==='pendiente') fp.value = '';
   document.getElementById('eg-modal-estado').value = v;
+  document.getElementById('eg-medio-wrap').classList.toggle('hidden', v!=='pagado'); // el medio de pago se pide solo si ya se pagó
+  if(v!=='pagado') document.getElementById('eg-medio').value = '';
 }
 function openEgresoModal(id){
   if(currentUserRole!=='admin') return;
@@ -3331,6 +3335,7 @@ function openEgresoModal(id){
   egEstadoManual = false;
   setEgEstado(e ? (e.estado==='pagado' ? 'pagado' : 'pendiente') : 'pagado'); // nuevo en modo "Compra telas": pagado
   if(e) document.getElementById('eg-fechapago').value = e.fechaPago||document.getElementById('eg-fechapago').value;
+  document.getElementById('eg-medio').value = e && e.estado==='pagado' ? (e.medioPago||'') : '';
   document.getElementById('eg-delete-row').classList.toggle('hidden', !e);
   openModal('modal-egreso');
 }
@@ -3381,7 +3386,7 @@ async function saveEgreso(){
     if(estado==='pagado' && !fechaPago) fechaPago = todayISO();
     if(estado==='pendiente') fechaPago = null;
     const id = document.getElementById('eg-id').value;
-    const data = {fecha, lineas, otros, total: egTotal({lineas, otros}), estado, fechaPago};
+    const data = {fecha, lineas, otros, total: egTotal({lineas, otros}), estado, fechaPago, medioPago: estado==='pagado' ? document.getElementById('eg-medio').value : ''};
     closeModal('modal-egreso');
     const p = id ? db.collection('egresos').doc(id).update(data)
                  : db.collection('egresos').doc().set({...data, createdAt:Date.now()});
@@ -3460,7 +3465,7 @@ function gastosFilas(){
   const filas = gastosAll.map(g=>({id:g.id, fecha:g.fecha, concepto:g.concepto||'', detalle:g.detalle||'', monto:g.monto||0, medio:g.medio||'', createdAt:g.createdAt||0, auto:false}));
   egresosAll.forEach(e=>{
     if(e.estado!=='pagado' || !e.fechaPago || esRegistroRufina(e)) return;
-    filas.push({id:'auto-'+e.id, egresoId:e.id, fecha:e.fechaPago, concepto:CONCEPTO_TELAS, detalle:'', monto:egTotal(e), medio:'', createdAt:e.createdAt||0, auto:true});
+    filas.push({id:'auto-'+e.id, egresoId:e.id, fecha:e.fechaPago, concepto:CONCEPTO_TELAS, detalle:'', monto:egTotal(e), medio:e.medioPago||'', createdAt:e.createdAt||0, auto:true});
   });
   return filas;
 }
@@ -3593,10 +3598,10 @@ async function saveGasto(){
     }
     if(id){ batch.update(db.collection('gastos').doc(id), data); }
     else { batch.set(db.collection('gastos').doc(), {...data, createdAt:Date.now()}); }
-    pagarIds.forEach(eid=> batch.update(db.collection('egresos').doc(eid), {estado:'pagado', fechaPago:fecha}));
+    pagarIds.forEach(eid=> batch.update(db.collection('egresos').doc(eid), {estado:'pagado', fechaPago:fecha, medioPago:medio}));
     closeModal('modal-gasto');
     // reflejo inmediato en memoria
-    pagarIds.forEach(eid=>{ const e = egresosAll.find(x=>x.id===eid); if(e){ e.estado='pagado'; e.fechaPago=fecha; } });
+    pagarIds.forEach(eid=>{ const e = egresosAll.find(x=>x.id===eid); if(e){ e.estado='pagado'; e.fechaPago=fecha; e.medioPago=medio; } });
     markSaving();
     batch.commit().catch(err=>{ console.error(err); alert('No se pudo guardar. Revisá la consola.'); });
     if(!document.getElementById('screen-gastos-sheet').classList.contains('hidden')) applyGastosFilters();
