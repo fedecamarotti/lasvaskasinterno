@@ -3901,6 +3901,18 @@ function editSheetDoc(clienteId, docId, tipo){
 
 // Arranque: se ejecuta al final, cuando todo el código ya está definido.
 bootFromSession();
+
+// Pellizco para achicar (movil): al achicar la vista, el contenido se re-acomoda al ancho visible y muestra mas columnas
+(function(){
+  const vv = window.visualViewport; if(!vv) return;
+  let t = null;
+  function ajustar(){
+    const w = vv.scale < 0.97 ? Math.round(vv.width) : 0;
+    document.body.style.width = w ? w + 'px' : '';
+  }
+  function programar(){ clearTimeout(t); t = setTimeout(ajustar, 120); }
+  vv.addEventListener('resize', programar);
+})();
 </script>
 </body>
 </html>
