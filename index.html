@@ -395,7 +395,7 @@ table.sheet-table tbody td.tot-cell{font-weight:700}
 .gx-gr.off{opacity:.38}
 .gx-gcb{width:13px;height:13px;border-radius:4px;border:1.6px solid var(--c);flex:none}
 .gx-gr:not(.off) .gx-gcb{background:var(--c)}
-.gx-gn{width:120px;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gx-gn{width:178px;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gx-gbar{flex:1;height:8px;background:#f1eef6;border-radius:4px;overflow:hidden;min-width:40px}
 .gx-gbar i{display:block;height:100%;border-radius:4px}
 .gx-gp{width:34px;text-align:right;color:#8a8375}
@@ -3534,13 +3534,16 @@ function applyGastosFilters(){
       <div class="sf-row"><div class="sf-item"><span class="sf-l">Total</span><b>${fmtARSc(tot(delMes))}</b><button type="button" class="gx-gbtn" onclick="gxToggleGrafico()">${gxGrafOpen?'▴':'▾'} Detalle por concepto</button></div></div>
       <div id="gx-graf" class="gx-graf" style="display:${gxGrafOpen?'block':'none'}"></div>
     </div>`;
-  gxPorConcepto = porConcepto;
+  // En el gráfico, Honorarios Juli y Monotributo Juli van siempre juntos
+  const gxMerged = {}; const GX_JULI = 'Honorarios + monotributo Juli';
+  Object.keys(porConcepto).forEach(c=>{ const n = normalize(c||'').trim(); const k = (n==='honorarios juli' || n==='monotributo juli') ? GX_JULI : c; gxMerged[k] = r2((gxMerged[k]||0) + porConcepto[c]); });
+  gxPorConcepto = gxMerged;
   if(gxGrafOpen) gxRenderGrafico();
 }
 // ---- Gráfico por áreas (torta con selección de conceptos)
 let gxGrafOpen = false, gxPorConcepto = {}, gxGrafOff = new Set();
-const GX_PASTEL = ['#f4a6b8','#b9a4e8','#8fd3c0','#9ccbf0','#f7e07f','#a8bfa3','#7fd0d8','#c4e58f','#e7a0dc','#a3b4f2','#a9dca4','#d6b3f0'];
-const GX_FIJOS = {'retiro belu':'#7ea6e6','retiro viqui':'#f59e4b','alquiler':'#e8736f'};
+const GX_PASTEL = ['#f4a6b8','#b9a4e8','#8fd3c0','#9ccbf0','#a8bfa3','#7fd0d8','#c4e58f','#e7a0dc','#a3b4f2','#a9dca4','#d6b3f0'];
+const GX_FIJOS = {'retiro belu':'#7ea6e6','retiro viqui':'#f59e4b','alquiler':'#e8736f','honorarios + monotributo juli':'#f7e07f'};
 function gxColorDe(c){ const fj = GX_FIJOS[normalize(c||'').trim()]; if(fj) return fj; const k = Object.keys(gxPorConcepto).filter(x=>!GX_FIJOS[normalize(x||'').trim()]).sort((a,b)=>a.localeCompare(b,'es')); const i = k.indexOf(c); return GX_PASTEL[(i<0?0:i) % GX_PASTEL.length]; }
 function gxToggleGrafico(){
   gxGrafOpen = !gxGrafOpen;
