@@ -68,6 +68,8 @@ label{font-size:12px;color:#9a9285;display:block;margin-bottom:4px;letter-spacin
 .chip-btn:hover{background:#e9e3d3}
 .nav-admin{display:none}
 body.role-admin .nav-admin{display:flex}
+.nav-gestion{display:none}
+body.role-admin .nav-gestion,body.role-full .nav-gestion{display:flex}
 .debt-badge{background:#c1685c;color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 6px;margin-left:4px}
 
 .container{max-width:640px;margin:0 auto;padding:16px}
@@ -361,6 +363,22 @@ table.sheet-table tbody td.tot-cell{font-weight:700}
 .eg-otro .eg-sg{flex:0 0 96px}
 #eg-otros .eg-line{margin-bottom:8px}
 .eg-modos{margin:0}
+.gx-conceptos-btn{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:#f2eee3;color:#3a352c;border-radius:20px;padding:7px 12px;font-size:11.5px;font-weight:600;font-family:'Montserrat',sans-serif;display:flex;align-items:center;gap:6px;border:none;cursor:pointer}
+.gx-conceptos-btn:hover{background:#e9e3d3}
+.modal-gx{max-width:520px}
+.gx-row{display:flex;gap:10px;margin-bottom:12px}
+.gx-row .field{margin:0;flex:1 1 0;min-width:0}
+.gx-pend{border:1px solid #ece6d8;border-radius:10px;background:#fcfbf8;padding:8px 12px;margin:0 0 12px}
+.gx-pend-t{font-size:11.5px;color:#8a8375;margin-bottom:6px}
+.gx-pend label{display:flex;align-items:center;gap:8px;font-size:13px;padding:3px 0;cursor:pointer;color:#3a352c}
+.gx-pend label b{margin-left:auto;font-weight:600}
+.gx-pend input[type=checkbox]{width:auto;flex:none;margin:0;padding:0}
+.gx-pend-sum{border-top:1px solid #ece6d8;margin-top:6px;padding-top:6px;font-size:13px;display:flex;justify-content:space-between;color:#8a6d2f;font-weight:600}
+.gx-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid #e3ddd0;border-radius:999px;padding:4px 12px;font-size:12.5px;background:#fff;margin:0 6px 8px 0}
+.gx-chip.fijo{color:#8a8375;background:#f6f3ec}
+.gx-chip .x{color:#c1685c;cursor:pointer;font-size:14px;line-height:1}
+.gx-auto{font-size:11px;color:#a49c8c;margin-left:4px}
+@media(max-width:700px){ .gx-conceptos-btn{right:8px;padding:7px 10px} }
 .estado-toggle.sel-modo{background:#f0e6d0;border-color:#c9a86a;color:#8f6c2a}
 .eg-sub{flex:0 0 78px;text-align:right;font-size:13px;color:#8a8375;white-space:nowrap}
 .eg-sub b{color:#3a352c}
@@ -593,6 +611,36 @@ body.role-admin .doctype-btns button.pago{display:block}
   <button class="fab" onclick="openEgresoModal()" title="Cargar telas/arreglos">+</button>
 </div>
 
+<!-- ============ PLANILLA: EGRESOS DEL MES (admin y full) ============ -->
+<div id="screen-gastos-sheet" class="screen hidden">
+  <div class="topbar topbar-3col">
+    <div class="brand">LASVASKAS</div>
+    <div class="actions topbar-center main-nav"></div>
+    <div class="topbar-right"><button class="icon-btn" onclick="doLogout()" title="Salir"><i class="fa-solid fa-right-from-bracket"></i></button></div>
+  </div>
+  <div class="sheet-monthbar">
+    <button class="icon-btn" onclick="shiftMonth('gastos',-1)"><i class="fa-solid fa-chevron-left"></i></button>
+    <div id="gastos-month-label" class="sheet-month-label"></div>
+    <button class="icon-btn" onclick="shiftMonth('gastos',1)"><i class="fa-solid fa-chevron-right"></i></button>
+    <button class="gx-conceptos-btn" title="Conceptos" onclick="openConceptosModal()"><i class="fa-solid fa-plus"></i> Conceptos</button>
+  </div>
+  <div class="sheet-wrap">
+    <table class="sheet-table" id="gastos-table">
+      <colgroup><col style="width:26px"><col style="width:70px"><col style="width:200px"><col style="width:360px"><col style="width:130px"></colgroup>
+      <thead><tr>
+        <th></th>
+        <th><input class="sheet-filter" id="gf-fecha" placeholder="Fecha" oninput="applySheetFilters('gastos')"></th>
+        <th><input class="sheet-filter" id="gf-concepto" placeholder="Concepto" oninput="applySheetFilters('gastos')"></th>
+        <th><input class="sheet-filter" id="gf-detalle" placeholder="Detalle" oninput="applySheetFilters('gastos')"></th>
+        <th><input class="sheet-filter" id="gf-monto" placeholder="Monto" oninput="applySheetFilters('gastos')"></th>
+      </tr></thead>
+      <tbody id="gastos-sheet-body"><tr><td colspan="5" class="sheet-empty">Cargando...</td></tr></tbody>
+    </table>
+  </div>
+  <div id="gastos-footer" class="sheet-footer"></div>
+  <button class="fab" onclick="openGastoModal()" title="Cargar egreso">+</button>
+</div>
+
 <!-- ============ MODAL: COSTOS ============ -->
 <div id="modal-costos" class="modal-overlay hidden">
   <div class="modal">
@@ -715,8 +763,8 @@ body.role-admin .doctype-btns button.pago{display:block}
     <div class="eg-top">
       <div class="field"><label>Fecha</label><input type="date" id="eg-fecha"></div>
       <div class="eg-mini-row eg-modos">
-        <div class="estado-toggle mini" id="eg-modo-telas" onclick="setEgModo('telas')">Compra telas</div>
-        <div class="estado-toggle mini" id="eg-modo-rufina" onclick="setEgModo('rufina')">Rufina</div>
+        <div class="estado-toggle mini" id="eg-modo-telas" onclick="clickEgModo('telas')">Compra telas</div>
+        <div class="estado-toggle mini" id="eg-modo-rufina" onclick="clickEgModo('rufina')">Rufina</div>
       </div>
     </div>
     <div id="eg-lineas"></div>
@@ -726,14 +774,47 @@ body.role-admin .doctype-btns button.pago{display:block}
     <div class="live-total">Total: <span id="eg-total">$0</span></div>
     <div class="eg-top eg-bottom">
       <div class="eg-mini-row">
-        <div class="estado-toggle mini" id="eg-btn-pendiente" onclick="setEgEstado('pendiente')">Pendiente</div>
-        <div class="estado-toggle mini" id="eg-btn-pagado" onclick="setEgEstado('pagado')">Pagado</div>
+        <div class="estado-toggle mini" id="eg-btn-pendiente" onclick="clickEgEstado('pendiente')">Pendiente</div>
+        <div class="estado-toggle mini" id="eg-btn-pagado" onclick="clickEgEstado('pagado')">Pagado</div>
       </div>
       <div class="field"><label>Fecha de pago</label><input type="date" id="eg-fechapago"></div>
     </div>
     <button class="btn btn-primary" style="width:100%;margin-top:6px" id="eg-guardar" onclick="saveEgreso()">Guardar</button>
     <div id="eg-delete-row" class="hidden" style="text-align:center;margin-top:14px">
       <button class="btn-danger" style="font-size:13px" onclick="deleteEgreso()">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: EGRESO (del mes) ============ -->
+<div id="modal-gasto" class="modal-overlay hidden">
+  <div class="modal modal-gx">
+    <button class="modal-close" onclick="closeModal('modal-gasto')">✕</button>
+    <h2 id="gx-title">Cargar egreso</h2>
+    <input type="hidden" id="gx-id">
+    <div class="gx-row">
+      <div class="field" style="flex:0 0 160px"><label>Fecha</label><input type="date" id="gx-fecha"></div>
+      <div class="field"><label>Concepto</label><select id="gx-concepto" onchange="gxConceptoCambio()"></select></div>
+    </div>
+    <div id="gx-pend" class="gx-pend hidden"></div>
+    <div class="field"><label>Detalle</label><input id="gx-detalle" placeholder=""></div>
+    <div class="field"><label>Monto</label><input id="gx-monto" inputmode="numeric" placeholder="$"></div>
+    <button class="btn btn-primary" style="width:100%;margin-top:6px" id="gx-guardar" onclick="saveGasto()">Guardar</button>
+    <div id="gx-delete-row" class="hidden" style="text-align:center;margin-top:14px">
+      <button class="btn-danger" style="font-size:13px" onclick="deleteGasto()">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: CONCEPTOS ============ -->
+<div id="modal-conceptos" class="modal-overlay hidden">
+  <div class="modal modal-gx">
+    <button class="modal-close" onclick="closeModal('modal-conceptos')">✕</button>
+    <h2>Conceptos</h2>
+    <div id="cx-lista" style="margin-bottom:6px"></div>
+    <div class="gx-row" style="align-items:flex-end">
+      <div class="field"><label>Nuevo concepto</label><input id="cx-nuevo" placeholder="Ej: Monotributo Juli" onkeydown="if(event.key==='Enter'){event.preventDefault();addConcepto();}"></div>
+      <button class="btn btn-primary" style="flex:0 0 auto" onclick="addConcepto()">Agregar</button>
     </div>
   </div>
 </div>
@@ -894,10 +975,11 @@ const NAV_ITEMS = [
   {key:'venta-sheet', label:'Ventas', icon:'fa-receipt', go:'openVentasSheet()'},
   {key:'presu-sheet', label:'Presupuestos', icon:'fa-file-lines', go:'openPresupuestosSheet()'},
   {key:'deudas', label:'Deudoras', icon:'fa-hand-holding-dollar', go:'openDeudas()', badge:true},
-  {key:'egresos-sheet', label:'Telas/Arreglos', icon:'fa-shirt', go:'openEgresosSheet()', admin:true}
+  {key:'egresos-sheet', label:'Telas/Arreglos', icon:'fa-shirt', go:'openEgresosSheet()', admin:true},
+  {key:'gastos-sheet', label:'Egresos', icon:'fa-money-bill-transfer', go:'openGastosSheet()', gestion:true}
 ];
 function buildNav(){
-  const html = NAV_ITEMS.map(n=>`<button type="button" class="chip-btn${n.admin?' nav-admin':''}" data-nav="${n.key}" onclick="${n.go}"><i class="fa-solid ${n.icon} nav-ic"></i> ${n.label}${n.badge?'<span class="debt-badge deudas-count hidden">0</span>':''}</button>`).join('');
+  const html = NAV_ITEMS.map(n=>`<button type="button" class="chip-btn${n.admin?' nav-admin':''}${n.gestion?' nav-gestion':''}" data-nav="${n.key}" onclick="${n.go}"><i class="fa-solid ${n.icon} nav-ic"></i> ${n.label}${n.badge?'<span class="debt-badge deudas-count hidden">0</span>':''}</button>`).join('');
   document.querySelectorAll('.main-nav').forEach(el=>{ el.innerHTML = html; });
 }
 function setNavActive(name){
@@ -913,7 +995,7 @@ function showScreen(name){
   window.scrollTo(0,0);
 }
 // Escuchas en vivo de las planillas y deudoras: solo están activas mientras se ve esa pantalla.
-const liveUnsubs = {'venta-sheet':null, 'presu-sheet':null, 'deudas':null, 'egresos-sheet':null};
+const liveUnsubs = {'venta-sheet':null, 'presu-sheet':null, 'deudas':null, 'egresos-sheet':null, 'gastos-sheet':null};
 function stopLive(key){ const u = liveUnsubs[key]; if(u){ u.forEach(f=>f()); liveUnsubs[key]=null; } }
 function stopLiveExcept(name){ Object.keys(liveUnsubs).forEach(k=>{ if(k!==name) stopLive(k); }); }
 function stopAllLive(){ Object.keys(liveUnsubs).forEach(stopLive); }
@@ -947,6 +1029,7 @@ function clearSession(){ try{ localStorage.removeItem(SESSION_KEY); }catch(e){} 
 function applyRoleClasses(){
   document.body.classList.toggle('role-limited', currentUserRole==='limitado');
   document.body.classList.toggle('role-admin', currentUserRole==='admin');
+  document.body.classList.toggle('role-full', currentUserRole==='full');
 }
 let bootedFromSession = false;
 function bootFromSession(){
@@ -979,7 +1062,7 @@ auth.onAuthStateChanged(user=>{
     bootedFromSession = false;
     clearSession();
     currentUserRole = null; currentUserUid = null;
-    document.body.classList.remove('role-limited','role-admin');
+    document.body.classList.remove('role-limited','role-admin','role-full');
     if(unsubClientas){ unsubClientas(); unsubClientas=null; }
     deudasBadgeUnsubs.forEach(u=>u()); deudasBadgeUnsubs=[]; deudasBadgeIds={ars:null,usd:null};
     if(unsubDocs){ unsubDocs(); unsubDocs=null; }
@@ -2548,6 +2631,7 @@ function sheetOrderCmp(a,b){
 }
 function applySheetFilters(which){
   if(which==='egresos'){ applyEgresosFilters(); return; }
+  if(which==='gastos'){ applyGastosFilters(); return; }
   if(which==='presu') presuSheetDocsRaw.sort(sheetOrderCmp); else ventaSheetDocsRaw.sort(sheetOrderCmp);
   if(which==='presu'){
     const filtered = presuSheetDocsRaw.filter(d=>
@@ -2595,6 +2679,7 @@ function syncMonthArrows(screenId, d){
   if(b) b.style.visibility = mesIndex(d) <= mesIndex(MES_INICIAL) ? 'hidden' : 'visible';
 }
 function shiftMonth(which, delta){
+  if(which==='gastos'){ gastosMonth.setMonth(gastosMonth.getMonth()+delta); clampMes(gastosMonth); syncGastosMonth(); applyGastosFilters(); return; }
   if(which==='egresos'){ egresosMonth.setMonth(egresosMonth.getMonth()+delta); clampMes(egresosMonth); syncEgresosMonth(); applyEgresosFilters(); return; }
   if(which==='presu'){ presuMonth.setMonth(presuMonth.getMonth()+delta); clampMes(presuMonth); openPresupuestosSheet(); }
   else { ventaMonth.setMonth(ventaMonth.getMonth()+delta); clampMes(ventaMonth); openVentasSheet(); }
@@ -2863,6 +2948,7 @@ function listenEgresos(){
     if(snapIncierto(snap)) return;
     egresosAll = snap.docs.map(d=>({id:d.id,...d.data()}));
     if(!document.getElementById('screen-egresos-sheet').classList.contains('hidden')) renderSheetSeguro('egresos');
+    if(!document.getElementById('screen-gastos-sheet').classList.contains('hidden')) renderSheetSeguro('gastos');
   }, err=>{ console.error('Error cargando egresos:', err);
     const b = document.getElementById('egresos-sheet-body');
     if(b && !document.getElementById('screen-egresos-sheet').classList.contains('hidden')) b.innerHTML = '<tr><td colspan="12" class="sheet-empty">Error al cargar. Revisá la consola.</td></tr>';
@@ -3070,6 +3156,13 @@ function egAplicarTipo(row, inferir){
   sel.value = v; egPintaTipo(sel);
   sel.tabIndex = -1; // con Tab se pasa de largo: es "Nuevo" salvo que se cambie con el mouse
 }
+// En un registro nuevo, "Compra telas" arranca en Pagado (se paga en el momento) y "Rufina" en Pendiente, salvo que se haya elegido a mano
+let egEstadoManual = false;
+function clickEgEstado(v){ egEstadoManual = true; setEgEstado(v); }
+function clickEgModo(m){
+  setEgModo(m);
+  if(!document.getElementById('eg-id').value && !egEstadoManual) setEgEstado(m==='telas' ? 'pagado' : 'pendiente');
+}
 function setEgModo(m){
   document.getElementById('eg-modo').value = m;
   document.getElementById('eg-modo-telas').classList.toggle('sel-modo', m==='telas');
@@ -3226,7 +3319,8 @@ function openEgresoModal(id){
   (e && e.lineas && e.lineas.length ? e.lineas : [{}]).forEach(l=>addEgresoLinea(l));
   (e && e.otros ? e.otros : []).forEach(o=>addEgresoOtro(o));
   document.getElementById('eg-fechapago').value = e? (e.fechaPago||'') : '';
-  setEgEstado(e && e.estado==='pagado' ? 'pagado' : 'pendiente');
+  egEstadoManual = false;
+  setEgEstado(e ? (e.estado==='pagado' ? 'pagado' : 'pendiente') : 'pagado'); // nuevo en modo "Compra telas": pagado
   if(e) document.getElementById('eg-fechapago').value = e.fechaPago||document.getElementById('eg-fechapago').value;
   document.getElementById('eg-delete-row').classList.toggle('hidden', !e);
   openModal('modal-egreso');
@@ -3291,6 +3385,229 @@ function deleteEgreso(){
   if(!confirm('¿Eliminar este registro? Su costo también se va a quitar de la planilla de Ventas.')) return;
   closeModal('modal-egreso');
   db.collection('egresos').doc(id).delete().catch(err=>{ console.error(err); alert('No se pudo eliminar. Revisá la consola.'); });
+  markSaving();
+}
+
+/* =================== EGRESOS DEL MES (gastos) =================== */
+// Colección "gastos": movimientos de plata que sale (retiros, impuestos, servicios...). Concepto "Rufina" toma los pendientes de
+// Telas/Arreglos; "Compra telas" se arma solo con lo pagado en Telas/Arreglos (no se carga a mano).
+const CONCEPTO_RUFINA = 'Rufina', CONCEPTO_TELAS = 'Compra telas';
+let gastosAll = [], conceptosAll = [];
+let gastosMonth = new Date(); gastosMonth.setDate(1);
+function puedeVerGastos(){ return currentUserRole==='admin' || currentUserRole==='full'; }
+function esRegistroRufina(e){ return (e.lineas||[]).some(l=>provNorm(l.proveedor)!=='Telas'); }
+function listenGastos(){
+  return db.collection('gastos').onSnapshot(SNAP_META, snap=>{
+    if(snapIncierto(snap)) return;
+    gastosAll = snap.docs.map(d=>({id:d.id,...d.data()}));
+    if(!document.getElementById('screen-gastos-sheet').classList.contains('hidden')) renderSheetSeguro('gastos');
+  }, err=>{ console.error('Error cargando egresos:', err);
+    const b = document.getElementById('gastos-sheet-body');
+    if(b) b.innerHTML = '<tr><td colspan="5" class="sheet-empty">Error al cargar. Revisá la consola.</td></tr>';
+  });
+}
+function listenConceptos(){
+  return db.collection('conceptos').onSnapshot(SNAP_META, snap=>{
+    if(snapIncierto(snap)) return;
+    conceptosAll = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>normalize(a.nombre).localeCompare(normalize(b.nombre)));
+    if(!document.getElementById('modal-conceptos').classList.contains('hidden')) renderConceptosModal();
+  }, err=>console.error('Error cargando conceptos:', err));
+}
+function syncGastosMonth(){
+  document.getElementById('gastos-month-label').textContent = monthLabel(gastosMonth);
+  syncMonthArrows('screen-gastos-sheet', gastosMonth);
+}
+function openGastosSheet(){
+  if(!puedeVerGastos()) return;
+  clampMes(gastosMonth);
+  syncGastosMonth();
+  showScreen('gastos-sheet');
+  document.getElementById('gastos-sheet-body').innerHTML = '<tr><td colspan="5" class="sheet-empty">Cargando...</td></tr>';
+  document.getElementById('gastos-footer').innerHTML = '';
+  stopLive('gastos-sheet');
+  liveUnsubs['gastos-sheet'] = [listenGastos(), listenEgresos(), listenConceptos()];
+}
+// Filas del mes: los egresos cargados + una fila automática "Compra telas" por cada registro de Telas/Arreglos ya pagado (con su fecha de pago)
+function gastosFilas(){
+  const filas = gastosAll.map(g=>({id:g.id, fecha:g.fecha, concepto:g.concepto||'', detalle:g.detalle||'', monto:g.monto||0, createdAt:g.createdAt||0, auto:false}));
+  egresosAll.forEach(e=>{
+    if(e.estado!=='pagado' || !e.fechaPago || esRegistroRufina(e)) return;
+    filas.push({id:'auto-'+e.id, egresoId:e.id, fecha:e.fechaPago, concepto:CONCEPTO_TELAS, detalle:'', monto:egTotal(e), createdAt:e.createdAt||0, auto:true});
+  });
+  return filas;
+}
+const GX_COLS = ['fecha','concepto','detalle','monto'];
+function gxColText(f,col){
+  switch(col){
+    case 'fecha': return `${fmtDateSheet(f.fecha)} ${fmtDate(f.fecha)}`;
+    case 'concepto': return f.concepto;
+    case 'detalle': return f.detalle;
+    case 'monto': return String(f.monto);
+  }
+  return '';
+}
+function applyGastosFilters(){
+  const {start,end} = monthRange(gastosMonth);
+  const delMes = gastosFilas().filter(f=>f.fecha>=start && f.fecha<=end).sort(sheetOrderCmp);
+  const filtered = delMes.filter(f=>GX_COLS.every(col=>{
+    const el = document.getElementById('gf-'+col);
+    const q = el? normalize(el.value) : '';
+    return !q || normalize(gxColText(f,col)).includes(q);
+  }));
+  renderGastosSheet(filtered);
+  const tot = arr => arr.reduce((t,f)=>t+f.monto,0);
+  const porConcepto = {};
+  delMes.forEach(f=>{ porConcepto[f.concepto] = (porConcepto[f.concepto]||0) + f.monto; });
+  document.getElementById('gastos-footer').innerHTML = `
+    <div class="sf-card">
+      <div class="sf-title">Totales en vista filtrada</div>
+      <div class="sf-row"><div class="sf-item"><span class="sf-l">Total</span><b>${fmtARS(tot(filtered))}</b></div></div>
+      <div class="sf-sep"></div>
+      <div class="sf-title">Resumen del mes · ${esc(monthLabel(gastosMonth))}</div>
+      <div class="sf-row"><div class="sf-item"><span class="sf-l">Total</span><b>${fmtARS(tot(delMes))}</b></div>
+      ${Object.keys(porConcepto).sort().map(c=>`<div class="sf-item"><span class="sf-l">${esc(c||'Sin concepto')}</span><b>${fmtARS(porConcepto[c])}</b></div>`).join('')}</div>
+    </div>`;
+}
+function renderGastosSheet(filas){
+  const body = document.getElementById('gastos-sheet-body');
+  if(!filas.length){ body.innerHTML = '<tr><td colspan="5" class="sheet-empty">Sin egresos este mes.</td></tr>'; return; }
+  body.innerHTML = filas.map((f,i)=>{
+    const lapiz = f.auto
+      ? (currentUserRole==='admin' ? `<span class="sheet-pencil" title="Ver en Telas/Arreglos" onclick="openEgresoModal('${esc(f.egresoId)}')"><i class="fa-solid fa-pen"></i></span>` : '')
+      : `<span class="sheet-pencil" onclick="openGastoModal('${esc(f.id)}')"><i class="fa-solid fa-pen"></i></span>`;
+    return `<tr class="${i%2===1?'zebra':''}"><td class="edit-cell">${lapiz}</td><td>${fmtDateSheet(f.fecha)}</td><td>${esc(f.concepto)}${f.auto?'<span class="gx-auto">automático</span>':''}</td><td class="prod-cell">${esc(f.detalle)}</td><td class="tot-cell">${fmtARS(f.monto)}</td></tr>`;
+  }).join('');
+}
+
+// ---- Carga de un egreso
+function gxConceptosDisponibles(){ return [CONCEPTO_RUFINA, ...conceptosAll.map(c=>c.nombre)]; }
+function gxPendientesRufina(){
+  return egresosAll.filter(e=>e.estado!=='pagado' && esRegistroRufina(e)).sort(sheetOrderCmp);
+}
+function gxSumaSeleccion(){
+  let t = 0;
+  document.querySelectorAll('#gx-pend input[type=checkbox]:checked').forEach(c=>{ t += parseInt(c.dataset.total,10)||0; });
+  return t;
+}
+function gxRenderPend(){
+  const box = document.getElementById('gx-pend');
+  const pend = gxPendientesRufina();
+  if(!pend.length){ box.innerHTML = '<div class="gx-pend-t">Rufina no tiene pendientes en Telas/Arreglos.</div>'; return; }
+  box.innerHTML = `<div class="gx-pend-t">Pendientes de Rufina en Telas/Arreglos</div>` +
+    pend.map(e=>`<label><input type="checkbox" checked data-id="${esc(e.id)}" data-total="${egTotal(e)}" data-fecha="${esc(e.fecha||'')}" onchange="gxPendCambio()"> ${fmtDateSheet(e.fecha)} <b>${fmtARS(egTotal(e))}</b></label>`).join('') +
+    `<div class="gx-pend-sum"><span>Total seleccionado</span><span id="gx-pend-total">$0</span></div>`;
+  gxPendCambio();
+}
+function gxPendCambio(){
+  const t = gxSumaSeleccion();
+  const el = document.getElementById('gx-pend-total'); if(el) el.textContent = fmtARS(t);
+  document.getElementById('gx-monto').value = t ? fmtMoney(t) : '';
+  const fechas = [...document.querySelectorAll('#gx-pend input[type=checkbox]:checked')].map(c=>fmtDateCorto(c.dataset.fecha));
+  const det = document.getElementById('gx-detalle');
+  if(!det.dataset.manual) det.value = fechas.length ? 'Pendientes: ' + fechas.join(', ') : '';
+}
+function gxConceptoCambio(){
+  const esR = document.getElementById('gx-concepto').value===CONCEPTO_RUFINA && !document.getElementById('gx-id').value;
+  const box = document.getElementById('gx-pend');
+  box.classList.toggle('hidden', !esR);
+  if(esR) gxRenderPend();
+}
+function openGastoModal(id){
+  if(!puedeVerGastos()) return;
+  const g = id ? gastosAll.find(x=>x.id===id) : null;
+  if(id && !g){ alert('Este egreso ya no existe.'); return; }
+  document.getElementById('gx-id').value = id||'';
+  document.getElementById('gx-title').textContent = g? 'Editar egreso' : 'Cargar egreso';
+  document.getElementById('gx-fecha').value = g? (g.fecha||todayISO()) : todayISO();
+  const sel = document.getElementById('gx-concepto');
+  const lista = gxConceptosDisponibles();
+  if(g && g.concepto && !lista.includes(g.concepto)) lista.push(g.concepto); // concepto que ya no está en la lista
+  sel.innerHTML = lista.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  sel.value = g? g.concepto : '';
+  if(!g) sel.selectedIndex = -1;
+  const det = document.getElementById('gx-detalle');
+  det.value = g? (g.detalle||'') : ''; det.dataset.manual = g ? '1' : '';
+  det.oninput = ()=>{ det.dataset.manual = det.value ? '1' : ''; };
+  const mo = document.getElementById('gx-monto'); mo.value = g? fmtMoney(g.monto) : '';
+  if(!mo._money){ attachMoneyInput(mo); mo._money = true; }
+  document.getElementById('gx-pend').classList.add('hidden');
+  document.getElementById('gx-delete-row').classList.toggle('hidden', !g);
+  openModal('modal-gasto');
+}
+let gxGuardando = false;
+async function saveGasto(){
+  if(gxGuardando || !puedeVerGastos()) return;
+  gxGuardando = true;
+  try{
+    const id = document.getElementById('gx-id').value;
+    const fecha = document.getElementById('gx-fecha').value;
+    const concepto = document.getElementById('gx-concepto').value;
+    const detalle = document.getElementById('gx-detalle').value.trim();
+    const monto = num(document.getElementById('gx-monto').value)||0;
+    if(!fecha){ alert('Completá la fecha.'); return; }
+    if(!concepto){ alert('Elegí un concepto (o agregalo con "+ Conceptos").'); return; }
+    if(!(monto>0)){ alert('Completá el monto.'); return; }
+    const batch = db.batch();
+    const data = {fecha, concepto, detalle, monto};
+    // Rufina: si se paga justo el total de los pendientes elegidos, se ofrece pasarlos a PAGADO con la fecha de este egreso
+    let pagarIds = [];
+    if(concepto===CONCEPTO_RUFINA && !id){
+      const marcados = [...document.querySelectorAll('#gx-pend input[type=checkbox]:checked')];
+      if(marcados.length && monto===gxSumaSeleccion()){
+        if(confirm('¿Querés modificar a PAGADO los pendientes de Rufina seleccionados en Telas/Arreglos?')){
+          pagarIds = marcados.map(c=>c.dataset.id);
+          data.pagoIds = pagarIds;
+        }
+      }
+    }
+    if(id){ batch.update(db.collection('gastos').doc(id), data); }
+    else { batch.set(db.collection('gastos').doc(), {...data, createdAt:Date.now()}); }
+    pagarIds.forEach(eid=> batch.update(db.collection('egresos').doc(eid), {estado:'pagado', fechaPago:fecha}));
+    closeModal('modal-gasto');
+    // reflejo inmediato en memoria
+    pagarIds.forEach(eid=>{ const e = egresosAll.find(x=>x.id===eid); if(e){ e.estado='pagado'; e.fechaPago=fecha; } });
+    markSaving();
+    batch.commit().catch(err=>{ console.error(err); alert('No se pudo guardar. Revisá la consola.'); });
+    if(!document.getElementById('screen-gastos-sheet').classList.contains('hidden')) applyGastosFilters();
+  } finally { gxGuardando = false; }
+}
+function deleteGasto(){
+  const id = document.getElementById('gx-id').value; if(!id || !puedeVerGastos()) return;
+  const g = gastosAll.find(x=>x.id===id);
+  if(!confirm('¿Eliminar este egreso?')) return;
+  const batch = db.batch();
+  batch.delete(db.collection('gastos').doc(id));
+  if(g && g.pagoIds && g.pagoIds.length && confirm('Este pago marcó registros de Telas/Arreglos como PAGADOS. ¿Querés volver a ponerlos en PENDIENTE?')){
+    g.pagoIds.forEach(eid=>{ if(egresosAll.some(x=>x.id===eid)) batch.update(db.collection('egresos').doc(eid), {estado:'pendiente', fechaPago:null}); });
+  }
+  closeModal('modal-gasto');
+  markSaving();
+  batch.commit().catch(err=>{ console.error(err); alert('No se pudo eliminar. Revisá la consola.'); });
+}
+
+// ---- Conceptos
+function openConceptosModal(){ if(!puedeVerGastos()) return; document.getElementById('cx-nuevo').value=''; renderConceptosModal(); openModal('modal-conceptos'); }
+function renderConceptosModal(){
+  document.getElementById('cx-lista').innerHTML =
+    `<span class="gx-chip fijo">${CONCEPTO_RUFINA}<span class="gx-auto">toma los pendientes</span></span><span class="gx-chip fijo">${CONCEPTO_TELAS}<span class="gx-auto">automático</span></span>` +
+    conceptosAll.map(c=>`<span class="gx-chip">${esc(c.nombre)}<span class="x" title="Quitar" onclick="deleteConcepto('${esc(c.id)}')">✕</span></span>`).join('');
+}
+function addConcepto(){
+  const inp = document.getElementById('cx-nuevo'), nombre = inp.value.trim();
+  if(!nombre) return;
+  const n = normalize(nombre);
+  if([CONCEPTO_RUFINA, CONCEPTO_TELAS, ...conceptosAll.map(c=>c.nombre)].some(c=>normalize(c)===n)){ alert('Ese concepto ya existe.'); return; }
+  const ref = db.collection('conceptos').doc();
+  conceptosAll.push({id:ref.id, nombre}); renderConceptosModal();
+  ref.set({nombre, createdAt:Date.now()}).catch(err=>{ console.error(err); alert('No se pudo guardar el concepto. Revisá la consola.'); });
+  markSaving();
+  inp.value = ''; inp.focus();
+}
+function deleteConcepto(id){
+  const c = conceptosAll.find(x=>x.id===id); if(!c) return;
+  if(!confirm(`¿Quitar el concepto "${c.nombre}" de la lista? Los egresos ya cargados con ese concepto no se borran.`)) return;
+  conceptosAll = conceptosAll.filter(x=>x.id!==id); renderConceptosModal();
+  db.collection('conceptos').doc(id).delete().catch(err=>{ console.error(err); alert('No se pudo quitar. Revisá la consola.'); });
   markSaving();
 }
 

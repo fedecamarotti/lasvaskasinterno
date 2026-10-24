@@ -35,12 +35,22 @@ service cloud.firestore {
       allow read, write: if esUsuarioDelSistema();
     }
 
-    // Egresos: solo el administrador los carga/edita; "admin" y "full" los leen (los costos se muestran en Ventas).
+    // Telas/Arreglos ("egresos"): lo carga el administrador; "full" solo puede leerlo y pasar registros a pagado desde Egresos.
     match /egresos/{id} {
       allow read: if esUsuarioDelSistema()
         && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol in ['admin','full'];
       allow write: if esUsuarioDelSistema()
-        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol in ['admin','full'];
+    }
+
+    // Egresos del mes ("gastos") y sus conceptos: admin y full.
+    match /gastos/{id} {
+      allow read, write: if esUsuarioDelSistema()
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol in ['admin','full'];
+    }
+    match /conceptos/{id} {
+      allow read, write: if esUsuarioDelSistema()
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol in ['admin','full'];
     }
 
     // Todo lo demás, cerrado.
