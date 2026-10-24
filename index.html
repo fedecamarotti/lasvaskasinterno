@@ -2835,7 +2835,10 @@ function ventaMetodoCellHTML(d){
 // Solo corresponde casillero de factura para transferencias y tarjeta (no para efectivo).
 // Se basa en el/los métodos que efectivamente se muestran en esta fila (el pago de origen de la venta,
 // o el de ese movimiento puntual si es un "Salda c/c"), no en todo el historial de pagos de la venta.
+// Una venta solo de punto de venta CC (cuenta corriente) no se factura: no lleva casillero de factura.
+function esSoloCC(d){ const p = String(d.puntoVenta||'').split(' + ').map(x=>x.trim()).filter(Boolean); return p.length>0 && p.every(x=>x==='CC'); }
 function facturaColorClass(d){
+  if(esSoloCC(d)) return '';
   const metodos = (d.pagos||[]).filter(p=>!p.pagoDocId).map(p=>p.metodo);
   if(metodos.includes('TRBF')||metodos.includes('TRBF_USD')) return 'fact-azul';
   if(metodos.includes('TRVF')||metodos.includes('TARJ')) return 'fact-naranja';

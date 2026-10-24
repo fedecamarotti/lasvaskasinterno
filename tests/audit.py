@@ -711,6 +711,17 @@ with sync_playwright() as p:
         ok('Rufina: el 1 precargado solo no cuenta como línea cargada', any('al menos una línea' in e for e in errs[n:]))
         ev("closeModal('modal-egreso')")
         ev("Object.keys(window.__store).filter(k=>k.startsWith('egresos/')||k==='ventas/ev2').forEach(k=>delete window.__store[k])")
+    # Factura: una venta solo CC no lleva casillero; una mezclada (Belgrano + CC) o Belgrano sí
+    ev("""(()=>{const t=todayISO(); const mk=(id,pv,desc)=>{ const v={tipo:'venta',fecha:t,clienteId:'c1',clienteNombre:'Lola',clienteApellido:'Arana',codigo:'',puntoVenta:pv,createdAt:60,
+       productos:[{desc,cant:'1',valorUnit:100,total:100,moneda:'ARS'}],pagos:[{metodo:'TRBF',monto:100}],aPagarARS:0,aPagarUSD:0,totalARS:100,totalUSD:0};
+       window.__store['ventas/'+id]=v; window.__store['clientas/c1/documentos/'+id]={...v}; };
+       mk('fcc','CC','zzsolocc'); mk('fbel','Belgrano','zzbelgrano'); mk('fmix','Belgrano + CC','zzmixto'); })()"""); 
+    ev("ventaMonth=new Date(); ventaMonth.setDate(1); openVentasSheet()"); wait(500)
+    tieneFact=lambda d: ev("(()=>{const tr=[...document.querySelectorAll('#venta-sheet-body tr')].find(r=>r.innerText.includes('%s')); return !!(tr && tr.querySelector('input.fact-azul'))})()"%d)
+    ok('Factura: la venta solo CC no tiene casillero', not tieneFact('zzsolocc'))
+    ok('Factura: la venta Belgrano con transferencia sí lo tiene', tieneFact('zzbelgrano'))
+    ok('Factura: una venta Belgrano + CC conserva el casillero', tieneFact('zzmixto'))
+    ev("Object.keys(window.__store).filter(k=>/ventas\\/f(cc|bel|mix)$|documentos\\/f(cc|bel|mix)$/.test(k)).forEach(k=>delete window.__store[k])")
     # ===== Egresos del mes (admin y full) =====
     ev("""(async()=>{ const t=todayISO(), L=(p,v,d)=>({codigo:'',clienta:'x',prenda:'',proveedor:p,detalle:d,cant:1,valor:v});
       const mk=(id,estado,fp,lineas)=>db.collection('egresos').doc(id).set({fecha:t,lineas,total:lineas.reduce((a,l)=>a+l.valor,0),estado,fechaPago:fp,createdAt:Date.now()});
