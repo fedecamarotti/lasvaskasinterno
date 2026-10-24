@@ -382,6 +382,9 @@ table.sheet-table tbody td.tot-cell{font-weight:700}
 .medio-mp{background:#d8eef6;color:#2f6f8a}
 .medio-banco{background:#fbe4e1;color:#a13f38}
 .medio-tarjeta{background:#fbe3c7;color:#8a5a1f}
+.gastos-angosto,#screen-gastos-sheet .sheet-wrap{max-width:920px;margin-left:auto;margin-right:auto}
+#gastos-footer{max-width:920px}
+#gastos-table tbody td.gx-bold{font-weight:700}
 .gx-medio-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
 .gx-medio-row select{flex:1 1 0;min-width:0}
 .gx-medio-row .gx-mmonto{flex:0 0 150px;text-align:right}
@@ -3513,6 +3516,8 @@ function applyGastosFilters(){
       ${Object.keys(porConcepto).sort().map(c=>`<div class="sf-item"><span class="sf-l">${esc(c||'Sin concepto')}</span><b>${fmtARSc(porConcepto[c])}</b></div>`).join('')}</div>
     </div>`;
 }
+// Los retiros de Belu y Viqui se destacan en negrita (concepto y monto)
+function gxNegrita(f){ const c = normalize(f.concepto).trim(); return c==='retiro belu' || c==='retiro viqui'; }
 function renderGastosSheet(filas){
   const body = document.getElementById('gastos-sheet-body');
   if(!filas.length){ body.innerHTML = '<tr><td colspan="6" class="sheet-empty">Sin egresos este mes.</td></tr>'; return; }
@@ -3520,7 +3525,7 @@ function renderGastosSheet(filas){
     const lapiz = f.auto
       ? (currentUserRole==='admin' ? `<span class="sheet-pencil" title="Ver en Telas/Arreglos" onclick="openEgresoModal('${esc(f.egresoId)}')"><i class="fa-solid fa-pen"></i></span>` : '')
       : `<span class="sheet-pencil" onclick="openGastoModal('${esc(f.id)}')"><i class="fa-solid fa-pen"></i></span>`;
-    return `<tr class="${i%2===1?'zebra':''}"><td class="edit-cell">${lapiz}</td><td>${fmtDateSheet(f.fecha)}</td><td>${esc(f.concepto)}${f.auto?'<span class="gx-auto">automático</span>':''}</td><td class="prod-cell">${esc(f.detalle)}</td><td class="tot-cell">${fmtARSc(f.monto)}</td><td class="medio-chips">${f.medios.map(m=>`<span class="medio-chip medio-${normalize(m.medio)}">${esc(m.medio)}${f.medios.length>1 ? ' '+fmtARSc(m.monto) : ''}</span>`).join('')}</td></tr>`;
+    return `<tr class="${i%2===1?'zebra':''}"><td class="edit-cell">${lapiz}</td><td>${fmtDateSheet(f.fecha)}</td><td class="${gxNegrita(f)?'gx-bold':''}">${esc(f.concepto)}${f.auto?'<span class="gx-auto">automático</span>':''}</td><td class="prod-cell">${esc(f.detalle)}</td><td class="${gxNegrita(f)?'gx-bold':''}">${fmtARSc(f.monto)}</td><td class="medio-chips">${f.medios.map(m=>`<span class="medio-chip medio-${normalize(m.medio)}">${esc(m.medio)}${f.medios.length>1 ? ' '+fmtARSc(m.monto) : ''}</span>`).join('')}</td></tr>`;
   }).join('');
 }
 
