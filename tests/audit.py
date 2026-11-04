@@ -337,8 +337,13 @@ with sync_playwright() as p:
     ok('Telas/Arreglos: el botón se ve para admin y full', navvis())
     if role!='admin':
         ev("openEgresosSheet()"); wait(300)
-        ok('Telas/Arreglos (full): se abre solo para ver', not ev("document.getElementById('screen-egresos-sheet').classList.contains('hidden')"))
-        ok('Telas/Arreglos (full): sin botón + ni lápiz', ev("getComputedStyle(document.querySelector('#screen-egresos-sheet .fab')).display==='none' && !document.querySelector('#egresos-sheet-body .sheet-pencil')"))
+        ok('Telas/Arreglos (full): se abre', not ev("document.getElementById('screen-egresos-sheet').classList.contains('hidden')"))
+        ok('Telas/Arreglos (full): tiene el botón +', ev("getComputedStyle(document.querySelector('#screen-egresos-sheet .fab')).display!=='none'"))
+        ev("openEgresoModal()"); wait(150)
+        ok('Telas/Arreglos (full): abre el formulario de carga', not ev("document.getElementById('modal-egreso').classList.contains('hidden')"))
+        ev("closeModal('modal-egreso')")
+        ev("openGastosSheet()"); wait(300)
+        ok('Egresos (full): tiene el botón +', ev("getComputedStyle(document.querySelector('#screen-gastos-sheet .fab')).display!=='none'") and ev("(()=>{const r=document.querySelector('#screen-gastos-sheet .fab').getBoundingClientRect(); return r.width>0 && r.right<=innerWidth && r.bottom<=innerHeight})()"))
         ev("showScreen('clientas')"); wait(100)
     ev("""(()=>{const t=todayISO(); const v={tipo:'venta',fecha:t,clienteId:'c1',clienteNombre:'Lola',clienteApellido:'Arana',codigo:'0919',puntoVenta:'Belgrano',createdAt:50,
        productos:[{desc:'vestido largo',cant:'2',valorUnit:100000,total:200000,moneda:'ARS'},{desc:'saco lino',cant:'3',valorUnit:50000,total:150000,moneda:'ARS'},{desc:'arreglo dobladillo',esArreglo:true,total:9000,moneda:'ARS'}],

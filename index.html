@@ -76,8 +76,6 @@ label{font-size:12px;color:#9a9285;display:block;margin-bottom:4px;letter-spacin
 .chip-btn:hover{background:#e9e3d3}
 .nav-admin{display:none}
 body.role-admin .nav-admin{display:flex}
-.fab.nav-admin{display:none}
-body.role-admin .fab.nav-admin{display:flex}
 .nav-gestion{display:none}
 body.role-admin .nav-gestion,body.role-full .nav-gestion{display:flex}
 .debt-badge{background:#c1685c;color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 6px;margin-left:4px}
@@ -655,7 +653,7 @@ body.role-admin .doctype-btns button.pago{display:block}
     </table>
   </div>
   <div id="egresos-footer" class="sheet-footer"></div>
-  <button class="fab nav-admin" onclick="openEgresoModal()" title="Cargar telas/arreglos">+</button>
+  <button class="fab" onclick="openEgresoModal()" title="Cargar telas/arreglos">+</button>
 </div>
 
 <!-- ============ PLANILLA: EGRESOS DEL MES (admin y full) ============ -->
@@ -3026,7 +3024,7 @@ function syncEgresosMonth(){
   syncMonthArrows('screen-egresos-sheet', egresosMonth);
 }
 function openEgresosSheet(){
-  if(currentUserRole!=='admin' && currentUserRole!=='full') return; // full: solo ver
+  if(!puedeEditarEgresos()) return;
   clampMes(egresosMonth);
   showScreen('egresos-sheet');
   syncEgresosMonth();
@@ -3089,7 +3087,7 @@ function renderEgresosSheet(docs){
       const l = f.l||{};
       html += `<tr class="${i===0?'group-first':''}${zebra}">`;
       if(i===0){
-        html += `<td class="vmid edit-cell" rowspan="${rowspan}">${currentUserRole==='admin'? `<span class="sheet-pencil" onclick="openEgresoModal('${e.id}')"><i class="fa-solid fa-pen"></i></span>` : ''}</td>`;
+        html += `<td class="vmid edit-cell" rowspan="${rowspan}">${puedeEditarEgresos()? `<span class="sheet-pencil" onclick="openEgresoModal('${e.id}')"><i class="fa-solid fa-pen"></i></span>` : ''}</td>`;
         html += `<td class="vmid" rowspan="${rowspan}">${fmtDateSheet(e.fecha)}</td>`;
       }
       if(f.o){
@@ -3106,8 +3104,8 @@ function renderEgresosSheet(docs){
       }
       if(i===0){
         html += `<td class="vmid tot-cell" rowspan="${rowspan}">${fmtARS(egTotal(e._full||e))}</td>`;
-        html += `<td class="vmid" rowspan="${rowspan}"><select class="sheet-inline-input eg-estado ${pag?'pag':'pend'}"${currentUserRole==='admin'?'':' disabled'} onchange="egSetEstado('${e.id}',this.value)"><option value="pendiente"${pag?'':' selected'}>Pendiente</option><option value="pagado"${pag?' selected':''}>Pagado</option></select></td>`;
-        html += `<td class="vmid" rowspan="${rowspan}"><input type="date" class="sheet-inline-input eg-fp"${currentUserRole==='admin'?'':' disabled'} value="${esc(e.fechaPago||'')}" onchange="egSetFechaPago('${e.id}',this.value)"></td>`;
+        html += `<td class="vmid" rowspan="${rowspan}"><select class="sheet-inline-input eg-estado ${pag?'pag':'pend'}"onchange="egSetEstado('${e.id}',this.value)"><option value="pendiente"${pag?'':' selected'}>Pendiente</option><option value="pagado"${pag?' selected':''}>Pagado</option></select></td>`;
+        html += `<td class="vmid" rowspan="${rowspan}"><input type="date" class="sheet-inline-input eg-fp"value="${esc(e.fechaPago||'')}" onchange="egSetFechaPago('${e.id}',this.value)"></td>`;
       }
       html += `</tr>`;
     });
@@ -3371,7 +3369,7 @@ function setEgEstado(v){
   if(v!=='pagado') document.getElementById('eg-medio').value = '';
 }
 function openEgresoModal(id){
-  if(currentUserRole!=='admin') return;
+  if(!puedeEditarEgresos()) return;
   ventaPorCodigoCache.clear();
   const e = id ? egresosAll.find(x=>x.id===id) : null;
   if(id && !e){ alert('Este registro ya no existe.'); return; }
@@ -3395,7 +3393,7 @@ function openEgresoModal(id){
 }
 let egGuardando = false;
 async function saveEgreso(){
-  if(egGuardando || currentUserRole!=='admin') return;
+  if(egGuardando || !puedeEditarEgresos()) return;
   egGuardando = true;
   try{
     const rows = [...document.querySelectorAll('#eg-lineas .eg-line')];
@@ -3449,7 +3447,7 @@ async function saveEgreso(){
   } finally { egGuardando = false; }
 }
 function deleteEgreso(){
-  const id = document.getElementById('eg-id').value; if(!id || currentUserRole!=='admin') return;
+  const id = document.getElementById('eg-id').value; if(!id || !puedeEditarEgresos()) return;
   if(!confirm('¿Eliminar este registro? Su costo también se va a quitar de la planilla de Ventas.')) return;
   closeModal('modal-egreso');
   db.collection('egresos').doc(id).delete().catch(err=>{ console.error(err); alert('No se pudo eliminar. Revisá la consola.'); });
@@ -3481,6 +3479,7 @@ function attachMoneyDecInput(el){
 const CONCEPTO_RUFINA = 'Rufina', CONCEPTO_TELAS = 'Compra telas';
 let gastosAll = [], conceptosAll = [];
 let gastosMonth = new Date(); gastosMonth.setDate(1);
+function puedeEditarEgresos(){ return currentUserRole==='admin' || currentUserRole==='full'; }
 function puedeVerGastos(){ return currentUserRole==='admin' || currentUserRole==='full'; }
 function esRegistroRufina(e){ return (e.lineas||[]).some(l=>provNorm(l.proveedor)!=='Telas'); }
 function listenGastos(){
@@ -3630,7 +3629,7 @@ function renderGastosSheet(filas){
   if(!filas.length){ body.innerHTML = '<tr><td colspan="6" class="sheet-empty">Sin egresos este mes.</td></tr>'; return; }
   body.innerHTML = filas.map((f,i)=>{
     const lapiz = f.auto
-      ? (currentUserRole==='admin' ? `<span class="sheet-pencil" title="Ver en Telas/Arreglos" onclick="openEgresoModal('${esc(f.egresoId)}')"><i class="fa-solid fa-pen"></i></span>` : '')
+      ? (puedeEditarEgresos() ? `<span class="sheet-pencil" title="Ver en Telas/Arreglos" onclick="openEgresoModal('${esc(f.egresoId)}')"><i class="fa-solid fa-pen"></i></span>` : '')
       : `<span class="sheet-pencil" onclick="openGastoModal('${esc(f.id)}')"><i class="fa-solid fa-pen"></i></span>`;
     return `<tr class="${i%2===1?'zebra':''}"><td class="edit-cell">${lapiz}</td><td>${fmtDateSheet(f.fecha)}</td><td class="${gxNegrita(f)?'gx-bold':''}">${esc(f.concepto)}${f.auto?'<span class="gx-auto">automático</span>':''}</td><td class="prod-cell">${esc(f.detalle)}</td><td class="${gxNegrita(f)?'gx-bold':''}">${fmtARSc(f.monto)}</td><td class="medio-chips">${f.medios.map(m=>`<span class="medio-chip medio-${normalize(m.medio)}">${esc(m.medio)}${f.medios.length>1 ? ' '+fmtARSc(m.monto) : ''}</span>`).join('')}</td></tr>`;
   }).join('');
