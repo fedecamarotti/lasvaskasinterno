@@ -132,6 +132,7 @@ body.role-admin .nav-gestion,body.role-full .nav-gestion{display:flex}
 .tag-mini.pago{background:transparent;border:1px solid #8bb89d;color:#4f8f68}
 .doc-card .fecha{font-size:12px;color:#9a9285}
 .doc-card .totales{margin-top:8px;font-size:13.5px;display:flex;justify-content:space-between}
+.sf-item.sf-full{flex:0 0 100%}
 .deudas-total{font-size:14px;margin:2px 2px 12px;color:#8a8375}
 .deudas-total b{color:#3a352c;font-weight:700}
 .doc-card .debe{color:#c1685c;font-weight:600}
@@ -3854,12 +3855,12 @@ function renderVentaFooter(filtered){
       <div class="sf-sep"></div>
       <div class="sf-title">Resumen del mes · ${esc(monthLabel(ventaMonth))}</div>
       <div class="sf-row">
-        <div class="sf-item"><span class="sf-l">Ingresos del mes (pagos + cobros de deudas)</span></div>
+        <div class="sf-item sf-full"><span class="sf-l">Ingresos del mes (pagos + cobros de deudas)</span></div>
         <div class="sf-item"><b>${fmtARS(ingARS)}</b></div>
         <div class="sf-item"><b>${fmtUSD(ingUSD)}</b></div>
       </div>
-      <div class="sf-row">
-        <div class="sf-item"><span class="sf-l">Deudas del mes</span></div>
+      <div class="sf-row" style="margin-top:12px">
+        <div class="sf-item sf-full"><span class="sf-l">Deudas del mes</span></div>
         <div class="sf-item"><b>${fmtARS(debARS)}</b></div>
         <div class="sf-item"><b>${fmtUSD(debUSD)}</b></div>
       </div>
