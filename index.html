@@ -76,6 +76,8 @@ label{font-size:12px;color:#9a9285;display:block;margin-bottom:4px;letter-spacin
 .chip-btn:hover{background:#e9e3d3}
 .nav-admin{display:none}
 body.role-admin .nav-admin{display:flex}
+.fab.nav-admin{display:none}
+body.role-admin .fab.nav-admin{display:flex}
 .nav-gestion{display:none}
 body.role-admin .nav-gestion,body.role-full .nav-gestion{display:flex}
 .debt-badge{background:#c1685c;color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 6px;margin-left:4px}
@@ -653,7 +655,7 @@ body.role-admin .doctype-btns button.pago{display:block}
     </table>
   </div>
   <div id="egresos-footer" class="sheet-footer"></div>
-  <button class="fab" onclick="openEgresoModal()" title="Cargar telas/arreglos">+</button>
+  <button class="fab nav-admin" onclick="openEgresoModal()" title="Cargar telas/arreglos">+</button>
 </div>
 
 <!-- ============ PLANILLA: EGRESOS DEL MES (admin y full) ============ -->
@@ -1026,7 +1028,7 @@ const NAV_ITEMS = [
   {key:'venta-sheet', label:'Ventas', icon:'fa-receipt', go:'openVentasSheet()'},
   {key:'presu-sheet', label:'Presupuestos', icon:'fa-file-lines', go:'openPresupuestosSheet()'},
   {key:'deudas', label:'Deudoras', icon:'fa-hand-holding-dollar', go:'openDeudas()', badge:true},
-  {key:'egresos-sheet', label:'Telas/Arreglos', icon:'fa-shirt', go:'openEgresosSheet()', admin:true},
+  {key:'egresos-sheet', label:'Telas/Arreglos', icon:'fa-shirt', go:'openEgresosSheet()', gestion:true},
   {key:'gastos-sheet', label:'Egresos', icon:'fa-money-bill-transfer', go:'openGastosSheet()', gestion:true}
 ];
 function buildNav(){
@@ -3024,7 +3026,7 @@ function syncEgresosMonth(){
   syncMonthArrows('screen-egresos-sheet', egresosMonth);
 }
 function openEgresosSheet(){
-  if(currentUserRole!=='admin') return;
+  if(currentUserRole!=='admin' && currentUserRole!=='full') return; // full: solo ver
   clampMes(egresosMonth);
   showScreen('egresos-sheet');
   syncEgresosMonth();
@@ -3087,7 +3089,7 @@ function renderEgresosSheet(docs){
       const l = f.l||{};
       html += `<tr class="${i===0?'group-first':''}${zebra}">`;
       if(i===0){
-        html += `<td class="vmid edit-cell" rowspan="${rowspan}"><span class="sheet-pencil" onclick="openEgresoModal('${e.id}')"><i class="fa-solid fa-pen"></i></span></td>`;
+        html += `<td class="vmid edit-cell" rowspan="${rowspan}">${currentUserRole==='admin'? `<span class="sheet-pencil" onclick="openEgresoModal('${e.id}')"><i class="fa-solid fa-pen"></i></span>` : ''}</td>`;
         html += `<td class="vmid" rowspan="${rowspan}">${fmtDateSheet(e.fecha)}</td>`;
       }
       if(f.o){
@@ -3104,8 +3106,8 @@ function renderEgresosSheet(docs){
       }
       if(i===0){
         html += `<td class="vmid tot-cell" rowspan="${rowspan}">${fmtARS(egTotal(e._full||e))}</td>`;
-        html += `<td class="vmid" rowspan="${rowspan}"><select class="sheet-inline-input eg-estado ${pag?'pag':'pend'}" onchange="egSetEstado('${e.id}',this.value)"><option value="pendiente"${pag?'':' selected'}>Pendiente</option><option value="pagado"${pag?' selected':''}>Pagado</option></select></td>`;
-        html += `<td class="vmid" rowspan="${rowspan}"><input type="date" class="sheet-inline-input eg-fp" value="${esc(e.fechaPago||'')}" onchange="egSetFechaPago('${e.id}',this.value)"></td>`;
+        html += `<td class="vmid" rowspan="${rowspan}"><select class="sheet-inline-input eg-estado ${pag?'pag':'pend'}"${currentUserRole==='admin'?'':' disabled'} onchange="egSetEstado('${e.id}',this.value)"><option value="pendiente"${pag?'':' selected'}>Pendiente</option><option value="pagado"${pag?' selected':''}>Pagado</option></select></td>`;
+        html += `<td class="vmid" rowspan="${rowspan}"><input type="date" class="sheet-inline-input eg-fp"${currentUserRole==='admin'?'':' disabled'} value="${esc(e.fechaPago||'')}" onchange="egSetFechaPago('${e.id}',this.value)"></td>`;
       }
       html += `</tr>`;
     });
