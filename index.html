@@ -132,6 +132,8 @@ body.role-admin .nav-gestion,body.role-full .nav-gestion{display:flex}
 .tag-mini.pago{background:transparent;border:1px solid #8bb89d;color:#4f8f68}
 .doc-card .fecha{font-size:12px;color:#9a9285}
 .doc-card .totales{margin-top:8px;font-size:13.5px;display:flex;justify-content:space-between}
+.deudas-total{font-size:14px;margin:2px 2px 12px;color:#8a8375}
+.deudas-total b{color:#3a352c;font-weight:700}
 .doc-card .debe{color:#c1685c;font-weight:600}
 
 /* modal */
@@ -2451,7 +2453,10 @@ function renderDeudasList(items){
   const list = document.getElementById('deudas-list');
   if(!items.length){ list.innerHTML = '<div class="empty">No hay deudoras con saldo pendiente 🎉</div>'; return; }
   const hoy = todayISO();
-  list.innerHTML = items.map(it=>{
+  let totARS = 0, totUSD = 0;
+  items.forEach(it=>{ totARS += it.aPagarARS||0; totUSD += it.aPagarUSD||0; });
+  const resumen = `<div class="deudas-total"><span>Total deudas</span> <b>${fmtARS(totARS)}</b> / <b>${fmtUSD(totUSD)}</b></div>`;
+  list.innerHTML = resumen + items.map(it=>{
     const debe = fmtDebtObj({ars:it.aPagarARS, usd:it.aPagarUSD});
     const vencida = it.fechaPago && it.fechaPago < hoy;
     return `<div class="card ${vencida?'deuda-vencida':''}" onclick="openClienteDetail('${it.clienteId}')">
@@ -3830,8 +3835,9 @@ function renderVentaFooter(filtered){
     });
   });
   const mDocs = ventaSheetDocsRaw.filter(d=>!esCC(d));
-  let ingARS=0, ingUSD=0;
+  let ingARS=0, ingUSD=0, debARS=0, debUSD=0;
   mDocs.forEach(d=>{
+    if(!d.esSaldoMovimiento){ debARS += d.aPagarARS||0; debUSD += d.aPagarUSD||0; }
     (d.pagos||[]).filter(p=>!p.pagoDocId).forEach(p=>{
       if(!METODOS[p.metodo]) return;
       if(METODOS[p.metodo].moneda==='USD') ingUSD += p.monto||0; else ingARS += p.monto||0;
@@ -3851,6 +3857,11 @@ function renderVentaFooter(filtered){
         <div class="sf-item"><span class="sf-l">Ingresos del mes (pagos + cobros de deudas)</span></div>
         <div class="sf-item"><b>${fmtARS(ingARS)}</b></div>
         <div class="sf-item"><b>${fmtUSD(ingUSD)}</b></div>
+      </div>
+      <div class="sf-row">
+        <div class="sf-item"><span class="sf-l">Deudas del mes</span></div>
+        <div class="sf-item"><b>${fmtARS(debARS)}</b></div>
+        <div class="sf-item"><b>${fmtUSD(debUSD)}</b></div>
       </div>
     </div>`;
 }
