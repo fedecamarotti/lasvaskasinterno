@@ -3903,6 +3903,14 @@ function editSheetDoc(clienteId, docId, tipo){
 
 // Arranque: se ejecuta al final, cuando todo el código ya está definido.
 bootFromSession();
+
+// Cada planilla mide al menos la suma de sus columnas (en el celular nunca se comprime ni deja numeros fuera del cuadro)
+(function(){
+  document.querySelectorAll('table.sheet-table').forEach(t=>{
+    let sum = 0; t.querySelectorAll('colgroup col').forEach(c=>{ sum += parseFloat(c.style.width)||0; });
+    if(sum) t.style.minWidth = sum + 'px';
+  });
+})();
 </script>
 </body>
 </html>
