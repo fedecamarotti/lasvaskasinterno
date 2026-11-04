@@ -268,7 +268,6 @@ td.edit-cell{width:26px}
 .costos-totals{display:flex;justify-content:space-between;margin-top:8px;font-size:13px;color:#8a8375}
 .sheet-authorize{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:4px;background:#4f8f68;color:#fff;font-size:11px;font-weight:700;cursor:pointer;margin-top:4px}
 body.role-limited #venta-table th:nth-child(9),
-body.role-limited #venta-table td:nth-child(9),
 body.role-limited #venta-table colgroup col:nth-child(9){display:none}
 @media(max-width:600px){
   table.sheet-table thead th{font-size:8px;padding:6px 2px;letter-spacing:0}
@@ -1079,7 +1078,7 @@ function readSession(){ try{ const o = JSON.parse(localStorage.getItem(SESSION_K
 function saveSession(){ try{ localStorage.setItem(SESSION_KEY, JSON.stringify({uid:currentUserUid, rol:currentUserRole, nombre:currentUserNombre})); }catch(e){} }
 function clearSession(){ try{ localStorage.removeItem(SESSION_KEY); }catch(e){} }
 function applyRoleClasses(){
-  document.body.classList.toggle('role-limited', currentUserRole==='limitado');
+  document.body.classList.toggle('role-limited', currentUserRole==='limitado'); if(typeof fitSheetTables==='function') fitSheetTables();
   document.body.classList.toggle('role-admin', currentUserRole==='admin');
   document.body.classList.toggle('role-full', currentUserRole==='full');
 }
@@ -2882,6 +2881,7 @@ function renderVentaSheet(docs){
   const body = document.getElementById('venta-sheet-body');
   if(!docs.length){ body.innerHTML = '<tr><td colspan="16" class="sheet-empty">Sin ventas este mes.</td></tr>'; return; }
   let html = '';
+  const soloVer = currentUserRole==='limitado'; // la columna Costos no existe para este rol
   docs.forEach((d, gi)=>{
     const zebra = gi%2===1? ' zebra' : ''; // filas alternas entre movimientos: la 1ª blanca, la 2ª apenas gris, etc.
     const rowspan = Math.max((d.productos||[]).length, 1);
@@ -2911,10 +2911,10 @@ function renderVentaSheet(docs){
       // Notas: un solo botón (ojo) centrado en toda la fila de la venta; muestra la nota en un mini desplegable
       if(i===0) html += `<td class="vmid" rowspan="${rowspan}">${d.notas? `<span class="sheet-plus nota-btn" title="Ver nota" onclick="showNotaPop(this,'${d.id}')"><svg class="eye-ic" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg></span>` : ''}</td>`;
       if(d.esSaldoMovimiento){
-        html += `<td class="vmid">-</td><td>-</td><td>-</td><td class="vmid tot-cell">-</td>`;
+        html += `${soloVer?'':'<td class="vmid">-</td>'}<td>-</td><td>-</td><td class="vmid tot-cell">-</td>`;
       } else {
         const estadoClass = p.estadoCostos==='falta'?'estado-falta':(p.estadoCostos==='completo'?'estado-completo':'');
-        html += `<td class="vmid plus-cell"><span class="sheet-plus ${estadoClass}" onclick="openCostosModal('${d.clienteId}','${d.id}', ${i})">+</span></td>`;
+        if(!soloVer) html += `<td class="vmid plus-cell"><span class="sheet-plus ${estadoClass}" onclick="openCostosModal('${d.clienteId}','${d.id}', ${i})">+</span></td>`;
         const f = p.moneda==='USD'?fmtUSD:fmtARS;
         if(p.texto || p.puntoVenta==='CC'){ html += `<td>-</td><td>-</td>`; } // CC: en movimientos solo texto en Producto
         else {
@@ -3904,13 +3904,14 @@ function editSheetDoc(clienteId, docId, tipo){
 // Arranque: se ejecuta al final, cuando todo el código ya está definido.
 bootFromSession();
 
-// Cada planilla mide al menos la suma de sus columnas (en el celular nunca se comprime ni deja numeros fuera del cuadro)
-(function(){
+// Cada planilla mide al menos la suma de sus columnas visibles (en el celular nunca se comprime)
+function fitSheetTables(){
   document.querySelectorAll('table.sheet-table').forEach(t=>{
-    let sum = 0; t.querySelectorAll('colgroup col').forEach(c=>{ sum += parseFloat(c.style.width)||0; });
+    let sum = 0; t.querySelectorAll('colgroup col').forEach(c=>{ if(getComputedStyle(c).display!=='none') sum += parseFloat(c.style.width)||0; });
     if(sum) t.style.minWidth = sum + 'px';
   });
-})();
+}
+fitSheetTables();
 </script>
 </body>
 </html>
