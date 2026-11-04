@@ -1452,10 +1452,6 @@ function renderDocsList(){
 
 /* =================== DOC MODAL (crear/editar) =================== */
 function openDocModal(tipo, existing){
-  if(tipo==='venta' && !existing && !(currentClienteData.dni||'').trim()){
-    if(currentUserRole!=='admin'){ alert('Falta cargar DNI en ficha de clienta'); return; }
-    if(!confirm('Esta clienta no tiene DNI cargado. ¿Desea continuar de todas maneras?')) return;
-  }
   editingDocTipo = tipo;
   editingExistingCodigo = existing? (existing.codigo!==undefined? existing.codigo : null) : null;
   editingExistingCreatedAt = existing? (existing.createdAt||null) : null;
