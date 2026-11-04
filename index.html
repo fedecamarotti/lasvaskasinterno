@@ -455,7 +455,7 @@ body.role-admin .doctype-btns button.pago{display:block}
 .doctype-btns button.nota{border-color:#b9c6da;color:#5f7597}
 .tag-mini.nota{background:transparent;border:1px solid #b9c6da;color:#5f7597}
 .nota-card .nota-texto{font-size:13.5px;color:#3a352c;white-space:pre-wrap;margin-top:4px}
-.nota-card .nota-autor{font-size:11px;color:#9a9285;margin-top:8px}
+.doc-card .nota-autor{font-size:11px;color:#9a9285;margin-top:8px}
 .nota-card{cursor:pointer}
 
 /* ---------- pago cliqueable ---------- */
@@ -1401,6 +1401,15 @@ function loadDocs(){
     document.getElementById('docs-list').innerHTML = '<div class="empty">No se pudieron cargar los documentos. Revisá la consola.</div>';
   });
 }
+// "Creado por Belu · 04/11/2026 14:30": solo para lo cargado por Juli, Belu y Viqui (no por la administradora)
+function creadoPorHTML(d){
+  const nombre = d.creadoPorNombre || '';
+  if(!nombre) return '';
+  if(d.creadoPorRol==='admin') return '';
+  if(!d.creadoPorRol && /^fede\b/i.test(normalize(nombre))) return '';
+  const fh = d.createdAt? new Date(d.createdAt).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+  return `<div class="nota-autor">Creado por ${esc(nombre)}${fh? ' · '+fh : ''}</div>`;
+}
 function renderDocsList(){
   const list = document.getElementById('docs-list');
   if(!docsCache.length){ list.innerHTML = '<div class="empty">Todavía no hay presupuestos ni ventas cargadas.</div>'; return; }
@@ -1416,6 +1425,7 @@ function renderDocsList(){
           <span class="fecha">${fmtDate(d.fecha)}</span>
         </div>
         <div class="totales">${lineasHTML}</div>
+        ${creadoPorHTML(d)}
       </div>`;
     }
     if(d.tipo==='nota'){
@@ -1446,6 +1456,7 @@ function renderDocsList(){
         <span class="fecha">${fmtDate(d.fecha)}</span>
       </div>
       <div class="totales">${totales}</div>
+      ${creadoPorHTML(d)}
     </div>`;
   }).join('');
 }
@@ -1770,6 +1781,7 @@ function saveDoc(){
   if(!id){
     data.creadoPor = auth.currentUser? auth.currentUser.email : '';
     data.creadoPorNombre = currentUserNombre || data.creadoPor;
+    data.creadoPorRol = currentUserRole;
   }
 
   if(tipo==='presupuesto'){
@@ -2142,7 +2154,7 @@ function savePago(){
   const ts = Date.now();
   const pagoRef = clienteDocs.doc();
   const cli = {clienteNombre: currentClienteData.nombre, clienteApellido: currentClienteData.apellido, clienteTelefono: currentClienteData.telefono||''};
-  const quien = {creadoPor: auth.currentUser? auth.currentUser.email : '', creadoPorNombre: currentUserNombre};
+  const quien = {creadoPor: auth.currentUser? auth.currentUser.email : '', creadoPorNombre: currentUserNombre, creadoPorRol: currentUserRole};
   const base = {metodo:limpias[0].metodo, monto:limpias[0].monto, lineas:limpias};
   if(docId===PAGO_LIBRE){
     const f = fecha;
@@ -2389,8 +2401,7 @@ function downloadImage(){
 // la imagen se comparte a mano con el botón "Descargar".
 function textoRemitoWhatsapp(d){
   const c = currentClienteData;
-  const tipoTxt = d.tipo==='presupuesto'? 'Presupuesto' : 'Venta';
-  return `${tipoTxt} ${esc(c.nombre)} ${esc(c.apellido)} ${fmtDateCortoAnio(todayISO())}`;
+  return d.tipo==='presupuesto' ? 'Hola! Te adjuntamos tu presupuesto.' : 'Hola! Te adjuntamos el detalle de tu compra.';
 }
 function enviarAClienta(){
   const d = currentDocForPreview;
