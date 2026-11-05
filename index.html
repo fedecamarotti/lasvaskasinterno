@@ -375,6 +375,11 @@ table.sheet-table tbody td.tot-cell{font-weight:700}
 #eg-otros .eg-line{margin-bottom:8px}
 .eg-modos{margin:0}
 .gx-conceptos-btn{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:#f2eee3;color:#3a352c;border-radius:20px;padding:7px 12px;font-size:11.5px;font-weight:600;font-family:'Montserrat',sans-serif;display:flex;align-items:center;gap:6px;border:none;cursor:pointer}
+.gx-combo{position:relative}
+.gx-sug{position:absolute;left:0;right:0;top:100%;margin-top:2px;background:#fff;border:1px solid #e3ddd0;border-radius:10px;box-shadow:0 8px 24px rgba(60,50,30,.15);max-height:220px;overflow:auto;z-index:50}
+.gx-sug-it{padding:9px 12px;font-size:13px;cursor:pointer}
+.gx-sug-it.act,.gx-sug-it:hover{background:#f6f1ff}
+.gx-sug-no{padding:9px 12px;font-size:12px;color:#8a8375}
 .gx-conceptos-btn:hover{background:#e9e3d3}
 .modal-gx{max-width:520px}
 .gx-row{display:flex;gap:10px;margin-bottom:12px}
@@ -846,7 +851,7 @@ body.role-admin .doctype-btns button.pago{display:block}
     <input type="hidden" id="gx-id">
     <div class="gx-row">
       <div class="field" style="flex:0 0 160px"><label>Fecha</label><input type="date" id="gx-fecha"></div>
-      <div class="field"><label>Concepto</label><select id="gx-concepto" onchange="gxConceptoCambio()"></select></div>
+      <div class="field gx-combo"><label>Concepto</label><input id="gx-concepto" type="text" autocomplete="off" placeholder="Escribí o elegí un concepto"><div id="gx-sug" class="gx-sug hidden"></div></div>
     </div>
     <div id="gx-pend" class="gx-pend hidden"></div>
     <div class="field"><label>Detalle</label><input id="gx-detalle" placeholder=""></div>
@@ -3676,8 +3681,39 @@ function gxPendCambio(){
   const det = document.getElementById('gx-detalle');
   if(!det.dataset.manual) det.value = fechas.length ? 'Pendientes: ' + fechas.join(', ') : '';
 }
+// ---- Concepto: se escribe y se filtran las opciones
+let gxListaConc = [];
+function gxConcCanon(v){ const n = normalize(v||'').trim(); return gxListaConc.find(c=>normalize(c)===n) || ''; }
+function gxSugRender(){
+  const inp = document.getElementById('gx-concepto'), box = document.getElementById('gx-sug');
+  const q = normalize(inp.value||'').trim();
+  const items = gxListaConc.filter(c=>!q || normalize(c).includes(q));
+  const act = Math.min(Math.max(+box.dataset.act||0,0), Math.max(items.length-1,0));
+  box.dataset.act = act;
+  box.innerHTML = items.length ? items.map((c,i)=>`<div class="gx-sug-it${i===act?' act':''}" data-v="${esc(c)}">${esc(c)}</div>`).join('') : '<div class="gx-sug-no">Sin coincidencias. Agregalo con "+ Conceptos".</div>';
+  box.classList.remove('hidden');
+}
+function gxSugElegir(v){
+  const inp = document.getElementById('gx-concepto');
+  inp.value = v; document.getElementById('gx-sug').classList.add('hidden'); gxConceptoCambio();
+}
+function gxSugInit(){
+  const inp = document.getElementById('gx-concepto'), box = document.getElementById('gx-sug');
+  if(inp._sug) return; inp._sug = true;
+  inp.addEventListener('focus', ()=>{ box.dataset.act = 0; gxSugRender(); });
+  inp.addEventListener('input', ()=>{ box.dataset.act = 0; gxSugRender(); gxConceptoCambio(); });
+  inp.addEventListener('keydown', e=>{
+    const its = [...box.querySelectorAll('.gx-sug-it')];
+    if(e.key==='ArrowDown'){ e.preventDefault(); box.dataset.act = Math.min((+box.dataset.act||0)+1, its.length-1); gxSugRender(); }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); box.dataset.act = Math.max((+box.dataset.act||0)-1, 0); gxSugRender(); }
+    else if(e.key==='Enter'){ if(!box.classList.contains('hidden') && its.length){ e.preventDefault(); gxSugElegir(its[+box.dataset.act||0].dataset.v); } }
+    else if(e.key==='Escape'){ box.classList.add('hidden'); }
+  });
+  box.addEventListener('mousedown', e=>{ const it = e.target.closest('.gx-sug-it'); if(it){ e.preventDefault(); gxSugElegir(it.dataset.v); } });
+  inp.addEventListener('blur', ()=>{ setTimeout(()=>{ box.classList.add('hidden'); const c = gxConcCanon(inp.value); if(c) inp.value = c; gxConceptoCambio(); }, 120); });
+}
 function gxConceptoCambio(){
-  const esR = document.getElementById('gx-concepto').value===CONCEPTO_RUFINA && !document.getElementById('gx-id').value;
+  const esR = gxConcCanon(document.getElementById('gx-concepto').value)===CONCEPTO_RUFINA && !document.getElementById('gx-id').value;
   const box = document.getElementById('gx-pend');
   box.classList.toggle('hidden', !esR);
   if(esR) gxRenderPend();
@@ -3728,9 +3764,9 @@ function openGastoModal(id){
   const sel = document.getElementById('gx-concepto');
   const lista = gxConceptosDisponibles();
   if(g && g.concepto && !lista.includes(g.concepto)) lista.push(g.concepto); // concepto que ya no está en la lista
-  sel.innerHTML = lista.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  gxListaConc = lista; gxSugInit();
+  document.getElementById('gx-sug').classList.add('hidden');
   sel.value = g? g.concepto : '';
-  if(!g) sel.selectedIndex = -1;
   const det = document.getElementById('gx-detalle');
   det.value = g? (g.detalle||'') : ''; det.dataset.manual = g ? '1' : '';
   det.oninput = ()=>{ det.dataset.manual = det.value ? '1' : ''; };
@@ -3750,7 +3786,8 @@ async function saveGasto(){
   try{
     const id = document.getElementById('gx-id').value;
     const fecha = document.getElementById('gx-fecha').value;
-    const concepto = document.getElementById('gx-concepto').value;
+    const conceptoTxt = document.getElementById('gx-concepto').value;
+    const concepto = gxConcCanon(conceptoTxt);
     const detalle = document.getElementById('gx-detalle').value.trim();
     const monto = numMonto(document.getElementById('gx-monto').value);
     const filasMedio = gxMediosLeer();
@@ -3764,7 +3801,7 @@ async function saveGasto(){
     }
     const medio = medios.length===1 ? medios[0].medio : '';
     if(!fecha){ alert('Completá la fecha.'); return; }
-    if(!concepto){ alert('Elegí un concepto (o agregalo con "+ Conceptos").'); return; }
+    if(!concepto){ alert(conceptoTxt.trim()? 'Ese concepto no está en la lista. Elegí uno de las opciones (o agregalo con "+ Conceptos").' : 'Elegí un concepto (o agregalo con "+ Conceptos").'); return; }
     if(!(monto>0)){ alert('Completá el monto.'); return; }
     const batch = db.batch();
     const data = {fecha, concepto, detalle, monto, medio, medios};
