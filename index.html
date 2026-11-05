@@ -133,6 +133,7 @@ body.role-admin .nav-gestion,body.role-full .nav-gestion{display:flex}
 .doc-card .fecha{font-size:12px;color:#9a9285}
 .doc-card .totales{margin-top:8px;font-size:13.5px;display:flex;justify-content:space-between}
 .sf-item.sf-full{flex:0 0 100%}
+.mov-nota{font-size:11px;color:#8a8375;font-style:italic;line-height:1.3;margin-top:1px}
 .deudas-total{font-size:14px;margin:2px 2px 12px;color:#8a8375}
 .deudas-total b{color:#3a352c;font-weight:700}
 .doc-card .debe{color:#c1685c;font-weight:600}
@@ -795,6 +796,7 @@ body.role-admin .doctype-btns button.pago{display:block}
     <div class="field"><label>Monto</label><input id="pago-monto-input" placeholder="Monto"></div>
     <div class="field"><label>Cotización (solo si pagás en una moneda distinta a la de la deuda)</label><input id="pago-cotizacion-input" placeholder="ej: 1350"></div>
     <div id="pago-extra-lines"></div>
+    <div class="field"><label>Nota (opcional, se ve en el detalle de Movimientos)</label><input id="pago-nota-input" maxlength="200" placeholder="ej: solo ingresó plata"></div>
     <div class="add-pills" id="pago-add-row"><button type="button" class="add-pill" onclick="addPagoLine()"><i class="fa-solid fa-plus"></i> Otro método de pago</button></div>
     <button class="btn btn-primary" id="pago-save-btn" style="width:100%" onclick="savePago()">Guardar pago</button>
     <div id="pago-delete-row" class="hidden" style="text-align:center;margin-top:14px">
@@ -1428,6 +1430,7 @@ function renderDocsList(){
           <span class="fecha">${fmtDate(d.fecha)}</span>
         </div>
         <div class="totales">${lineasHTML}</div>
+        ${d.nota? `<div class="mov-nota" style="margin-top:6px">${esc(d.nota)}</div>` : ''}
         ${creadoPorHTML(d)}
       </div>`;
     }
@@ -1915,7 +1918,7 @@ function pagoLineas(p){
   if(Array.isArray(p.lineas) && p.lineas.length) return p.lineas;
   return [{metodo:p.metodo, monto:p.monto, ...(p.cotizacion?{cotizacion:p.cotizacion}:{})}];
 }
-function buildPagoLibreMovimiento(lineas, fecha){
+function buildPagoLibreMovimiento(lineas, fecha, nota){
   return {
     tipo:'venta', esSaldoMovimiento:true, fecha,
     clienteId: currentClienteId,
@@ -1924,6 +1927,7 @@ function buildPagoLibreMovimiento(lineas, fecha){
     codigo:'-', puntoVenta:'Salda c/c', fechaEvento:'-',
     productos:[{desc:'Saldo / pago a cuenta', cant:'-', valorUnit:'-', total:'-'}],
     pagos:lineas.map(l=>({metodo:l.metodo, monto:l.monto})), aPagarARS:0, aPagarUSD:0,
+    ...(nota? {nota} : {}),
     createdAt: Date.now()
   };
 }
@@ -1966,6 +1970,7 @@ function openPagoModal(editPagoId){
   document.getElementById('pago-delete-row').classList.toggle('hidden', !isEdit);
   document.getElementById('pago-metodo-select').innerHTML = pagoMetodoOptions();
   document.getElementById('pago-extra-lines').innerHTML = '';
+  document.getElementById('pago-nota-input').value = '';
   document.getElementById('pago-add-row').classList.remove('hidden');
 
   if(isEdit){
@@ -1979,6 +1984,7 @@ function openPagoModal(editPagoId){
     document.getElementById('pago-monto-input').value = fmtMoney(ls[0].monto);
     document.getElementById('pago-cotizacion-input').value = fmtMoney(ls[0].cotizacion||0);
     ls.slice(1).forEach(l=>addPagoLine(l));
+    document.getElementById('pago-nota-input').value = p.nota||'';
     openModal('modal-pago');
     return;
   }
@@ -2035,7 +2041,7 @@ function commitVentaUpdate(docId, updateData){
 }
 // Cuando se salda una deuda con un pago aparte, ese pago se muestra como su propio movimiento
 // "Salda c/c" en la planilla de Ventas (no modifica la fila original de la venta).
-function buildSaldoMovimientoData(ventaDoc, lineas, fecha){
+function buildSaldoMovimientoData(ventaDoc, lineas, fecha, nota){
   return {
     tipo:'venta', esSaldoMovimiento:true, fecha,
     clienteId: currentClienteId,
@@ -2044,6 +2050,7 @@ function buildSaldoMovimientoData(ventaDoc, lineas, fecha){
     codigo:'-', puntoVenta:'Salda c/c', fechaEvento:'-',
     productos:[{desc:`Salda deuda del ${fmtDateCorto(ventaDoc.fecha)}`, cant:'-', valorUnit:'-', total:'-'}],
     pagos:lineas.map(l=>({metodo:l.metodo, monto:l.monto})), aPagarARS:0, aPagarUSD:0,
+    ...(nota? {nota} : {}),
     createdAt: Date.now()
   };
 }
@@ -2090,16 +2097,17 @@ function savePago(){
   }
   const limpias = lineasLimpias(lines);
   const fecha = document.getElementById('pago-fecha-input').value || todayISO();
+  const nota = (document.getElementById('pago-nota-input').value||'').trim();
   const clienteDocs = db.collection('clientas').doc(currentClienteId).collection('documentos');
 
   if(editPagoId){
     const pagoDoc = docsCache.find(x=>x.id===editPagoId);
     if(!pagoDoc) return;
-    const base = {metodo:limpias[0].metodo, monto:limpias[0].monto, lineas:limpias};
+    const base = {metodo:limpias[0].metodo, monto:limpias[0].monto, lineas:limpias, nota};
     if(!pagoDoc.refVentaId){
       const f = fecha;
       const upd = {...base, fecha:f};
-      const mov = {...buildPagoLibreMovimiento(limpias, f), createdAt: pagoDoc.createdAt||Date.now()};
+      const mov = {...buildPagoLibreMovimiento(limpias, f, nota), createdAt: pagoDoc.createdAt||Date.now()};
       const prev = {...pagoDoc};
       closeModal('modal-pago');
       upsertDocInCache({...pagoDoc, ...upd});
@@ -2129,7 +2137,7 @@ function savePago(){
     if(totals.fullySettled) Object.assign(updateData, saldadoResumen(ap.items, fecha));
     else updateData.saldado = false;
     const pagoUpdate = {...base, fecha, cotizacion: firebase.firestore.FieldValue.delete()};
-    const saldoData = {...buildSaldoMovimientoData(d, limpias, fecha), createdAt: pagoDoc.createdAt||Date.now()};
+    const saldoData = {...buildSaldoMovimientoData(d, limpias, fecha, nota), createdAt: pagoDoc.createdAt||Date.now()};
 
     // Optimista: reflejamos todo al instante; Firestore se escribe en segundo plano.
     closeModal('modal-pago');
@@ -2158,11 +2166,11 @@ function savePago(){
   const pagoRef = clienteDocs.doc();
   const cli = {clienteNombre: currentClienteData.nombre, clienteApellido: currentClienteData.apellido, clienteTelefono: currentClienteData.telefono||''};
   const quien = {creadoPor: auth.currentUser? auth.currentUser.email : '', creadoPorNombre: currentUserNombre, creadoPorRol: currentUserRole};
-  const base = {metodo:limpias[0].metodo, monto:limpias[0].monto, lineas:limpias};
+  const base = {metodo:limpias[0].metodo, monto:limpias[0].monto, lineas:limpias, ...(nota? {nota} : {})};
   if(docId===PAGO_LIBRE){
     const f = fecha;
     const pdata = {tipo:'pago', fecha:f, ...base, refVentaId:null, libre:true, ...cli, createdAt: ts, ...quien};
-    const mov = {...buildPagoLibreMovimiento(limpias, f), createdAt: ts};
+    const mov = {...buildPagoLibreMovimiento(limpias, f, nota), createdAt: ts};
     closeModal('modal-pago');
     upsertDocInCache({id:pagoRef.id, ...pdata});
     upsertSaldoMovimientoInSheet(pagoRef.id, mov);
@@ -2185,7 +2193,7 @@ function savePago(){
   const updateData = {pagos: ap.pagos, pagadoARS: totals.pagadoARS, pagadoUSD: totals.pagadoUSD, aPagarARS: totals.aPagarARS, aPagarUSD: totals.aPagarUSD};
   if(totals.fullySettled) Object.assign(updateData, saldadoResumen(ap.items, fecha));
   const pagoData = {tipo:'pago', fecha, ...base, refVentaId: docId, ...cli, createdAt: ts, ...quien};
-  const saldoData = {...buildSaldoMovimientoData(d, limpias, fecha), createdAt: ts};
+  const saldoData = {...buildSaldoMovimientoData(d, limpias, fecha, nota), createdAt: ts};
 
   // Optimista: reflejamos todo al instante; Firestore se escribe en segundo plano.
   closeModal('modal-pago');
@@ -2920,7 +2928,7 @@ function renderVentaSheet(docs){
         html += `<td class="vmid" rowspan="${rowspan}">${pvChipsHTML(d.puntoVenta)}</td>`;
         html += `<td class="vmid" rowspan="${rowspan}">${esc(d.fechaEvento||'')}</td>`;
       }
-      html += `<td class="prod-cell">${esc(p.desc)}</td>`;
+      html += `<td class="prod-cell">${esc(p.desc)}${(d.esSaldoMovimiento && d.nota && i===0)? `<div class="mov-nota">${esc(d.nota)}</div>` : ''}</td>`;
       // Notas: un solo botón (ojo) centrado en toda la fila de la venta; muestra la nota en un mini desplegable
       if(i===0) html += `<td class="vmid" rowspan="${rowspan}">${d.notas? `<span class="sheet-plus nota-btn" title="Ver nota" onclick="showNotaPop(this,'${d.id}')"><svg class="eye-ic" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg></span>` : ''}</td>`;
       if(d.esSaldoMovimiento){

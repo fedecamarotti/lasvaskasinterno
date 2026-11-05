@@ -114,6 +114,22 @@ with sync_playwright() as p:
         for x in ev("docsCache.filter(d=>d.tipo==='pago'&&d.libre&&d.metodo==='TRBF_USD').map(d=>d.id)"):
             ev(f"openPagoModal('{x}')"); ev("deletePago()"); wait(150)
         ev("openClienteDetail('c1')"); wait()
+        # Nota del pago: se guarda en el pago y se ve en el Detalle de Movimientos
+        ev("openPagoModal()"); pg.select_option('#pago-doc-select','__libre__'); pg.select_option('#pago-metodo-select','EFVO_ARS'); pg.fill('#pago-monto-input','7000'); pg.fill('#pago-fecha-input','2026-09-12'); pg.fill('#pago-nota-input','solo ingreso plata'); ev("savePago()"); wait(400)
+        pn=ev("docsCache.find(d=>d.tipo==='pago'&&d.libre&&d.nota==='solo ingreso plata')")
+        ok('Nota del pago: se guarda en el pago', bool(pn))
+        ok('Nota del pago: se guarda en el movimiento global', ev(f"window.__store['ventas/{pn['id']}'].nota")=='solo ingreso plata')
+        ev("ventaMonth=new Date(2026,8,1); openVentasSheet()"); wait(400)
+        ok('Nota del pago: se ve en el detalle de la planilla', 'solo ingreso plata' in txt('#venta-sheet-body'))
+        ev("openClienteDetail('c1')"); wait()
+        ok('Nota del pago: se ve en la ficha', 'solo ingreso plata' in txt('#docs-list'))
+        ev(f"openPagoModal('{pn['id']}')"); ok('Nota del pago: al editar se carga', ev("document.getElementById('pago-nota-input').value")=='solo ingreso plata')
+        pg.fill('#pago-nota-input','otra nota'); ev("savePago()"); wait(400)
+        ok('Nota del pago: se puede editar', ev(f"window.__store['ventas/{pn['id']}'].nota")=='otra nota' and ev(f"window.__store['clientas/c1/documentos/{pn['id']}'].nota")=='otra nota')
+        ev(f"openPagoModal('{pn['id']}')"); pg.fill('#pago-nota-input',''); ev("savePago()"); wait(400)
+        ok('Nota del pago: se puede borrar', not ev(f"window.__store['ventas/{pn['id']}'].nota") and not ev(f"window.__store['clientas/c1/documentos/{pn['id']}'].nota"))
+        ev(f"openPagoModal('{pn['id']}')"); ev("deletePago()"); wait(150)
+        ev("openPagoModal()"); ok('Nota del pago: el formulario nuevo arranca sin nota', ev("document.getElementById('pago-nota-input').value")==''); ev("closeModal('modal-pago')")
         # linea sin monto no guarda nada
         n1=ev("docsCache.filter(d=>d.tipo==='pago').length")
         ev("openPagoModal()"); pg.select_option('#pago-doc-select','__libre__'); pg.select_option('#pago-metodo-select','EFVO_ARS'); pg.fill('#pago-monto-input','1000'); ev("addPagoLine()"); pg.select_option('.pl-metodo','TRBF')
@@ -459,7 +475,7 @@ with sync_playwright() as p:
         ev("closeModal('modal-egreso')")
         # mes: un egreso de otro mes no aparece en el mes actual
         ev("window.__store['egresos/otro']={fecha:'2026-09-02',createdAt:1,estado:'pendiente',fechaPago:null,total:1000,lineas:[{codigo:'',clienta:'Vieja',prenda:'x',proveedor:'Compra Telas',cant:1,valor:1000}]}")  # nombre viejo: se muestra como Telas
-        ev("openEgresosSheet()"); wait(400)
+        ev("egresosMonth=new Date(2026,9,1); openEgresosSheet()"); wait(400)
         ok('Egresos: solo muestra el mes elegido', 'Vieja' not in txt('#egresos-sheet-body'))
         ev("shiftMonth('egresos',-1)"); wait(200)
         ok('Egresos: mes anterior (septiembre) muestra el suyo', 'Vieja' in txt('#egresos-sheet-body') and 'septiembre 2026' in txt('#egresos-month-label').lower())
@@ -500,6 +516,7 @@ with sync_playwright() as p:
         ev("saveEgreso()"); wait(400)
         g=ev("Object.entries(window.__store).filter(([k,v])=>k.startsWith('egresos/')&&v.lineas.some(l=>l.detalle==='lino crudo')).map(([k,v])=>v)[0]")
         ok('Coma: se guarda 1,5 como 1.5 con total 1.500', g and g['lineas'][0]['cant']==1.5 and g['total']==1500 and g['lineas'][0]['proveedor']=='Telas')
+        ev("egresosMonth=new Date(); openEgresosSheet()"); wait(400)
         ok('Coma: la planilla muestra 1,5 y $1.500', '1,5' in txt('#egresos-sheet-body') and '$1.500' in txt('#egresos-sheet-body'))
         ev("ventaMonth=new Date(); ventaMonth.setDate(1); openVentasSheet()"); wait(500)
         ev("openCostosModal('c1','ev1',0)"); wait(100)
@@ -656,6 +673,7 @@ with sync_playwright() as p:
         ev("saveEgreso()"); wait(400)
         g=ev("Object.entries(window.__store).filter(([k,v])=>k.startsWith('egresos/')&&v.lineas.some(l=>l.detalle==='lino')).map(([k,v])=>v)[0]")
         ok('Otros: se guardan en el registro y el total los incluye', g and g['otros']==[{'detalle':'descuento','signo':'resta','valor':1500},{'detalle':'IVA','signo':'suma','valor':2000}] and g['total']==20500)
+        ev("egresosMonth=new Date(); openEgresosSheet()"); wait(400)
         t=txt('#egresos-sheet-body')
         ok('Otros: aparecen en la planilla (descuento negativo) y el total los suma', 'descuento' in t and '-$1.500' in t and 'IVA' in t and '$20.500' in t)
         eid=[k.split('/')[1] for k,v in ev("Object.entries(window.__store)") if k.startswith('egresos/') and any(l.get('detalle')=='lino' for l in v['lineas'])][0]
@@ -678,6 +696,7 @@ with sync_playwright() as p:
         pg.fill('#eg-lineas .eg-valor','0'); ev("saveEgreso()"); wait(400)
         g=ev("Object.entries(window.__store).filter(([k,v])=>k.startsWith('egresos/')&&v.lineas.some(l=>l.detalle==='cero0')).map(([k,v])=>v)[0]")
         ok('Precio unitario 0: se guarda como 0', g and g['lineas'][0]['valor']==0 and g['total']==0)
+        ev("egresosMonth=new Date(); openEgresosSheet()"); wait(400)
         ok('Precio unitario 0: la planilla muestra $0', '$0' in ev("[...document.querySelectorAll('#egresos-sheet-body tr')].filter(r=>r.innerText.includes('cero0')).map(r=>r.innerText)[0]"))
         ek0=[k.split('/')[1] for k,v in ev("Object.entries(window.__store)") if k.startswith('egresos/') and any(l.get('detalle')=='cero0' for l in v['lineas'])][0]
         ev(f"openEgresoModal('{ek0}')"); wait(150)
