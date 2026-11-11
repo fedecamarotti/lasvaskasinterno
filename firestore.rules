@@ -24,6 +24,9 @@ service cloud.firestore {
       allow read, write: if esUsuarioDelSistema();
       match /documentos/{docId} {
         allow read, write: if esUsuarioDelSistema();
+        match /fotos/{fotoId} {
+          allow read, write: if esUsuarioDelSistema();
+        }
       }
     }
 

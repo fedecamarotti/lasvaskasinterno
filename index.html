@@ -134,6 +134,20 @@ body.role-admin .nav-gestion,body.role-full .nav-gestion{display:flex}
 .doc-card .totales{margin-top:8px;font-size:13.5px;display:flex;justify-content:space-between}
 .sf-item.sf-full{flex:0 0 100%}
 .mov-nota{font-size:11px;color:#8a8375;font-style:italic;line-height:1.3;margin-top:1px}
+.fotos-grid{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
+.foto-th{position:relative;width:68px;height:68px;border-radius:8px;overflow:hidden;border:1px solid #e3ddd0;cursor:pointer;background:#f6f3ec}
+.foto-th img{width:100%;height:100%;object-fit:cover;display:block}
+.foto-x{position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;font-size:14px;line-height:19px;text-align:center}
+.foto-add{display:inline-flex;align-items:center;gap:6px;border:1px dashed #c9a96a;color:#8a6d2f;border-radius:999px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer}
+.foto-add.disabled{opacity:.4;pointer-events:none}
+.foto-msg{font-size:11px;color:#8a8375;margin-top:4px}
+.foto-link{display:inline-flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;color:#8a6d2f;font-weight:600;cursor:pointer}
+.foto-viewer{position:fixed;inset:0;background:rgba(20,16,10,.92);z-index:200;display:flex;align-items:center;justify-content:center}
+.foto-viewer.hidden{display:none}
+.foto-viewer img{max-width:94vw;max-height:88vh;border-radius:6px}
+.fv-close{position:absolute;top:10px;right:18px;color:#fff;font-size:34px;line-height:1}
+.fv-nav{position:absolute;top:50%;transform:translateY(-50%);color:#fff;font-size:44px;padding:10px 16px;user-select:none}
+.fv-prev{left:4px}.fv-next{right:4px}
 .deudas-total{font-size:14px;margin:2px 2px 12px;color:#8a8375}
 .deudas-total b{color:#3a352c;font-weight:700}
 .doc-card .debe{color:#c1685c;font-weight:600}
@@ -773,6 +787,11 @@ body.role-admin .doctype-btns button.pago{display:block}
     <div id="doc-live-total" class="live-total hidden"></div>
     <div class="field"><label>Nota visible en remito</label><textarea id="doc-nota-remito" rows="2"></textarea></div>
     <div class="field"><label>Nota interna</label><textarea id="doc-notas" rows="2"></textarea></div>
+    <div class="field"><label>Fotos en la nota interna (opcional, hasta 3; no salen en el remito)</label>
+      <div id="doc-fotos" class="fotos-grid"></div>
+      <label class="foto-add" id="doc-foto-add"><input type="file" accept="image/*" multiple id="doc-foto-input" hidden onchange="docFotoAgregar(this)"><i class="fa-solid fa-camera"></i> Agregar foto</label>
+      <div id="doc-foto-msg" class="foto-msg"></div>
+    </div>
     <div id="pagos-section" class="hidden">
       <div class="section-label">Pagos</div>
       <div id="pagos-container"></div>
@@ -1436,6 +1455,7 @@ function renderDocsList(){
         </div>
         <div class="totales">${lineasHTML}</div>
         ${d.nota? `<div class="mov-nota" style="margin-top:6px">${esc(d.nota)}</div>` : ''}
+        ${fotosLinkHTML(d)}
         ${creadoPorHTML(d)}
       </div>`;
     }
@@ -1467,6 +1487,7 @@ function renderDocsList(){
         <span class="fecha">${fmtDate(d.fecha)}</span>
       </div>
       <div class="totales">${totales}</div>
+      ${fotosLinkHTML(d)}
       ${creadoPorHTML(d)}
     </div>`;
   }).join('');
@@ -1487,6 +1508,8 @@ function openDocModal(tipo, existing){
   document.getElementById('doc-fechaevento').value = existing? (existing.fechaEvento||'') : '';
   document.getElementById('doc-notas').value = existing? (existing.notas||'') : '';
   document.getElementById('doc-nota-remito').value = existing? (existing.notaRemito||'') : '';
+  docFotosExistCount = existing? (existing.fotosCount||0) : 0;
+  docFotosCargar(currentClienteId, existing? existing.id : '');
   document.getElementById('doc-modal-title').textContent = (existing?'Editar ':'Nuevo ') + (tipo==='presupuesto'?'presupuesto':'recibo de venta');
   document.getElementById('pagos-section').classList.toggle('hidden', tipo!=='venta');
   document.getElementById('pventa-section').classList.toggle('hidden', tipo!=='venta');
@@ -1831,6 +1854,10 @@ function saveDoc(){
     if(existingDocHasCodigo(id)){ data.codigo = editingExistingCodigo; }
   }
 
+  if(docFotosCargando){ alert('Esperá un segundo: se están cargando las fotos.'); savingDoc = false; return; }
+  const fotosAgregar = docFotos.filter(f=>f.nueva), fotosBorrar = [...docFotosBorrar], fotosCid = currentClienteId;
+  const fotosCount = docFotosExistCount - fotosBorrar.length + fotosAgregar.length;
+  if(id || fotosCount>0) data.fotosCount = fotosCount;
   const ref = db.collection('clientas').doc(currentClienteId).collection('documentos');
   const proceed = (codigo)=>{
     savingDoc = false;
@@ -1854,11 +1881,13 @@ function saveDoc(){
     // En presupuestos se mezcla (merge) para no perder la marca "convertido" al editar el presupuesto.
     if(tipo==='presupuesto') wb.set(globalRef, globalData, {merge:true}); else wb.set(globalRef, globalData);
     markSaving();
-    wb.commit().catch(err=>{
+    const commitP = wb.commit();
+    commitP.catch(err=>{
       console.error(err);
       alert('No se pudo guardar. Revisá la consola.');
       if(!id) removeDocFromCache(savedId);
     });
+    commitP.then(()=>docFotosGuardar(fotosCid, savedId, tipo, fotosAgregar, fotosBorrar));
     // Las planillas abiertas se actualizan solas (escucha en vivo), sin recargarse ni volver arriba de todo.
   };
   const codigoViejo = (id && editingExistingCodigo!=null)? String(editingExistingCodigo) : null;
@@ -1886,6 +1915,112 @@ let editingExistingCodigo = null;
 let editingExistingCreatedAt = null; // conserva el orden de carga al editar (también cuando se edita desde la planilla)
 let editingExistingSaldarPagos = []; // pagos que saldan deuda (con pagoDocId) de la venta que se está editando; no se tocan acá
 function existingDocHasCodigo(id){ return !!id && editingExistingCodigo!=null; }
+/* =================== FOTOS EN LA NOTA INTERNA (livianas: se achican antes de guardar) =================== */
+const FOTO_MAX = 3, FOTO_LADO = 1000, FOTO_BYTES = 150000;
+let docFotos = [], docFotosBorrar = [], docFotosExistCount = 0, docFotosCargando = false;
+function fotoBytes(dataUrl){ return Math.round((dataUrl.length - dataUrl.indexOf(',') - 1) * 0.75); }
+// Achica la foto (lado mayor 1000 px) y baja la calidad JPEG hasta que pese ~150 KB como máximo
+async function comprimirFoto(file){
+  let bmp;
+  try{ bmp = await createImageBitmap(file, {imageOrientation:'from-image'}); }
+  catch(e){
+    bmp = await new Promise((res,rej)=>{ const im = new Image(); im.onload=()=>res(im); im.onerror=rej; im.src = URL.createObjectURL(file); });
+  }
+  const w0 = bmp.width || bmp.naturalWidth, h0 = bmp.height || bmp.naturalHeight;
+  let k = Math.min(1, FOTO_LADO / Math.max(w0, h0));
+  let out = '';
+  for(let intento=0; intento<4; intento++){
+    const c = document.createElement('canvas'); c.width = Math.max(1,Math.round(w0*k)); c.height = Math.max(1,Math.round(h0*k));
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0,0,c.width,c.height); g.drawImage(bmp, 0, 0, c.width, c.height);
+    for(const q of [0.7,0.6,0.5,0.4]){ out = c.toDataURL('image/jpeg', q); if(fotoBytes(out) <= FOTO_BYTES) return out; }
+    k *= 0.8; // todavía pesa: se achica un poco más
+  }
+  return out;
+}
+function docFotosRender(){
+  const grid = document.getElementById('doc-fotos');
+  grid.innerHTML = docFotos.map((f,i)=>`<div class="foto-th" onclick="docFotoVer(${i})"><img src="${f.data}" alt=""><span class="foto-x" onclick="event.stopPropagation();docFotoQuitar(${i})">×</span></div>`).join('');
+  document.getElementById('doc-foto-add').classList.toggle('disabled', docFotos.length>=FOTO_MAX || docFotosCargando);
+  document.getElementById('doc-foto-msg').textContent = docFotosCargando ? 'Cargando fotos…' : (docFotos.length ? `${docFotos.length} de ${FOTO_MAX} fotos` : '');
+}
+async function docFotoAgregar(inp){
+  const files = [...(inp.files||[])]; inp.value = '';
+  const msg = document.getElementById('doc-foto-msg');
+  for(const file of files){
+    if(docFotos.length>=FOTO_MAX) break;
+    try{
+      msg.textContent = 'Achicando foto…';
+      const data = await comprimirFoto(file);
+      docFotos.push({id: db.collection('_').doc().id, data, nueva:true});
+    }catch(e){ console.error(e); alert('No se pudo leer esa foto. Probá con otra.'); }
+  }
+  docFotosRender();
+}
+function docFotoQuitar(i){
+  const f = docFotos[i]; if(!f) return;
+  if(!f.nueva) docFotosBorrar.push(f.id);
+  docFotos.splice(i,1); docFotosRender();
+}
+function docFotoVer(i){ abrirVisorFoto(docFotos.map(f=>f.data), i); }
+async function docFotosCargar(cid, docId){
+  docFotos = []; docFotosBorrar = []; docFotosCargando = false;
+  document.getElementById('doc-foto-input').value = '';
+  if(cid && docId && docFotosExistCount>0){
+    docFotosCargando = true; docFotosRender();
+    try{
+      const snap = await db.collection('clientas').doc(cid).collection('documentos').doc(docId).collection('fotos').get();
+      const arr = []; snap.forEach(x=>arr.push({id:x.id, ...x.data()}));
+      arr.sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+      // si el modal ya cambió de documento mientras cargaba, no se pisa
+      if(document.getElementById('doc-id').value===docId) docFotos = arr.map(f=>({id:f.id, data:f.data, nueva:false}));
+    }catch(e){ console.error(e); }
+    docFotosCargando = false;
+  }
+  docFotosRender();
+}
+// Guarda las fotos DESPUÉS de que el documento se guardó (así un problema con las fotos nunca impide guardar la venta)
+async function docFotosGuardar(cid, docId, tipo, agregar, borrar){
+  if(!agregar.length && !borrar.length) return;
+  const docRef = db.collection('clientas').doc(cid).collection('documentos').doc(docId);
+  const col = docRef.collection('fotos');
+  try{
+    const b = db.batch();
+    agregar.forEach(f=>b.set(col.doc(f.id), {data:f.data, createdAt:Date.now(), creadoPor: auth.currentUser? auth.currentUser.email : ''}));
+    borrar.forEach(id=>b.delete(col.doc(id)));
+    await b.commit();
+  }catch(err){
+    console.error(err);
+    alert('El documento se guardó, pero no se pudieron guardar las fotos. Revisá que estén publicadas las reglas nuevas de Firebase.');
+    try{
+      const snap = await col.get(); const n = snap.size;
+      await docRef.update({fotosCount:n});
+      await db.collection(tipo==='presupuesto'?'presupuestos':'ventas').doc(docId).update({fotosCount:n});
+    }catch(e2){ console.error(e2); }
+  }
+}
+function fotosLinkHTML(d){
+  const n = d.fotosCount||0;
+  return n>0 ? `<div class="foto-link" onclick="verFotosDoc('${d.clienteId||currentClienteId}','${d.id}')"><i class="fa-solid fa-camera"></i> ${n} ${n===1?'foto':'fotos'}</div>` : '';
+}
+async function verFotosDoc(cid, docId){
+  try{
+    const snap = await db.collection('clientas').doc(cid).collection('documentos').doc(docId).collection('fotos').get();
+    const arr = []; snap.forEach(x=>arr.push(x.data()));
+    arr.sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+    if(!arr.length){ alert('No se encontraron las fotos.'); return; }
+    abrirVisorFoto(arr.map(f=>f.data), 0);
+  }catch(e){ console.error(e); alert('No se pudieron cargar las fotos.'); }
+}
+let visorFotos = [], visorIdx = 0;
+function abrirVisorFoto(list, i){
+  visorFotos = list; visorIdx = i||0; closeNotaPop();
+  document.getElementById('foto-viewer-img').src = visorFotos[visorIdx];
+  document.querySelectorAll('#foto-viewer .fv-nav').forEach(n=>n.style.display = visorFotos.length>1 ? '' : 'none');
+  document.getElementById('foto-viewer').classList.remove('hidden');
+}
+function visorFotoMover(d){ visorIdx = (visorIdx + d + visorFotos.length) % visorFotos.length; document.getElementById('foto-viewer-img').src = visorFotos[visorIdx]; }
+function cerrarVisorFoto(){ document.getElementById('foto-viewer').classList.add('hidden'); document.getElementById('foto-viewer-img').src = ''; }
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') cerrarVisorFoto(); });
 function deleteDoc(){
   const id = document.getElementById('doc-id').value;
   const tipo = document.getElementById('doc-tipo').value;
@@ -1900,6 +2035,10 @@ function deleteDoc(){
   const db_ = db.batch();
   db_.delete(db.collection('clientas').doc(currentClienteId).collection('documentos').doc(id));
   db_.delete(db.collection(tipo==='presupuesto'?'presupuestos':'ventas').doc(id));
+  if(removed && removed.fotosCount>0){
+    const fcol = db.collection('clientas').doc(currentClienteId).collection('documentos').doc(id).collection('fotos');
+    fcol.get().then(snap=>{ const bf = db.batch(); snap.forEach(x=>bf.delete(x.ref)); return bf.commit(); }).catch(e=>console.error(e));
+  }
   const rec = db_.commit(); markSaving();
   // Las planillas abiertas se actualizan solas (escucha en vivo), sin volver arriba de todo.
   rec.catch(err=>{
@@ -2831,7 +2970,7 @@ function renderPresuSheet(docs){
       }
       html += `<td class="prod-cell">${esc(p.desc)}</td>`;
       // Notas: un solo botón (ojo) centrado en toda la fila del presupuesto
-      if(i===0) html += `<td class="vmid" rowspan="${rowspan}">${d.notas? `<span class="sheet-plus nota-btn" title="Ver nota" onclick="showNotaPop(this,'${d.id}')"><svg class="eye-ic" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg></span>` : ''}</td>`;
+      if(i===0) html += `<td class="vmid" rowspan="${rowspan}">${(d.notas||d.fotosCount)? `<span class="sheet-plus nota-btn" title="Ver nota" onclick="showNotaPop(this,'${d.id}')"><svg class="eye-ic" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg></span>` : ''}</td>`;
       // Convertido: un solo botón (check) centrado en toda la fila; al marcarlo la fila toma un verde pastel suave
       if(i===0) html += `<td class="vmid" rowspan="${rowspan}"><span class="sheet-plus conv-btn${d.convertido?' on':''}" title="${d.convertido?'Convertido en venta (tocar para desmarcar)':'Marcar como convertido en venta'}" onclick="toggleConvertido('${d.clienteId}','${d.id}')"><svg class="eye-ic" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M4.5 12.5l5 5L19.5 7"/></svg></span></td>`;
       html += `<td>${p.efvo? f(p.efvo) : ''}</td><td>${p.tarj? f(p.tarj) : ''}</td></tr>`;
@@ -2935,7 +3074,7 @@ function renderVentaSheet(docs){
       }
       html += `<td class="prod-cell">${esc(p.desc)}${(d.esSaldoMovimiento && d.nota && i===0)? `<div class="mov-nota">${esc(d.nota)}</div>` : ''}</td>`;
       // Notas: un solo botón (ojo) centrado en toda la fila de la venta; muestra la nota en un mini desplegable
-      if(i===0) html += `<td class="vmid" rowspan="${rowspan}">${d.notas? `<span class="sheet-plus nota-btn" title="Ver nota" onclick="showNotaPop(this,'${d.id}')"><svg class="eye-ic" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg></span>` : ''}</td>`;
+      if(i===0) html += `<td class="vmid" rowspan="${rowspan}">${(d.notas||d.fotosCount)? `<span class="sheet-plus nota-btn" title="Ver nota" onclick="showNotaPop(this,'${d.id}')"><svg class="eye-ic" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg></span>` : ''}</td>`;
       if(d.esSaldoMovimiento){
         html += `${soloVer?'':'<td class="vmid">-</td>'}<td>-</td><td>-</td><td class="vmid tot-cell">-</td>`;
       } else {
@@ -2969,10 +3108,10 @@ function showNotaPop(btn, id){
   const abierta = document.getElementById('nota-pop');
   const mismo = abierta && abierta.dataset.for===id;
   closeNotaPop();
-  if(!d || !d.notas || mismo) return;
+  if(!d || (!d.notas && !d.fotosCount) || mismo) return;
   const pop = document.createElement('div');
   pop.id = 'nota-pop'; pop.className = 'nota-pop'; pop.dataset.for = id;
-  pop.innerHTML = nl2br(d.notas);
+  pop.innerHTML = (d.notas? nl2br(d.notas) : '') + (d.fotosCount>0? `<div class="foto-link" onclick="verFotosDoc('${d.clienteId}','${d.id}')"><i class="fa-solid fa-camera"></i> ${d.fotosCount} ${d.fotosCount===1?'foto':'fotos'}</div>` : '');
   document.body.appendChild(pop);
   const r = btn.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
   let left = Math.min(Math.max(8, r.left + r.width/2 - w/2), window.innerWidth - w - 8);
@@ -3978,5 +4117,6 @@ function fitSheetTables(){
 }
 fitSheetTables();
 </script>
+<div id="foto-viewer" class="foto-viewer hidden" onclick="cerrarVisorFoto()"><img id="foto-viewer-img" alt=""><div class="fv-nav fv-prev" onclick="event.stopPropagation();visorFotoMover(-1)">‹</div><div class="fv-nav fv-next" onclick="event.stopPropagation();visorFotoMover(1)">›</div><div class="fv-close">×</div></div>
 </body>
 </html>

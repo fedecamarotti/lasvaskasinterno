@@ -26,7 +26,7 @@ function query(path,filters=[],order=null,dir='asc'){return {
   onSnapshot(a,b,c){const cb=typeof a==='function'?a:b;const l={q:this,cb};listeners.add(l);setTimeout(()=>this.get().then(cb),0);return()=>listeners.delete(l);},
   async get(){
     const depth=path.split('/').length+1;
-    let docs=Object.keys(store).filter(p=>p.startsWith(path+'/')&&p.split('/').length===depth).map(p=>({id:p.split('/').pop(),data:()=>clone(store[p]),_d:store[p]}));
+    let docs=Object.keys(store).filter(p=>p.startsWith(path+'/')&&p.split('/').length===depth).map(p=>({id:p.split('/').pop(),ref:docRef(p),data:()=>clone(store[p]),_d:store[p]}));
     for(const [f,op,v] of filters){docs=docs.filter(d=>{const x=d._d[f];if(x===undefined)return false;return op=='=='?x===v:op=='>'?x>v:op=='>='?x>=v:op=='<'?x<v:x<=v;});}
     if(order){docs.sort((a,b)=>{const x=a._d[order],y=b._d[order];if(x===y)return a.id<b.id?-1:1;return (x<y?-1:1)*(dir==='desc'?-1:1);});}
     else docs.sort((a,b)=>a.id<b.id?-1:1);
