@@ -141,6 +141,13 @@ body.role-admin .nav-gestion,body.role-full .nav-gestion{display:flex}
 .foto-add{display:inline-flex;align-items:center;gap:6px;border:1px dashed #c9a96a;color:#8a6d2f;border-radius:999px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer}
 .foto-add.disabled{opacity:.4;pointer-events:none}
 .foto-msg{font-size:11px;color:#8a8375;margin-top:4px}
+.med-sum{margin-top:8px;font-size:13px;color:#5b5545;background:#f6f3ec;border-radius:10px;padding:8px 12px}
+.med-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}
+.med-grid label,.med-otra-n{font-size:12px;color:#8a8375;display:block;margin-bottom:3px}
+.med-grid input,.med-otra input{width:100%;box-sizing:border-box}
+.med-lab{font-size:11px;color:#a08a55;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin:16px 0 6px}
+.med-otra{display:grid;grid-template-columns:1fr 90px 22px;gap:8px;align-items:center;margin-bottom:8px}
+.med-otra .med-x{color:#999;font-size:20px;text-align:center;cursor:pointer}
 .foto-link{display:flex;width:fit-content;align-items:center;gap:6px;margin-top:6px;text-align:left;font-size:12px;color:#8a6d2f;font-weight:600;cursor:pointer}
 .foto-viewer{position:fixed;inset:0;background:rgba(20,16,10,.92);z-index:200;display:flex;align-items:center;justify-content:center}
 .foto-viewer.hidden{display:none}
@@ -787,6 +794,8 @@ body.role-admin .doctype-btns button.pago{display:block}
     <div id="doc-live-total" class="live-total hidden"></div>
     <div class="field"><label>Nota visible en remito</label><textarea id="doc-nota-remito" rows="2"></textarea></div>
     <div class="field"><label>Nota interna</label><textarea id="doc-notas" rows="2"></textarea></div>
+    <div class="field"><label class="foto-add" id="doc-med-btn" onclick="medidasAbrir()"><i class="fa-solid fa-ruler"></i> Medidas</label>
+      <div id="doc-med-sum" class="med-sum hidden"></div></div>
     <div class="field"><label>Foto en la nota interna (opcional; no sale en el remito)</label>
       <div id="doc-fotos" class="fotos-grid"></div>
       <label class="foto-add" id="doc-foto-add"><input type="file" accept="image/*" multiple id="doc-foto-input" hidden onchange="docFotoAgregar(this)"><i class="fa-solid fa-camera"></i> Agregar foto</label>
@@ -1455,6 +1464,7 @@ function renderDocsList(){
         </div>
         <div class="totales">${lineasHTML}</div>
         ${d.nota? `<div class="mov-nota" style="margin-top:6px">${esc(d.nota)}</div>` : ''}
+        ${medidasHTML(d)}
         ${fotosLinkHTML(d)}
         ${creadoPorHTML(d)}
       </div>`;
@@ -1487,6 +1497,7 @@ function renderDocsList(){
         <span class="fecha">${fmtDate(d.fecha)}</span>
       </div>
       <div class="totales">${totales}</div>
+      ${medidasHTML(d)}
       ${fotosLinkHTML(d)}
       ${creadoPorHTML(d)}
     </div>`;
@@ -1508,6 +1519,7 @@ function openDocModal(tipo, existing){
   document.getElementById('doc-fechaevento').value = existing? (existing.fechaEvento||'') : '';
   document.getElementById('doc-notas').value = existing? (existing.notas||'') : '';
   document.getElementById('doc-nota-remito').value = existing? (existing.notaRemito||'') : '';
+  docMedidas = existing && existing.medidas ? JSON.parse(JSON.stringify(existing.medidas)) : {}; medidasResumenRender();
   docFotosExistCount = existing? (existing.fotosCount||0) : 0;
   docFotosCargar(currentClienteId, existing? existing.id : '');
   document.getElementById('doc-modal-title').textContent = (existing?'Editar ':'Nuevo ') + (tipo==='presupuesto'?'presupuesto':'recibo de venta');
@@ -1858,6 +1870,7 @@ function saveDoc(){
   const fotosAgregar = docFotos.filter(f=>f.nueva), fotosBorrar = [...docFotosBorrar], fotosCid = currentClienteId;
   const fotosCount = docFotosExistCount - fotosBorrar.length + fotosAgregar.length;
   if(id || fotosCount>0) data.fotosCount = fotosCount;
+  if(id || Object.keys(docMedidas).length) data.medidas = docMedidas;
   const ref = db.collection('clientas').doc(currentClienteId).collection('documentos');
   const proceed = (codigo)=>{
     savingDoc = false;
@@ -2021,6 +2034,41 @@ function abrirVisorFoto(list, i){
 function visorFotoMover(d){ visorIdx = (visorIdx + d + visorFotos.length) % visorFotos.length; document.getElementById('foto-viewer-img').src = visorFotos[visorIdx]; }
 function cerrarVisorFoto(){ document.getElementById('foto-viewer').classList.add('hidden'); document.getElementById('foto-viewer-img').src = ''; }
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') cerrarVisorFoto(); });
+/* =================== MEDIDAS (cm, con coma) =================== */
+const MED_CAMPOS = [['busto','Busto'],['cintura','Cintura'],['cadera','Cadera'],['tiro','Tiro'],['escoteDelantero','Escote delantero'],['escoteEspalda','Escote espalda'],['largoHombro','Largo desde hombro'],['hombroAHombro','Hombro a hombro']];
+let docMedidas = {};
+function medLimpiar(v){ // solo números con coma decimal: "70.5" -> "70,5"
+  let t = String(v||'').replace(/\./g,',').replace(/[^0-9,]/g,'');
+  const i = t.indexOf(','); if(i>-1) t = t.slice(0,i+1) + t.slice(i+1).replace(/,/g,'');
+  return t.replace(/^,/,'0,').replace(/,$/,'');
+}
+function medidasLista(m){ // [[nombre, valor]] en orden
+  if(!m) return [];
+  const out = MED_CAMPOS.filter(([k])=>m[k]).map(([k,n])=>[n,m[k]]);
+  (m.otras||[]).forEach(o=>{ if(o && o.v) out.push([o.n||'Otra medida', o.v]); });
+  return out;
+}
+function medidasTexto(m){ return medidasLista(m).map(([n,v])=>n+' '+v).join(' · '); }
+function medidasResumenRender(){
+  const el = document.getElementById('doc-med-sum'), t = medidasTexto(docMedidas);
+  el.classList.toggle('hidden', !t); el.textContent = t ? t + ' cm' : '';
+}
+function medidasOtraRow(o){ return `<div class="med-otra"><input type="text" class="med-otra-n" placeholder="Nombre (ej: Largo de manga)" maxlength="40" value="${esc(o.n||'')}"><input type="text" class="med-otra-v" inputmode="decimal" placeholder="cm" value="${esc(o.v||'')}" oninput="this.value=medLimpiar(this.value)"><span class="med-x" onclick="this.parentNode.remove()">×</span></div>`; }
+function medidasAgregarOtra(){ document.getElementById('med-otras').insertAdjacentHTML('beforeend', medidasOtraRow({})); }
+function medidasAbrir(){
+  document.getElementById('med-grid').innerHTML = MED_CAMPOS.map(([k,n])=>`<div><label>${n}</label><input type="text" data-k="${k}" inputmode="decimal" placeholder="cm" value="${esc(docMedidas[k]||'')}" oninput="this.value=medLimpiar(this.value)"></div>`).join('');
+  document.getElementById('med-otras').innerHTML = (docMedidas.otras||[]).map(medidasOtraRow).join('');
+  openModal('modal-medidas');
+}
+function medidasGuardar(){
+  const m = {};
+  document.querySelectorAll('#med-grid input').forEach(i=>{ const v = medLimpiar(i.value); if(v) m[i.dataset.k] = v; });
+  const otras = [];
+  document.querySelectorAll('#med-otras .med-otra').forEach(r=>{ const v = medLimpiar(r.querySelector('.med-otra-v').value), n = r.querySelector('.med-otra-n').value.trim(); if(v) otras.push({n: n||'Otra medida', v}); });
+  if(otras.length) m.otras = otras;
+  docMedidas = m; medidasResumenRender(); closeModal('modal-medidas');
+}
+function medidasHTML(d){ const t = medidasTexto(d.medidas); return t? `<div class="med-sum" style="margin-top:6px"><i class="fa-solid fa-ruler"></i> ${esc(t)} cm</div>` : ''; }
 function deleteDoc(){
   const id = document.getElementById('doc-id').value;
   const tipo = document.getElementById('doc-tipo').value;
@@ -2970,7 +3018,7 @@ function renderPresuSheet(docs){
       }
       html += `<td class="prod-cell">${esc(p.desc)}</td>`;
       // Notas: un solo botón (ojo) centrado en toda la fila del presupuesto
-      if(i===0) html += `<td class="vmid" rowspan="${rowspan}">${(d.notas||d.fotosCount)? `<span class="sheet-plus nota-btn" title="Ver nota" onclick="showNotaPop(this,'${d.id}')"><svg class="eye-ic" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg></span>` : ''}</td>`;
+      if(i===0) html += `<td class="vmid" rowspan="${rowspan}">${(d.notas||d.fotosCount||medidasTexto(d.medidas))? `<span class="sheet-plus nota-btn" title="Ver nota" onclick="showNotaPop(this,'${d.id}')"><svg class="eye-ic" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg></span>` : ''}</td>`;
       // Convertido: un solo botón (check) centrado en toda la fila; al marcarlo la fila toma un verde pastel suave
       if(i===0) html += `<td class="vmid" rowspan="${rowspan}"><span class="sheet-plus conv-btn${d.convertido?' on':''}" title="${d.convertido?'Convertido en venta (tocar para desmarcar)':'Marcar como convertido en venta'}" onclick="toggleConvertido('${d.clienteId}','${d.id}')"><svg class="eye-ic" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M4.5 12.5l5 5L19.5 7"/></svg></span></td>`;
       html += `<td>${p.efvo? f(p.efvo) : ''}</td><td>${p.tarj? f(p.tarj) : ''}</td></tr>`;
@@ -3074,7 +3122,7 @@ function renderVentaSheet(docs){
       }
       html += `<td class="prod-cell">${esc(p.desc)}${(d.esSaldoMovimiento && d.nota && i===0)? `<div class="mov-nota">${esc(d.nota)}</div>` : ''}</td>`;
       // Notas: un solo botón (ojo) centrado en toda la fila de la venta; muestra la nota en un mini desplegable
-      if(i===0) html += `<td class="vmid" rowspan="${rowspan}">${(d.notas||d.fotosCount)? `<span class="sheet-plus nota-btn" title="Ver nota" onclick="showNotaPop(this,'${d.id}')"><svg class="eye-ic" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg></span>` : ''}</td>`;
+      if(i===0) html += `<td class="vmid" rowspan="${rowspan}">${(d.notas||d.fotosCount||medidasTexto(d.medidas))? `<span class="sheet-plus nota-btn" title="Ver nota" onclick="showNotaPop(this,'${d.id}')"><svg class="eye-ic" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg></span>` : ''}</td>`;
       if(d.esSaldoMovimiento){
         html += `${soloVer?'':'<td class="vmid">-</td>'}<td>-</td><td>-</td><td class="vmid tot-cell">-</td>`;
       } else {
@@ -3108,10 +3156,10 @@ function showNotaPop(btn, id){
   const abierta = document.getElementById('nota-pop');
   const mismo = abierta && abierta.dataset.for===id;
   closeNotaPop();
-  if(!d || (!d.notas && !d.fotosCount) || mismo) return;
+  if(!d || (!d.notas && !d.fotosCount && !medidasTexto(d.medidas)) || mismo) return;
   const pop = document.createElement('div');
   pop.id = 'nota-pop'; pop.className = 'nota-pop'; pop.dataset.for = id;
-  pop.innerHTML = (d.notas? nl2br(d.notas) : '') + (d.fotosCount>0? `<div class="foto-link" onclick="verFotosDoc('${d.clienteId}','${d.id}')"><i class="fa-solid fa-camera"></i> ${d.fotosCount===1?'Ver foto':'Ver fotos'}</div>` : '');
+  pop.innerHTML = (d.notas? nl2br(d.notas) : '') + medidasHTML(d) + (d.fotosCount>0? `<div class="foto-link" onclick="verFotosDoc('${d.clienteId}','${d.id}')"><i class="fa-solid fa-camera"></i> ${d.fotosCount===1?'Ver foto':'Ver fotos'}</div>` : '');
   document.body.appendChild(pop);
   const r = btn.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
   let left = Math.min(Math.max(8, r.left + r.width/2 - w/2), window.innerWidth - w - 8);
@@ -4117,6 +4165,17 @@ function fitSheetTables(){
 }
 fitSheetTables();
 </script>
+<div id="modal-medidas" class="modal-overlay hidden" style="z-index:150">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-medidas')">✕</button>
+    <h2>Medidas (cm)</h2>
+    <div id="med-grid" class="med-grid"></div>
+    <div class="med-lab">Otra medida</div>
+    <div id="med-otras"></div>
+    <div class="foto-add" style="margin-top:8px" onclick="medidasAgregarOtra()">+ Agregar otra medida</div>
+    <button class="btn btn-primary" style="width:100%;margin-top:16px" onclick="medidasGuardar()">Listo</button>
+  </div>
+</div>
 <div id="foto-viewer" class="foto-viewer hidden" onclick="cerrarVisorFoto()"><img id="foto-viewer-img" alt=""><div class="fv-nav fv-prev" onclick="event.stopPropagation();visorFotoMover(-1)">‹</div><div class="fv-nav fv-next" onclick="event.stopPropagation();visorFotoMover(1)">›</div><div class="fv-close">×</div></div>
 </body>
 </html>
