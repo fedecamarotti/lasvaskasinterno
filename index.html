@@ -141,6 +141,12 @@ body.role-admin .nav-gestion,body.role-full .nav-gestion{display:flex}
 .foto-add{display:inline-flex;align-items:center;gap:6px;border:1px dashed #c9a96a;color:#8a6d2f;border-radius:999px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer}
 .foto-add.disabled{opacity:.4;pointer-events:none}
 .foto-msg{font-size:11px;color:#8a8375;margin-top:4px}
+.nota-det{border-bottom:1px solid #eee8dc;padding:2px 0}
+.nota-det summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:11px 2px;font-weight:600;font-size:14px;color:#3a3529}
+.nota-det summary::-webkit-details-marker{display:none}
+.nota-det summary::before{content:'›';font-size:20px;line-height:1;transition:transform .15s;display:inline-block;width:10px}
+.nota-det[open] summary::before{transform:rotate(90deg)}
+.nota-det textarea{margin:0 0 10px}
 .med-sum{margin-top:8px;font-size:13px;color:#5b5545;background:#f6f3ec;border-radius:10px;padding:8px 12px}
 .med-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}
 .med-grid label,.med-otra-n{font-size:12px;color:#8a8375;display:block;margin-bottom:3px}
@@ -792,12 +798,11 @@ body.role-admin .doctype-btns button.pago{display:block}
       <button type="button" id="add-arreglo-btn" class="add-pill pill-arr hidden" onclick="addArregloRow()"><i class="fa-solid fa-plus"></i> Arreglos/otros</button>
     </div>
     <div id="doc-live-total" class="live-total hidden"></div>
-    <div class="field"><label>Nota visible en remito</label><textarea id="doc-nota-remito" rows="2"></textarea></div>
-    <div class="field"><label>Nota interna</label><textarea id="doc-notas" rows="2"></textarea></div>
-    <div class="field"><label class="foto-add" id="doc-med-btn" onclick="medidasAbrir()"><i class="fa-solid fa-ruler"></i> Medidas</label>
+    <details class="nota-det" id="det-nota-remito"><summary>Nota visible en remito</summary><textarea id="doc-nota-remito" rows="2"></textarea></details>
+    <details class="nota-det" id="det-notas"><summary>Nota interna</summary><textarea id="doc-notas" rows="2"></textarea></details>
+    <div class="field" style="margin-top:12px"><label class="foto-add" id="doc-med-btn" onclick="medidasAbrir()"><i class="fa-solid fa-ruler"></i> Medidas</label>
       <div id="doc-med-sum" class="med-sum hidden"></div></div>
-    <div class="field"><label>Foto en la nota interna (opcional; no sale en el remito)</label>
-      <div id="doc-fotos" class="fotos-grid"></div>
+    <div class="field">      <div id="doc-fotos" class="fotos-grid"></div>
       <label class="foto-add" id="doc-foto-add"><input type="file" accept="image/*" multiple id="doc-foto-input" hidden onchange="docFotoAgregar(this)"><i class="fa-solid fa-camera"></i> Agregar foto</label>
       <div id="doc-foto-msg" class="foto-msg"></div>
     </div>
@@ -1519,6 +1524,7 @@ function openDocModal(tipo, existing){
   document.getElementById('doc-fechaevento').value = existing? (existing.fechaEvento||'') : '';
   document.getElementById('doc-notas').value = existing? (existing.notas||'') : '';
   document.getElementById('doc-nota-remito').value = existing? (existing.notaRemito||'') : '';
+  docNotasAbrir(false);
   docMedidas = existing && existing.medidas ? JSON.parse(JSON.stringify(existing.medidas)) : {}; medidasResumenRender();
   docFotosExistCount = existing? (existing.fotosCount||0) : 0;
   docFotosCargar(currentClienteId, existing? existing.id : '');
@@ -2034,6 +2040,9 @@ function abrirVisorFoto(list, i){
 function visorFotoMover(d){ visorIdx = (visorIdx + d + visorFotos.length) % visorFotos.length; document.getElementById('foto-viewer-img').src = visorFotos[visorIdx]; }
 function cerrarVisorFoto(){ document.getElementById('foto-viewer').classList.add('hidden'); document.getElementById('foto-viewer-img').src = ''; }
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') cerrarVisorFoto(); });
+function docNotasAbrir(forzar){ // cerradas por defecto; si ya tienen texto, se abren
+  [['det-nota-remito','doc-nota-remito'],['det-notas','doc-notas']].forEach(([d,t])=>{ document.getElementById(d).open = !!forzar || !!document.getElementById(t).value.trim(); });
+}
 /* =================== MEDIDAS (cm, con coma) =================== */
 const MED_CAMPOS = [['busto','Busto'],['cintura','Cintura'],['cadera','Cadera'],['tiro','Tiro'],['escoteDelantero','Escote delantero'],['escoteEspalda','Escote espalda'],['largoHombro','Largo desde hombro'],['hombroAHombro','Hombro a hombro']];
 let docMedidas = {};
