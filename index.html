@@ -141,7 +141,7 @@ body.role-admin .nav-gestion,body.role-full .nav-gestion{display:flex}
 .foto-add{display:inline-flex;align-items:center;gap:6px;border:1px dashed #c9a96a;color:#8a6d2f;border-radius:999px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer}
 .foto-add.disabled{opacity:.4;pointer-events:none}
 .foto-msg{font-size:11px;color:#8a8375;margin-top:4px}
-.foto-link{display:inline-flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;color:#8a6d2f;font-weight:600;cursor:pointer}
+.foto-link{display:flex;width:fit-content;align-items:center;gap:6px;margin-top:6px;text-align:left;font-size:12px;color:#8a6d2f;font-weight:600;cursor:pointer}
 .foto-viewer{position:fixed;inset:0;background:rgba(20,16,10,.92);z-index:200;display:flex;align-items:center;justify-content:center}
 .foto-viewer.hidden{display:none}
 .foto-viewer img{max-width:94vw;max-height:88vh;border-radius:6px}
@@ -787,7 +787,7 @@ body.role-admin .doctype-btns button.pago{display:block}
     <div id="doc-live-total" class="live-total hidden"></div>
     <div class="field"><label>Nota visible en remito</label><textarea id="doc-nota-remito" rows="2"></textarea></div>
     <div class="field"><label>Nota interna</label><textarea id="doc-notas" rows="2"></textarea></div>
-    <div class="field"><label>Fotos en la nota interna (opcional, hasta 3; no salen en el remito)</label>
+    <div class="field"><label>Foto en la nota interna (opcional; no sale en el remito)</label>
       <div id="doc-fotos" class="fotos-grid"></div>
       <label class="foto-add" id="doc-foto-add"><input type="file" accept="image/*" multiple id="doc-foto-input" hidden onchange="docFotoAgregar(this)"><i class="fa-solid fa-camera"></i> Agregar foto</label>
       <div id="doc-foto-msg" class="foto-msg"></div>
@@ -1916,7 +1916,7 @@ let editingExistingCreatedAt = null; // conserva el orden de carga al editar (ta
 let editingExistingSaldarPagos = []; // pagos que saldan deuda (con pagoDocId) de la venta que se está editando; no se tocan acá
 function existingDocHasCodigo(id){ return !!id && editingExistingCodigo!=null; }
 /* =================== FOTOS EN LA NOTA INTERNA (livianas: se achican antes de guardar) =================== */
-const FOTO_MAX = 3, FOTO_LADO = 1000, FOTO_BYTES = 150000;
+const FOTO_MAX = 1, FOTO_LADO = 1000, FOTO_BYTES = 150000;
 let docFotos = [], docFotosBorrar = [], docFotosExistCount = 0, docFotosCargando = false;
 function fotoBytes(dataUrl){ return Math.round((dataUrl.length - dataUrl.indexOf(',') - 1) * 0.75); }
 // Achica la foto (lado mayor 1000 px) y baja la calidad JPEG hasta que pese ~150 KB como máximo
@@ -1941,7 +1941,7 @@ function docFotosRender(){
   const grid = document.getElementById('doc-fotos');
   grid.innerHTML = docFotos.map((f,i)=>`<div class="foto-th" onclick="docFotoVer(${i})"><img src="${f.data}" alt=""><span class="foto-x" onclick="event.stopPropagation();docFotoQuitar(${i})">×</span></div>`).join('');
   document.getElementById('doc-foto-add').classList.toggle('disabled', docFotos.length>=FOTO_MAX || docFotosCargando);
-  document.getElementById('doc-foto-msg').textContent = docFotosCargando ? 'Cargando fotos…' : (docFotos.length ? `${docFotos.length} de ${FOTO_MAX} fotos` : '');
+  document.getElementById('doc-foto-msg').textContent = docFotosCargando ? 'Cargando fotos…' : (docFotos.length ? '1 foto cargada' : '');
 }
 async function docFotoAgregar(inp){
   const files = [...(inp.files||[])]; inp.value = '';
@@ -2000,7 +2000,7 @@ async function docFotosGuardar(cid, docId, tipo, agregar, borrar){
 }
 function fotosLinkHTML(d){
   const n = d.fotosCount||0;
-  return n>0 ? `<div class="foto-link" onclick="verFotosDoc('${d.clienteId||currentClienteId}','${d.id}')"><i class="fa-solid fa-camera"></i> ${n} ${n===1?'foto':'fotos'}</div>` : '';
+  return n>0 ? `<div class="foto-link" onclick="verFotosDoc('${d.clienteId||currentClienteId}','${d.id}')"><i class="fa-solid fa-camera"></i> ${n===1?'Ver foto':'Ver fotos'}</div>` : '';
 }
 async function verFotosDoc(cid, docId){
   try{
@@ -3111,7 +3111,7 @@ function showNotaPop(btn, id){
   if(!d || (!d.notas && !d.fotosCount) || mismo) return;
   const pop = document.createElement('div');
   pop.id = 'nota-pop'; pop.className = 'nota-pop'; pop.dataset.for = id;
-  pop.innerHTML = (d.notas? nl2br(d.notas) : '') + (d.fotosCount>0? `<div class="foto-link" onclick="verFotosDoc('${d.clienteId}','${d.id}')"><i class="fa-solid fa-camera"></i> ${d.fotosCount} ${d.fotosCount===1?'foto':'fotos'}</div>` : '');
+  pop.innerHTML = (d.notas? nl2br(d.notas) : '') + (d.fotosCount>0? `<div class="foto-link" onclick="verFotosDoc('${d.clienteId}','${d.id}')"><i class="fa-solid fa-camera"></i> ${d.fotosCount===1?'Ver foto':'Ver fotos'}</div>` : '');
   document.body.appendChild(pop);
   const r = btn.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
   let left = Math.min(Math.max(8, r.left + r.width/2 - w/2), window.innerWidth - w - 8);
