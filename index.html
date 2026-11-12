@@ -537,6 +537,8 @@ body.role-admin .doctype-btns button.pago{display:block}
           <option value="creacion">Última creada</option>
           <option value="nombre">Nombre (A-Z)</option>
           <option value="apellido">Apellido (A-Z)</option>
+          <option value="presupuestos">Presupuestos</option>
+          <option value="ventas">Ventas</option>
         </select>
       </div>
     </div>
@@ -1158,6 +1160,7 @@ auth.onAuthStateChanged(user=>{
     currentUserRole = null; currentUserUid = null;
     document.body.classList.remove('role-limited','role-admin','role-full');
     if(unsubClientas){ unsubClientas(); unsubClientas=null; }
+    clientasTieneStop(); clientasFiltro = '';
     deudasBadgeUnsubs.forEach(u=>u()); deudasBadgeUnsubs=[]; deudasBadgeIds={ars:null,usd:null};
     if(unsubDocs){ unsubDocs(); unsubDocs=null; }
     stopAllLive();
@@ -1270,9 +1273,34 @@ function goBackToClientas(){ showScreen('clientas'); renderClientasList(); }
 // Orden de la lista de clientas: por creación (la última creada arriba), por nombre o por apellido. Se recuerda en este dispositivo.
 let clientasSort = 'creacion';
 try{ const sv = localStorage.getItem('lv_clientas_sort'); if(sv==='nombre'||sv==='apellido'||sv==='creacion') clientasSort = sv; }catch(e){}
+let clientasFiltro = '', clientasTiene = {ventas:null, presupuestos:null}, unsubClientasTiene = [];
+// Qué tiene cada clienta (ventas / presupuestos / pagos), leído de las planillas globales. Solo se escucha mientras hay un filtro activo.
+function claveClienta(d){
+  if(d.clienteId) return d.clienteId;
+  const c = clientasCache.find(x=>normalize(x.nombre+' '+x.apellido)===normalize((d.clienteNombre||'')+' '+(d.clienteApellido||'')));
+  return c? c.id : null;
+}
+function clientasTieneStop(){ unsubClientasTiene.forEach(u=>u()); unsubClientasTiene = []; clientasTiene = {ventas:null, presupuestos:null}; }
+function clientasTieneStart(){
+  if(unsubClientasTiene.length) return;
+  const on = (col, k)=> db.collection(col).onSnapshot(SNAP_META, sn=>{
+    if(snapIncierto(sn)) return;
+    const m = {};
+    sn.docs.forEach(x=>{ const d = x.data(), id = claveClienta(d); if(!id) return; const f = m[id] || (m[id] = {venta:false, pago:false, presupuesto:false});
+      if(col==='presupuestos') f.presupuesto = true; else if(d.esSaldoMovimiento) f.pago = true; else f.venta = true; });
+    clientasTiene[k] = m; renderClientasList();
+  }, e=>{ console.error(e); clientasTiene[k] = {}; renderClientasList(); });
+  unsubClientasTiene = [on('ventas','ventas'), on('presupuestos','presupuestos')];
+}
+function clientasPasaFiltro(c){
+  if(!clientasFiltro) return true;
+  const f = (clientasTiene.ventas && clientasTiene.ventas[c.id]) || {}, g = (clientasTiene.presupuestos && clientasTiene.presupuestos[c.id]) || {};
+  const venta = !!f.venta, pago = !!f.pago, pres = !!g.presupuesto;
+  return clientasFiltro==='ventas' ? venta : (pres && !venta && !pago);
+}
 function setClientasSort(v){
-  clientasSort = v;
-  try{ localStorage.setItem('lv_clientas_sort', v); }catch(e){}
+  if(v==='ventas' || v==='presupuestos'){ clientasFiltro = v; clientasTieneStart(); }
+  else { clientasFiltro = ''; clientasSort = v; clientasTieneStop(); try{ localStorage.setItem('lv_clientas_sort', v); }catch(e){} }
   renderClientasList();
 }
 function clientasCmp(a,b){
@@ -1282,10 +1310,13 @@ function clientasCmp(a,b){
   return (b.createdAt||0)-(a.createdAt||0) || al(a.apellido,b.apellido);
 }
 function renderClientasList(){
-  const sel = document.getElementById('sort-select'); if(sel && sel.value!==clientasSort) sel.value = clientasSort;
+  const selV = clientasFiltro || clientasSort;
+  const sel = document.getElementById('sort-select'); if(sel && sel.value!==selV) sel.value = selV;
   const q = normalize(document.getElementById('search-input').value);
   const list = document.getElementById('clientas-list');
-  const filtered = clientasCache.filter(c=> !q || normalize(c.nombre+' '+c.apellido).includes(q)).sort(clientasCmp);
+  if(clientasFiltro && (!clientasTiene.ventas || !clientasTiene.presupuestos)){ list.innerHTML = '<div class="empty">Cargando…</div>'; return; }
+  const filtered = clientasCache.filter(c=> (!q || normalize(c.nombre+' '+c.apellido).includes(q)) && clientasPasaFiltro(c)).sort(clientasCmp);
+  if(clientasFiltro && !filtered.length){ list.innerHTML = `<div class="empty">No hay clientas ${clientasFiltro==='ventas'?'con ventas':'que solo tengan presupuestos'}.</div>`; return; }
   if(!filtered.length){ list.innerHTML = '<div class="empty">No hay clientas todavía.<br>Tocá el + para agregar la primera.</div>'; return; }
   list.innerHTML = filtered.map(c=>{
     const debt = (c.deudaARS>0||c.deudaUSD>0) ? {ars:c.deudaARS||0, usd:c.deudaUSD||0} : null;

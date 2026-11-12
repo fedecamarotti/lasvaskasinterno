@@ -41,6 +41,23 @@ with sync_playwright() as p:
     ok('orden por nombre (A-Z)', names()==sorted(names(), key=lambda n:n.lower()))
     ok('el orden se recuerda', ev("localStorage.getItem('lv_clientas_sort')")=='nombre')
     pg.select_option('#sort-select','creacion'); wait(100)
+    # filtros Presupuestos / Ventas
+    ev("""(()=>{const zid=Object.keys(window.__store).find(k=>k.startsWith('clientas/')&&k.split('/').length==2&&window.__store[k].apellido==='Zeta').split('/')[1];
+      window.__store['ventas/_fv1']={tipo:'venta',clienteId:'c1',productos:[],fecha:'2026-10-01'};
+      window.__store['presupuestos/_fp1']={tipo:'presupuesto',clienteId:'c1',productos:[],fecha:'2026-10-01'};
+      window.__store['presupuestos/_fp2']={tipo:'presupuesto',clienteId:'c2',productos:[],fecha:'2026-10-01'};
+      window.__store['presupuestos/_fp3']={tipo:'presupuesto',clienteId:zid,productos:[],fecha:'2026-10-01'};
+      window.__store['ventas/_fv3']={tipo:'venta',esSaldoMovimiento:true,clienteId:zid,productos:[],fecha:'2026-10-01'}; 0})()""")
+    pg.select_option('#sort-select','ventas'); wait(400)
+    ok('Filtro Ventas: solo las que tienen al menos una venta (aunque tengan presupuestos)', names()==['Lola Arana'])
+    pg.select_option('#sort-select','presupuestos'); wait(400)
+    ok('Filtro Presupuestos: solo las que tienen presupuestos y ninguna venta ni pago', names()==['Carola Cosentino'])
+    pg.fill('#search-input','zzz'); wait(100)
+    ok('Filtro + búsqueda: sin resultados muestra aviso', 'solo tengan presupuestos' in txt('#clientas-list'))
+    pg.fill('#search-input',''); 
+    pg.select_option('#sort-select','creacion'); wait(150)
+    ok('Volver al orden normal muestra todas', len(names())>=3 and ev("unsubClientasTiene.length")==0)
+    ev("['ventas/_fv1','presupuestos/_fp1','presupuestos/_fp2','presupuestos/_fp3','ventas/_fv3'].forEach(k=>delete window.__store[k]); 0")
     ok('clienta en store', ev("Object.values(window.__store).some(x=>x.apellido==='Zeta')"))
     # sin telefono
     ev("openClientaModal()"); wait(100)
