@@ -2714,6 +2714,12 @@ async function deudaClick(clienteId, ventaId){
   try{ await db.collection('ventas').doc(ventaId).delete(); markSaving(); }
   catch(e){ console.error(e); alert('No se pudo eliminar el registro. Revisá la consola.'); }
 }
+// ¿Pasaron 30 días (o más) desde la fecha de la compra?
+function deudaPasaron30Dias(fechaISO){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(fechaISO||'')) return false;
+  const f = new Date(+fechaISO.slice(0,4), +fechaISO.slice(5,7)-1, +fechaISO.slice(8,10)), h = new Date(); h.setHours(0,0,0,0);
+  return Math.round((h - f)/86400000) >= 30;
+}
 function renderDeudasList(items){
   const list = document.getElementById('deudas-list');
   if(!items.length){ list.innerHTML = '<div class="empty">No hay deudoras con saldo pendiente 🎉</div>'; return; }
@@ -2723,12 +2729,13 @@ function renderDeudasList(items){
   const resumen = `<div class="deudas-total"><span>Total deudas</span> <b>${fmtARS(totARS)}</b> / <b>${fmtUSD(totUSD)}</b></div>`;
   list.innerHTML = resumen + items.map(it=>{
     const debe = fmtDebtObj({ars:it.aPagarARS, usd:it.aPagarUSD});
-    const vencida = it.fechaPago && it.fechaPago < hoy;
+    const vencida30 = !it.fechaPago && deudaPasaron30Dias(it.fecha); // sin fecha de pago: vence a los 30 días de la compra
+    const vencida = (it.fechaPago && it.fechaPago < hoy) || vencida30;
     return `<div class="card ${vencida?'deuda-vencida':''}" onclick="deudaClick('${it.clienteId}','${it.id}')">
       <div>
         <div class="name">${esc(it.clienteNombre)} ${esc(it.clienteApellido)}</div>
         <div class="meta">${esc(it.clienteTelefono)}</div>
-        ${it.fechaPago? `<div class="deudora-fechapago">Fecha para saldar deuda: ${fmtDate(it.fechaPago)}</div>` : ''}
+        ${it.fechaPago? `<div class="deudora-fechapago">Fecha para saldar deuda: ${fmtDate(it.fechaPago)}</div>` : (vencida30? '<div class="deudora-fechapago">Vencidos los 30 días para el saldo de deuda</div>' : '')}
       </div>
       <div style="display:flex;align-items:center;gap:10px">
         <span style="color:#3a352c;font-weight:400;font-size:13px">${fmtDateShort(it.fecha)}</span>

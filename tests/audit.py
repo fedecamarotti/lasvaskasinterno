@@ -223,6 +223,12 @@ with sync_playwright() as p:
     ok('Eliminar clienta: también se borran sus registros globales (no quedan deudas fantasma)', ev("!window.__store['ventas/_g1'] && !window.__store['presupuestos/_g2']"))
     # deuda fantasma de una clienta que ya no existe: al tocarla se ofrece eliminarla
     ev("window.__store['ventas/_ghost']={tipo:'venta',clienteId:'ghost',clienteNombre:'Ani',clienteApellido:'Fantasma',aPagarARS:80,aPagarUSD:0,fecha:'2026-11-06',productos:[]}; openDeudas()"); wait(400)
+    ev("(()=>{const d=n=>{const x=new Date(); x.setDate(x.getDate()-n); return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')}; window.__store['ventas/_d30']={tipo:'venta',clienteId:'d30',clienteNombre:'Treinta',clienteApellido:'Dias',aPagarARS:500,aPagarUSD:0,fecha:d(31),productos:[]}; window.__store['ventas/_d29']={tipo:'venta',clienteId:'d29',clienteNombre:'Veintinueve',clienteApellido:'Dias',aPagarARS:500,aPagarUSD:0,fecha:d(29),productos:[]}; window.__store['ventas/_dfp']={tipo:'venta',clienteId:'dfp',clienteNombre:'ConFecha',clienteApellido:'Futura',aPagarARS:500,aPagarUSD:0,fecha:d(60),fechaPago:'2099-01-01',productos:[]}; 0})(); openDeudas()"); wait(400)
+    card=lambda n: ev("[...document.querySelectorAll('#deudas-list .card')].find(c=>c.innerText.includes('%s')).outerHTML"%n)
+    ok('Deudas: sin fecha de pago y +30 días de la compra → roja con "Vencidos los 30 días"', 'deuda-vencida' in card('Treinta') and 'Vencidos los 30 días para el saldo de deuda' in card('Treinta'))
+    ok('Deudas: sin fecha y menos de 30 días → normal, sin texto', 'deuda-vencida' not in card('Veintinueve') and 'Vencidos' not in card('Veintinueve'))
+    ok('Deudas: con fecha de pago futura no se pone roja aunque la compra sea vieja', 'deuda-vencida' not in card('ConFecha') and 'Fecha para saldar deuda' in card('ConFecha'))
+    ev("['ventas/_d30','ventas/_d29','ventas/_dfp'].forEach(k=>delete window.__store[k]); openDeudas()"); wait(300)
     ok('Deudas: aparece la deuda fantasma', 'Fantasma' in txt('#deudas-list'))
     ev("deudaClick('ghost','_ghost')"); wait(500)
     ok('Deudas: tocar una deuda de clienta inexistente permite eliminar el registro', ev("!window.__store['ventas/_ghost']") and 'Fantasma' not in txt('#deudas-list'))
