@@ -770,7 +770,7 @@ body.role-admin .doctype-btns button.pago{display:block}
       <div class="field"><label>Dirección</label><input id="clienta-direccion"></div>
     </div>
     <button class="btn btn-primary" style="width:100%;margin-top:6px" onclick="saveClienta()">Guardar</button>
-    <div id="clienta-delete-row" class="hidden" style="text-align:center;margin-top:14px">
+    <div id="clienta-delete-row" class="hidden" style="text-align:center;margin-top:14px"><!-- solo admin -->
       <button class="btn-danger" style="font-size:13px" onclick="deleteClienta()">Eliminar clienta</button>
     </div>
   </div>
@@ -1345,7 +1345,7 @@ function openClientaModal(existing){
   document.getElementById('clienta-dni').value = existing? existing.dni : '';
   document.getElementById('clienta-direccion').value = existing? existing.direccion : '';
   document.getElementById('clienta-modal-title').textContent = existing? 'Editar clienta' : 'Nueva clienta';
-  document.getElementById('clienta-delete-row').classList.toggle('hidden', !existing);
+  document.getElementById('clienta-delete-row').classList.toggle('hidden', !existing || currentUserRole!=='admin'); // eliminar clientas: solo el administrador
   openModal('modal-clienta');
 }
 function onlyDigits(v){ return String(v||'').replace(/\D/g,''); }
@@ -1407,6 +1407,7 @@ function saveClienta(){
   }
 }
 function deleteClienta(){
+  if(currentUserRole!=='admin'){ alert('Solo el administrador puede eliminar clientas.'); return; }
   const id = document.getElementById('clienta-id').value;
   if(!confirm('¿Eliminar esta clienta y todos sus documentos?')) return;
   const idx = clientasCache.findIndex(c=>c.id===id);
@@ -1604,7 +1605,7 @@ function openDocModal(tipo, existing){
   }
   recalcLiveTotal();
   recalcDeudaLive();
-  document.getElementById('doc-delete-row').classList.toggle('hidden', !existing);
+  document.getElementById('doc-delete-row').classList.toggle('hidden', !existing || currentUserRole!=='admin'); // eliminar ventas y presupuestos: solo el administrador
   openModal('modal-doc');
   document.querySelectorAll('#productos-container textarea').forEach(autoGrow);
 }
@@ -2123,6 +2124,7 @@ function medidasHTML(d){ const t = medidasTexto(d.medidas); return t? `<div clas
 function deleteDoc(){
   const id = document.getElementById('doc-id').value;
   const tipo = document.getElementById('doc-tipo').value;
+  if(currentUserRole!=='admin'){ alert('Solo el administrador puede eliminar ventas y presupuestos.'); return; }
   if(!id || !confirm('¿Eliminar este documento?')) return;
   const removed = docsCache.find(x=>x.id===id);
   closeModal('modal-doc');

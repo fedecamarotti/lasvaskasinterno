@@ -202,13 +202,24 @@ with sync_playwright() as p:
     ok('deudoras muestra', 'Arana' in txt('#deudas-list') or 'Amherdt' in txt('#deudas-list') or '$' in txt('#deudas-list'))
     # eliminar venta
     ev("openClienteDetail('c1')"); wait()
-    ev(f"openDocModal('venta', docsCache.find(d=>d.id==='{vid}'))"); wait(100); ev("deleteDoc()"); wait(300)
+    ev(f"openDocModal('venta', docsCache.find(d=>d.id==='{vid}'))"); wait(100)
+    ok('Eliminar venta/presupuesto: el botón solo lo ve el admin', ev("document.getElementById('doc-delete-row').classList.contains('hidden')")==(role!='admin'))
+    ev("deleteDoc()"); wait(300)
+    if role!='admin':
+        ok('Eliminar venta: full no puede (se bloquea y la venta sigue)', ev("docsCache.some(d=>d.tipo==='venta')") and ev("!!window.__store['ventas/%s']"%vid))
+        ev("closeModal('modal-doc'); closeModal('modal-preview'); removeDocFromCache('%s'); delete window.__store['ventas/%s']; delete window.__store['clientas/c1/documentos/%s']; refreshClienteDeudaFast('c1'); 0"%(vid,vid,vid)); wait(200)
     ok('venta eliminada', not ev("docsCache.some(d=>d.tipo==='venta')") and not ev("Object.keys(window.__store).some(k=>k==='ventas/%s')"%vid))
     # eliminar clienta
     ev("openClienteDetail('c2')"); wait()
     ev("window.__store['ventas/_g1']={tipo:'venta',clienteId:'c2',aPagarARS:80,productos:[],fecha:'2026-10-01'}; window.__store['presupuestos/_g2']={tipo:'presupuesto',clienteId:'c2',productos:[],fecha:'2026-10-01'}; 0")
-    ev("openClientaModal(currentClienteData)"); wait(100); ev("deleteClienta()"); wait(600)
-    ok('clienta eliminada', 'Cosentino' not in txt('#clientas-list'))
+    ev("openClientaModal(currentClienteData)"); wait(100)
+    ok('Eliminar clienta: el botón solo lo ve el admin', ev("document.getElementById('clienta-delete-row').classList.contains('hidden')")==(role!='admin'))
+    ev("deleteClienta()"); wait(600)
+    if role!='admin':
+        ok('Eliminar clienta: full no puede (se bloquea y la clienta sigue)', 'Cosentino' in ev("clientasCache.map(c=>c.apellido).join(' ')") and ev("!!window.__store['ventas/_g1']"))
+        ev("closeModal('modal-clienta'); clientasCache=clientasCache.filter(c=>c.id!=='c2'); ['ventas/_g1','presupuestos/_g2','clientas/c2'].forEach(k=>delete window.__store[k]); showScreen('clientas'); renderClientasList(); 0")
+    else:
+        ok('clienta eliminada', 'Cosentino' not in txt('#clientas-list'))
     ok('Eliminar clienta: también se borran sus registros globales (no quedan deudas fantasma)', ev("!window.__store['ventas/_g1'] && !window.__store['presupuestos/_g2']"))
     # deuda fantasma de una clienta que ya no existe: al tocarla se ofrece eliminarla
     ev("window.__store['ventas/_ghost']={tipo:'venta',clienteId:'ghost',clienteNombre:'Ani',clienteApellido:'Fantasma',aPagarARS:80,aPagarUSD:0,fecha:'2026-11-06',productos:[]}; openDeudas()"); wait(400)
@@ -744,6 +755,7 @@ with sync_playwright() as p:
     ev("cerrarVisorFoto()")
     ev("openClienteDetail('c1')"); wait(150)
     ev(f"openDocModal('venta', docsCache.find(x=>x.id==='{d['id']}'))"); wait(300); ev("deleteDoc()"); wait(500)
+    if role!='admin': ev("closeModal('modal-doc'); closeModal('modal-preview'); Object.keys(window.__store).filter(k=>k.includes('/documentos/%s')).forEach(k=>delete window.__store[k]); 0"%d['id'])
     ok('Foto: al eliminar el documento se borran sus fotos', len(ev(f"Object.keys(window.__store).filter(k=>k.startsWith('clientas/c1/documentos/{d['id']}/fotos/'))"))==0)
 
     # ================= Telas/Arreglos: carga en una sola línea y con Tab =================

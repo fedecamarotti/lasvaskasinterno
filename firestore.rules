@@ -20,22 +20,34 @@ service cloud.firestore {
       allow read, write: if esUsuarioDelSistema();
     }
 
+    function esAdmin() {
+      return esUsuarioDelSistema()
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
+    }
+
+    // Eliminar una clienta: solo el administrador (leer, crear y editar: todos los usuarios del sistema).
     match /clientas/{clientaId} {
-      allow read, write: if esUsuarioDelSistema();
+      allow read, create, update: if esUsuarioDelSistema();
+      allow delete: if esAdmin();
       match /documentos/{docId} {
-        allow read, write: if esUsuarioDelSistema();
+        allow read, create, update: if esUsuarioDelSistema();
+        // Ventas y presupuestos: solo el administrador puede eliminarlos (pagos y notas, cualquiera del sistema)
+        allow delete: if esAdmin() || (esUsuarioDelSistema() && !(resource.data.tipo in ['venta','presupuesto']));
         match /fotos/{fotoId} {
           allow read, write: if esUsuarioDelSistema();
         }
       }
     }
 
+    // Planillas globales de presupuestos y ventas: eliminar, solo el administrador.
     match /presupuestos/{id} {
-      allow read, write: if esUsuarioDelSistema();
+      allow read, create, update: if esUsuarioDelSistema();
+      allow delete: if esAdmin();
     }
 
     match /ventas/{id} {
-      allow read, write: if esUsuarioDelSistema();
+      allow read, create, update: if esUsuarioDelSistema();
+      allow delete: if esAdmin();
     }
 
     // Telas/Arreglos ("egresos"): lo carga el administrador; "full" solo puede leerlo y pasar registros a pagado desde Egresos.
