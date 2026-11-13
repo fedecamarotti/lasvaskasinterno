@@ -1419,7 +1419,11 @@ function deleteClienta(){
     const batch = db.batch();
     snap.docs.forEach(d=>batch.delete(d.ref));
     batch.delete(db.collection('clientas').doc(id));
-    const pr = batch.commit(); markSaving(); return pr;
+    // también sus registros en las planillas globales (si no, quedan "fantasmas" en Deudoras, Ventas y Presupuestos)
+    return Promise.all([db.collection('ventas').where('clienteId','==',id).get(), db.collection('presupuestos').where('clienteId','==',id).get()]).then(([sv, sp])=>{
+      sv.docs.forEach(d=>batch.delete(d.ref)); sp.docs.forEach(d=>batch.delete(d.ref));
+      const pr = batch.commit(); markSaving(); return pr;
+    });
   }).catch(err=>{
     console.error(err);
     alert('No se pudo eliminar la clienta. Revisá la consola.');
@@ -1443,6 +1447,7 @@ function openClienteDetail(id){
   if(!cached){
     db.collection('clientas').doc(id).get().then(doc=>{
       if(currentClienteId!==id) return;
+      if(!doc.exists){ alert('Esta clienta ya no existe.'); showScreen('clientas'); return; }
       currentClienteData = {id: doc.id, ...doc.data()};
       renderClientHeader();
       showScreen('cliente'); loadDocs();
@@ -2678,7 +2683,7 @@ function openDeudas(){
     [...snapARS.docs, ...snapUSD.docs].forEach(doc=>{
       if(map.has(doc.id)) return;
       const x = doc.data();
-      map.set(doc.id, {clienteId:x.clienteId, clienteNombre:x.clienteNombre, clienteApellido:x.clienteApellido,
+      map.set(doc.id, {id:doc.id, clienteId:x.clienteId, clienteNombre:x.clienteNombre, clienteApellido:x.clienteApellido,
         clienteTelefono:x.clienteTelefono||'', fecha:x.fecha, aPagarARS:x.aPagarARS||0, aPagarUSD:x.aPagarUSD||0, fechaPago:x.fechaPago||''});
     });
     const flat = Array.from(map.values()).sort((a,b)=> (a.fecha||'') < (b.fecha||'') ? -1 : (a.fecha||'') > (b.fecha||'') ? 1 : 0);
@@ -2696,6 +2701,17 @@ function openDeudas(){
     qUSD.onSnapshot(SNAP_META, sn=>{ if(snapIncierto(sn)) return; snapB = sn; intentar(); }, onErr)
   ];
 }
+// Abre la ficha de la clienta. Si la clienta ya no existe (por ejemplo se eliminó y quedó la deuda "fantasma"),
+// ofrece borrar ese registro de deuda.
+async function deudaClick(clienteId, ventaId){
+  if(clientasCache.some(c=>c.id===clienteId)){ openClienteDetail(clienteId); return; }
+  let existe = true;
+  try{ existe = (await db.collection('clientas').doc(clienteId).get()).exists; }catch(e){ console.error(e); }
+  if(existe){ openClienteDetail(clienteId); return; }
+  if(!confirm('Esta deuda pertenece a una clienta que ya no existe (se eliminó y quedó el registro).\n\n¿Eliminar este registro de deuda? No se puede deshacer.')) return;
+  try{ await db.collection('ventas').doc(ventaId).delete(); markSaving(); }
+  catch(e){ console.error(e); alert('No se pudo eliminar el registro. Revisá la consola.'); }
+}
 function renderDeudasList(items){
   const list = document.getElementById('deudas-list');
   if(!items.length){ list.innerHTML = '<div class="empty">No hay deudoras con saldo pendiente 🎉</div>'; return; }
@@ -2706,7 +2722,7 @@ function renderDeudasList(items){
   list.innerHTML = resumen + items.map(it=>{
     const debe = fmtDebtObj({ars:it.aPagarARS, usd:it.aPagarUSD});
     const vencida = it.fechaPago && it.fechaPago < hoy;
-    return `<div class="card ${vencida?'deuda-vencida':''}" onclick="openClienteDetail('${it.clienteId}')">
+    return `<div class="card ${vencida?'deuda-vencida':''}" onclick="deudaClick('${it.clienteId}','${it.id}')">
       <div>
         <div class="name">${esc(it.clienteNombre)} ${esc(it.clienteApellido)}</div>
         <div class="meta">${esc(it.clienteTelefono)}</div>

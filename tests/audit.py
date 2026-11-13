@@ -206,8 +206,15 @@ with sync_playwright() as p:
     ok('venta eliminada', not ev("docsCache.some(d=>d.tipo==='venta')") and not ev("Object.keys(window.__store).some(k=>k==='ventas/%s')"%vid))
     # eliminar clienta
     ev("openClienteDetail('c2')"); wait()
-    ev("openClientaModal(currentClienteData)"); wait(100); ev("deleteClienta()"); wait(400)
+    ev("window.__store['ventas/_g1']={tipo:'venta',clienteId:'c2',aPagarARS:80,productos:[],fecha:'2026-10-01'}; window.__store['presupuestos/_g2']={tipo:'presupuesto',clienteId:'c2',productos:[],fecha:'2026-10-01'}; 0")
+    ev("openClientaModal(currentClienteData)"); wait(100); ev("deleteClienta()"); wait(600)
     ok('clienta eliminada', 'Cosentino' not in txt('#clientas-list'))
+    ok('Eliminar clienta: también se borran sus registros globales (no quedan deudas fantasma)', ev("!window.__store['ventas/_g1'] && !window.__store['presupuestos/_g2']"))
+    # deuda fantasma de una clienta que ya no existe: al tocarla se ofrece eliminarla
+    ev("window.__store['ventas/_ghost']={tipo:'venta',clienteId:'ghost',clienteNombre:'Ani',clienteApellido:'Fantasma',aPagarARS:80,aPagarUSD:0,fecha:'2026-11-06',productos:[]}; openDeudas()"); wait(400)
+    ok('Deudas: aparece la deuda fantasma', 'Fantasma' in txt('#deudas-list'))
+    ev("deudaClick('ghost','_ghost')"); wait(500)
+    ok('Deudas: tocar una deuda de clienta inexistente permite eliminar el registro', ev("!window.__store['ventas/_ghost']") and 'Fantasma' not in txt('#deudas-list'))
     # CC: remito normal con totales; en movimientos solo texto en Producto
     ev("openClienteDetail('c1')"); wait()
     ev("openDocModal('venta')"); wait(100); ev("addProductoRow()")
@@ -574,7 +581,7 @@ with sync_playwright() as p:
         ok(f'{which}: al limpiar se vacían los filtros y el botón desaparece', ev(f"document.getElementById('{inp}').value")=='' and not vis())
 
     # ================= Orden de la ficha: más nuevo arriba =================
-    ev("""(()=>{const s=window.__store, b='clientas/c2/documentos/';
+    ev("""(()=>{const s=window.__store, b='clientas/c2/documentos/'; s['clientas/c2']={nombre:'Carola',apellido:'Cosentino',telefono:'1100000000',createdAt:1};
       s[b+'o1']={tipo:'presupuesto',fecha:'2026-09-23',createdAt:300,productos:[],totalEfvoARS:1,totalTarjARS:1};
       s[b+'o2']={tipo:'pago',fecha:'2026-10-13',createdAt:100,metodo:'EFVO_ARS',monto:5,lineas:[{metodo:'EFVO_ARS',monto:5}],refVentaId:null};
       s[b+'o3']={tipo:'venta',fecha:'2026-09-29',createdAt:200,productos:[],totalARS:1,totalUSD:0,aPagarARS:0,aPagarUSD:0,pagos:[]};
