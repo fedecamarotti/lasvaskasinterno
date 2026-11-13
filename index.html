@@ -239,6 +239,11 @@ table.p-detail tfoot tr.payrow td,table.p-detail tfoot tr.saldorow td,table.p-de
 .clear-filters{position:absolute;left:14px;top:50%;transform:translateY(-50%);background:#f2eee3;color:#3a352c;border-radius:20px;padding:7px 12px;font-size:11.5px;font-weight:600;font-family:'Montserrat',sans-serif;display:flex;align-items:center;gap:6px;white-space:nowrap}
 .clear-filters:hover{background:#e9e3d3}
 .clear-filters.hidden{display:none}
+.export-btn{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:#f2eee3;color:#3a352c;border-radius:20px;padding:7px 12px;font-size:11.5px;font-weight:600;font-family:'Montserrat',sans-serif;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.export-btn:hover{background:#e9e3d3}
+.export-btn[disabled]{opacity:.5;pointer-events:none}
+body.role-limited .export-btn{display:none}
+@media(max-width:700px){ .export-btn{right:8px;width:34px;height:34px;padding:0;justify-content:center;font-size:14px} .export-btn .cf-t{display:none} }
 @media(max-width:700px){ .clear-filters{left:8px;width:34px;height:34px;padding:0;justify-content:center;font-size:13px} .clear-filters .cf-t{display:none} }
 .sheet-wrap{overflow-x:auto;padding:10px}
 .conv-btn{color:#9a9285;border-color:#d9d2c0}
@@ -626,6 +631,7 @@ body.role-admin .doctype-btns button.pago{display:block}
     <button class="icon-btn" onclick="shiftMonth('venta',-1)"><i class="fa-solid fa-chevron-left"></i></button>
     <div id="venta-month-label" class="sheet-month-label"></div>
     <button class="icon-btn" onclick="shiftMonth('venta',1)"><i class="fa-solid fa-chevron-right"></i></button>
+    <button class="export-btn" id="venta-export-btn" title="Exportar a Excel lo que se ve en pantalla" onclick="exportarVentasExcel()"><i class="fa-solid fa-file-excel"></i><span class="cf-t">Exportar Excel</span></button>
   </div>
   <div class="sheet-wrap">
     <table class="sheet-table" id="venta-table">
@@ -2933,6 +2939,16 @@ function sheetOrderCmp(a,b){
   if(fa!==fb) return fa<fb? -1 : 1;
   return (a.createdAt||0)-(b.createdAt||0);
 }
+function ventaDocsFiltrados(){ // lo que se ve en la planilla de Ventas (mes + filtros)
+  return ventaSheetDocsRaw.filter(d=>
+    VENTA_COLS.every(col=>{
+      const el = document.getElementById('vf-'+col);
+      const q = el? normalize(el.value) : '';
+      if(!q) return true;
+      return normalize(ventaColText(d,col)).includes(q);
+    })
+  );
+}
 function applySheetFilters(which){
   if(which==='egresos'){ applyEgresosFilters(); return; }
   if(which==='gastos'){ applyGastosFilters(); return; }
@@ -2950,14 +2966,7 @@ function applySheetFilters(which){
     renderPresuFooter(filtered);
     syncClearFilters('presu');
   } else {
-    const filtered = ventaSheetDocsRaw.filter(d=>
-      VENTA_COLS.every(col=>{
-        const el = document.getElementById('vf-'+col);
-        const q = el? normalize(el.value) : '';
-        if(!q) return true;
-        return normalize(ventaColText(d,col)).includes(q);
-      })
-    );
+    const filtered = ventaDocsFiltrados();
     renderVentaSheet(filtered);
     renderVentaFooter(filtered);
     syncClearFilters('venta');
@@ -3188,6 +3197,94 @@ function renderVentaSheet(docs){
   });
   closeNotaPop();
   body.innerHTML = html;
+}
+/* =================== EXPORTAR VENTAS A EXCEL (una fila por prenda, costos en columnas) =================== */
+function ventaPagoTexto(d){ // igual que la celda "Mét. de pago" de la planilla, en texto
+  const sums = {};
+  (d.pagos||[]).filter(p=>!p.pagoDocId).forEach(p=>{ sums[p.metodo] = (sums[p.metodo]||0) + p.monto; });
+  const partes = Object.keys(sums).map(m=>`${METODO_SHEET_LABEL[m]||METODOS[m].label} ${METODOS[m].moneda==='USD'?fmtUSD(sums[m]):fmtARS(sums[m])}`);
+  if((d.aPagarARS||0)>0 || (d.aPagarUSD||0)>0) partes.push('Debe '+fmtDebtObj({ars:d.aPagarARS||0, usd:d.aPagarUSD||0}));
+  else if(d.saldado) partes.push(`Pagó ${d.saldadoMoneda==='USD'?fmtUSD(d.saldadoMonto):fmtARS(d.saldadoMonto)} ${fmtDateCorto(d.saldadoFecha)}`);
+  return partes.join(' · ');
+}
+// Arma encabezados y filas. Costos: Avíos (una columna, suma), Telas / Rufina nuevo / Rufina arreglos (una columna por línea;
+// la cantidad de columnas la define la prenda que más líneas tenga). En Rufina arreglos va la cantidad (no tienen importe).
+function ventasExportData(docs){
+  const filas = [];
+  docs.forEach(d=>{
+    (d.productos||[]).forEach((p,i)=>{
+      const sinImporte = !!(d.esSaldoMovimiento || p.texto || p.puntoVenta==='CC'); // Salda c/c y CC (Concepto C): no cuentan ni prenda ni valor
+      const f = {codigo:d.codigo||'', clienta:`${d.clienteNombre||''} ${d.clienteApellido||''}`.trim(), fecha:d.fecha, pv:d.puntoVenta||'',
+        prenda:p.desc||'', cant:null, valor:null, moneda:'', pago:ventaPagoTexto(d), avios:null, telas:[], rnuevo:[], rarreglo:[]};
+      if(!sinImporte){
+        f.cant = p.esArreglo ? null : (numDec(p.cant) || null);
+        f.valor = p.esArreglo ? (p.total||0) : (p.valorUnit||0);
+        f.moneda = p.moneda==='USD' ? 'USD' : 'ARS';
+        const costos = (p.costos||[]).map(c=>({tipo:provNorm(c.tipo), cant:numDec(c.cant)||0, total:c.total||0})).concat(costosDeEgresos(d, i).map(c=>({tipo:c.tipo, cant:c.cant, total:c.total})));
+        costos.forEach(c=>{
+          if(c.tipo==='Avíos') f.avios = (f.avios||0) + Math.round(c.total);
+          else if(c.tipo==='Telas') f.telas.push(Math.round(c.total));
+          else if(c.tipo==='Rufina nuevo') f.rnuevo.push(Math.round(c.total));
+          else if(c.tipo==='Rufina arreglos') f.rarreglo.push(c.cant);
+        });
+      }
+      filas.push(f);
+    });
+  });
+  const mx = k => filas.reduce((m,f)=>Math.max(m,f[k].length),0);
+  const nT = mx('telas'), nN = mx('rnuevo'), nA = mx('rarreglo');
+  const head = ['Código','Clienta','Fecha','Punto de venta','Prenda','Cantidad','Valor unitario','Moneda','Pago','Avíos']
+    .concat(Array.from({length:nT},(_,i)=>'Telas '+(i+1)), Array.from({length:nN},(_,i)=>'Rufina nuevo '+(i+1)), Array.from({length:nA},(_,i)=>'Rufina arreglos '+(i+1)));
+  const rows = filas.map(f=>[f.codigo,f.clienta,f.fecha,f.pv,f.prenda,f.cant,f.valor,f.moneda,f.pago,f.avios]
+    .concat(Array.from({length:nT},(_,i)=>f.telas[i]??null), Array.from({length:nN},(_,i)=>f.rnuevo[i]??null), Array.from({length:nA},(_,i)=>f.rarreglo[i]??null)));
+  return {head, rows};
+}
+function ventasExcelBuild(ExcelJS, data, nombreHoja){
+  const wb = new ExcelJS.Workbook(), ws = wb.addWorksheet(nombreHoja);
+  ws.addRow(data.head);
+  const colorDe = n => n==='Avíos' ? 'FFA08A55' : /^Telas/.test(n) ? 'FF6F8FB3' : /^Rufina nuevo/.test(n) ? 'FF7A4F9C' : /^Rufina arreglos/.test(n) ? 'FFB35C85' : 'FF3A352C';
+  const borde = {bottom:{style:'thin', color:{argb:'FFE3DDD0'}}};
+  data.rows.forEach(r=>{
+    const fecha = /^\d{4}-\d{2}-\d{2}$/.test(r[2]||'') ? new Date(Date.UTC(+r[2].slice(0,4), +r[2].slice(5,7)-1, +r[2].slice(8,10))) : (r[2]||'');
+    const row = ws.addRow(r.map((v,i)=> i===2 ? fecha : (v===null||v===undefined ? null : v)));
+    row.eachCell({includeEmpty:true}, c=>{ c.border = borde; });
+    row.getCell(3).numFmt = 'dd/mm/yyyy';
+    for(let i=6;i<=data.head.length;i++) if(i!==8 && i!==9) row.getCell(i).numFmt = '#,##0.##';
+  });
+  const h = ws.getRow(1); h.height = 30;
+  h.eachCell((c,i)=>{ c.font = {bold:true, color:{argb:'FFFFFFFF'}}; c.fill = {type:'pattern', pattern:'solid', fgColor:{argb:colorDe(data.head[i-1])}}; c.alignment = {horizontal:'center', vertical:'middle', wrapText:true}; });
+  const anchos = {'Código':8,'Clienta':22,'Fecha':12,'Punto de venta':18,'Prenda':28,'Cantidad':9,'Valor unitario':14,'Moneda':9,'Pago':38};
+  data.head.forEach((n,i)=>{ ws.getColumn(i+1).width = anchos[n]||14; });
+  ws.views = [{state:'frozen', xSplit:5, ySplit:1}];
+  ws.autoFilter = {from:{row:1,column:1}, to:{row:1,column:data.head.length}};
+  return wb;
+}
+let exceljsPromesa = null;
+function cargarExcelJS(){
+  if(window.ExcelJS) return Promise.resolve(window.ExcelJS);
+  if(!exceljsPromesa) exceljsPromesa = new Promise((res,rej)=>{
+    const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
+    sc.onload = ()=> window.ExcelJS ? res(window.ExcelJS) : rej(new Error('sin ExcelJS')); sc.onerror = ()=>{ exceljsPromesa = null; rej(new Error('no cargó')); };
+    document.head.appendChild(sc);
+  });
+  return exceljsPromesa;
+}
+async function exportarVentasExcel(){
+  if(currentUserRole==='limitado') return;
+  const btn = document.getElementById('venta-export-btn');
+  const docs = ventaDocsFiltrados().slice().sort(sheetOrderCmp);
+  if(!docs.length){ alert('No hay ventas en la vista para exportar.'); return; }
+  btn.setAttribute('disabled','');
+  try{
+    const ExcelJS = await cargarExcelJS();
+    const m = ventaMonth, mes = `${m.getFullYear()}-${String(m.getMonth()+1).padStart(2,'0')}`;
+    const wb = ventasExcelBuild(ExcelJS, ventasExportData(docs), 'Ventas '+mes);
+    const buf = await wb.xlsx.writeBuffer();
+    const url = URL.createObjectURL(new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+    const a = document.createElement('a'); a.href = url; a.download = `ventas-${mes}.xlsx`; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
+  }catch(e){ console.error(e); alert('No se pudo generar el Excel. Revisá la conexión a internet e intentá de nuevo.'); }
+  btn.removeAttribute('disabled');
 }
 // Mini desplegable con la nota de una venta (se abre con el botón del ojo en la planilla)
 function closeNotaPop(){ const p = document.getElementById('nota-pop'); if(p) p.remove(); }

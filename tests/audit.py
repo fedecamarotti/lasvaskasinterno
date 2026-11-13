@@ -632,6 +632,39 @@ with sync_playwright() as p:
     ok('Planilla: el ojito muestra solo la nota interna', 'cliente complicada' in txt('#nota-pop') and 'viernes' not in txt('#nota-pop'))
     ev("closeNotaPop()")
 
+    # ================= Exportar ventas a Excel =================
+    ev("openVentasSheet()"); wait(300)
+    ok('Exportar: botón visible para admin/full', ev("getComputedStyle(document.getElementById('venta-export-btn')).display")!='none')
+    ev("document.body.classList.add('role-limited')")
+    ok('Exportar: oculto para limitado (Juli)', ev("getComputedStyle(document.getElementById('venta-export-btn')).display")=='none')
+    ev("document.body.classList.remove('role-limited')")
+    ev("""(()=>{
+      ventaSheetDocsRaw=[
+        {id:'x1',tipo:'venta',codigo:'0901',clienteNombre:'Lola',clienteApellido:'Arana',fecha:'2026-11-03',puntoVenta:'Belgrano',pagos:[{metodo:'EFVO_ARS',monto:50000},{metodo:'TRBF',monto:35000}],aPagarARS:0,aPagarUSD:0,
+         productos:[{desc:'Vestido largo',cant:'1',valorUnit:85000,total:85000,moneda:'ARS',costos:[{tipo:'Avíos',cant:1,valor:5000,total:5000}]},
+                    {desc:'Saco',cant:'2',valorUnit:30000,total:60000,moneda:'ARS',costos:[{tipo:'Avíos',cant:2,valor:5000,total:10000},{tipo:'Rufina arreglos',cant:3,valor:0,total:3}]}]},
+        {id:'x2',tipo:'venta',codigo:'0902',clienteNombre:'Ana',clienteApellido:'Zeta',fecha:'2026-11-05',puntoVenta:'CC',pagos:[],aPagarARS:0,aPagarUSD:0,
+         productos:[{desc:'Camisa para Concepto C',cant:'5',valorUnit:9000,total:45000,puntoVenta:'CC'}]},
+        {id:'x3',tipo:'venta',esSaldoMovimiento:true,codigo:'-',clienteNombre:'Lola',clienteApellido:'Arana',fecha:'2026-11-06',puntoVenta:'Salda c/c',pagos:[{metodo:'EFVO_ARS',monto:20000}],aPagarARS:0,aPagarUSD:0,
+         productos:[{desc:'Salda deuda del 03/11',cant:'-',valorUnit:'-',total:'-'}]},
+        {id:'x4',tipo:'venta',codigo:'0903',clienteNombre:'Bea',clienteApellido:'Yy',fecha:'2026-11-07',puntoVenta:'Belgrano',pagos:[{metodo:'EFVO_USD',monto:120}],aPagarARS:0,aPagarUSD:0,
+         productos:[{desc:'Blazer',cant:'1',valorUnit:120,total:120,moneda:'USD'},{desc:'Arreglo dobladillo',esArreglo:true,total:8000,moneda:'ARS'}]}];
+      egresosAll=[{id:'e1',lineas:[{ventaId:'x1',prenda:'Vestido largo',proveedor:'Telas',cant:'2',valor:9000},{ventaId:'x1',prenda:'Vestido largo',proveedor:'Telas',cant:'1',valor:7500},{ventaId:'x1',prenda:'Vestido largo',proveedor:'Rufina nuevo',cant:'1',valor:12000},{ventaId:'x4',prenda:'Blazer',proveedor:'Telas',cant:'1',valor:11000}]}];
+      0})()""")
+    ex=ev("ventasExportData(ventaSheetDocsRaw)")
+    H=ex['head']; R=ex['rows']
+    ok('Exportar: columnas en orden y crecen según la prenda con más líneas', H==['Código','Clienta','Fecha','Punto de venta','Prenda','Cantidad','Valor unitario','Moneda','Pago','Avíos','Telas 1','Telas 2','Rufina nuevo 1','Rufina arreglos 1'])
+    ok('Exportar: una fila por prenda (6 filas)', len(R)==6)
+    ok('Exportar: costos del vestido (avíos, 2 telas, rufina nuevo)', R[0][9]==5000 and R[0][10]==18000 and R[0][11]==7500 and R[0][12]==12000 and R[0][13] is None)
+    ok('Exportar: Pago repetido en todas las filas de la venta', R[0][8]==R[1][8] and 'Efectivo $50.000' in R[0][8] and 'Transf. BF $35.000' in R[0][8])
+    ok('Exportar: avíos se suman y arreglos de Rufina van por cantidad', R[1][9]==10000 and R[1][13]==3 and R[1][5]==2 and R[1][6]==30000)
+    ok('Exportar: CC (Concepto C) queda sin cantidad, valor ni costos', R[2][4]=='Camisa para Concepto C' and R[2][5] is None and R[2][6] is None and R[2][7]=='' and R[2][9] is None)
+    ok('Exportar: Salda c/c incluido sin valor', R[3][3]=='Salda c/c' and R[3][6] is None and 'Efectivo $20.000' in R[3][8])
+    bl=[r for r in R if r[4]=='Blazer'][0]; ar=[r for r in R if r[4]=='Arreglo dobladillo'][0]
+    ok('Exportar: blazer en USD con su tela', bl[7]=='USD' and bl[6]==120 and bl[10]==11000)
+    ok('Exportar: arreglo sin cantidad y con el importe en valor unitario', ar[5] is None and ar[6]==8000 and ar[7]=='ARS')
+    ev("ventaSheetDocsRaw=[]; egresosAll=[]; renderSheetSeguro('venta'); 0")
+
     # ================= Medidas =================
     ev("openClienteDetail('c1')"); wait(150)
     ev("openDocModal('venta')"); wait(100); ev("addProductoRow()")
