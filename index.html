@@ -3220,7 +3220,10 @@ function ventasExportData(docs){
         f.cant = p.esArreglo ? null : (numDec(p.cant) || null);
         f.valor = p.esArreglo ? (p.total||0) : (p.valorUnit||0);
         f.moneda = p.moneda==='USD' ? 'USD' : 'ARS';
-        const costos = (p.costos||[]).map(c=>({tipo:provNorm(c.tipo), cant:numDec(c.cant)||0, total:c.total||0})).concat(costosDeEgresos(d, i).map(c=>({tipo:c.tipo, cant:c.cant, total:c.total})));
+        const propios = (p.costos||[]).map(c=>({tipo:provNorm(c.tipo), cant:numDec(c.cant)||0, total:c.total||0}));
+        // Igual que al abrir los costos de una prenda: si nunca se guardaron, los avíos aparecen precargados ($5.000 por unidad)
+        if(!p.costosInit && !p.esArreglo && !propios.some(c=>c.tipo==='Avíos')){ const cu = numDec(p.cant); if(cu>0) propios.unshift({tipo:'Avíos', cant:cu, total:cu*AVIOS_UNIT}); }
+        const costos = propios.concat(costosDeEgresos(d, i).map(c=>({tipo:c.tipo, cant:c.cant, total:c.total})));
         costos.forEach(c=>{
           if(c.tipo==='Avíos') f.avios = (f.avios||0) + Math.round(c.total);
           else if(c.tipo==='Telas') f.telas.push(Math.round(c.total));

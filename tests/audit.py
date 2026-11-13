@@ -661,8 +661,11 @@ with sync_playwright() as p:
     ok('Exportar: CC (Concepto C) queda sin cantidad, valor ni costos', R[2][4]=='Camisa para Concepto C' and R[2][5] is None and R[2][6] is None and R[2][7]=='' and R[2][9] is None)
     ok('Exportar: Salda c/c incluido sin valor', R[3][3]=='Salda c/c' and R[3][6] is None and 'Efectivo $20.000' in R[3][8])
     bl=[r for r in R if r[4]=='Blazer'][0]; ar=[r for r in R if r[4]=='Arreglo dobladillo'][0]
-    ok('Exportar: blazer en USD con su tela', bl[7]=='USD' and bl[6]==120 and bl[10]==11000)
+    ok('Exportar: blazer en USD con su tela', bl[7]=='USD' and bl[6]==120 and bl[10]==11000 and bl[9]==5000)
+    ok('Exportar: arreglo cobrado no lleva avíos precargados', ar[9] is None)
     ok('Exportar: arreglo sin cantidad y con el importe en valor unitario', ar[5] is None and ar[6]==8000 and ar[7]=='ARS')
+    r2=ev("ventasExportData([{id:'z',codigo:'1012',clienteNombre:'A',clienteApellido:'B',fecha:'2026-11-09',puntoVenta:'Belgrano',pagos:[],productos:[{desc:'Vestido',cant:'2',valorUnit:1000,total:2000,moneda:'ARS',costosInit:true,costos:[]},{desc:'Falda',cant:'2',valorUnit:1000,total:2000,moneda:'ARS'}]}])")['rows']
+    ok('Exportar: avíos precargados ($5.000 x unidad) solo si los costos nunca se guardaron', r2[0][9] is None and r2[1][9]==10000)
     ev("ventaSheetDocsRaw=[]; egresosAll=[]; renderSheetSeguro('venta'); 0")
 
     # ================= Medidas =================
